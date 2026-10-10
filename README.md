@@ -6,7 +6,7 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 > Diseñado como herramienta educativa y de análisis. **No** ejecuta órdenes, no toca tu dinero
 > y usa **solo la API pública** de Binance (sin API keys).
 
-## 🔍 Qué analiza (v2 PRO)
+## 🔍 Qué analiza (v3)
 
 | Marco | Señales |
 |---|---|
@@ -20,7 +20,34 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 - **Sentimiento de futuros**: funding rate, open interest y ratio taker long/short.
 - **Régimen de volatilidad**: percentil de ATR (vivo/dormido).
 - **Momento probable**: distancia en horas por ATR, próxima apertura de sesión, cierre 4H, compresión.
-- **Robustez**: reintentos ante fallos de API, degradación elegante y aviso a Telegram si algo falla.
+- **🚨 Alertas inteligentes**: solo escribe si hay señal (cambio de dirección, confianza alta,
+  toque de nivel) + resumen en aperturas de Londres/NY. Sin ruido.
+- **😨🤑 Miedo/Codicia 0-100**: RSI 1D, funding, taker L/S, volatilidad, tendencia, 24h.
+- **📰 Noticias con peso**: prensa crypto filtrada por impacto real en BTC, cada una explicada
+  en simple + impacto estimado (rango histórico de referencia, **no** predicción).
+- **🗓 Eventos futuros**: calendario macro EE.UU. (FOMC, CPI, empleo...) con cuenta regresiva.
+- **🎯 Precisión calibrada**: sin señales duplicadas (1 por dirección cada 4 h), umbral de acierto
+  relativo al ATR y % visible solo con muestra mínima (5 señales).
+- **🎯 Plan de entrada**: gatillo + stop + objetivo 2R + guardia de eventos + regla del 1%.
+- **⛽ Combustible del día, ⚠️ funding extremo y 📈 mini-gráfico 24h** en cada parte.
+
+## ⏰ Ritmo por sesiones (NY manda)
+
+| Sesión | Ritmo | Qué manda |
+|---|---|---|
+| 📊 Pre-NY 13:00 UTC | 1 reporte | Detallado completo, 30 min antes de la apertura |
+| ⚡ NY caliente 13–17 UTC | cada 5 min | Compacto en vivo; completo si hay alerta |
+| 🌇 NY tarde 17–21 UTC | cada 15 min | Alertas + resumen de cierre 21:00 |
+| 🌙 Madrugada | cada 2 h | Solo si hay alerta |
+| 🌙 07:00 UTC (= 02:00 Colombia) | 1 | Resumen nocturno: cómo le fue a la noche |
+- **💬 Compañero que conversa**: tono cercano con narrativa del "qué está pasando", memoria
+  ("tercera vez que toca ese nivel hoy", "vs ayer +1.2%", "el funding se calentó"),
+  mini-lecciones en cada parte, buenos días / mediodía / buenas noches.
+- **⌨️ Chat en 2 vías (con retardo)**: escríbele `/precio`, `/direccion`, `/niveles`,
+  `/miedo`, `/noticias`, `/eventos` o `/precision` y te responde en la siguiente pasada
+  (máx ~30 min). Solo obedece a tu chat.
+- **Robustez**: reintentos ante fallos de API, espejo de datos si Binance bloquea la red,
+  degradación elegante y aviso a Telegram si algo falla.
 
 ## 📦 Componentes
 
