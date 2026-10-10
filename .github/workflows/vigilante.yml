@@ -1,0 +1,27 @@
+name: Vigilante BTC Cloud
+
+on:
+  schedule:
+    - cron: '0,30 7-21 * * *'   # cada 30 min entre 07:00 y 21:00 UTC (sesiones Londres + NY)
+  workflow_dispatch:            # permite lanzarlo a mano desde la pestana Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vigilante
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Ejecutar vigilante (analisis + Telegram)
+        run: python vigilante_cloud.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
