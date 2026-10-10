@@ -31,8 +31,10 @@ import os
 import time
 import urllib.request
 
-BASE = "https://fapi.binance.com/fapi/v1"
-DATA = "https://fapi.binance.com/futures/data"
+FAPI = "https://fapi.binance.com/fapi/v1"
+FDATA = "https://fapi.binance.com/futures/data"
+VISION = "https://data-api.binance.vision/api/v3"  # espejo publico solo-datos (donde Binance bloquea)
+FUENTE = {"nombre": "futuros"}
 
 
 def fetch(url, timeout=20, tries=3):
@@ -51,7 +53,12 @@ def fetch(url, timeout=20, tries=3):
 
 
 def klines(interval, limit):
-    data = fetch(f"{BASE}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}")
+    try:
+        data = fetch(f"{FAPI}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}")
+    except Exception:
+        # Fallback: espejo publico de solo-datos (redes/paises donde Binance bloquea)
+        data = fetch(f"{VISION}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}", tries=2)
+        FUENTE["nombre"] = "spot"
     return [
         {
             "t": datetime.datetime.fromtimestamp(k[0] / 1000, datetime.timezone.utc),
@@ -63,7 +70,11 @@ def klines(interval, limit):
 
 
 def ticker24():
-    t = fetch(f"{BASE}/ticker/24hr?symbol=BTCUSDT")
+    try:
+        t = fetch(f"{FAPI}/ticker/24hr?symbol=BTCUSDT")
+    except Exception:
+        t = fetch(f"{VISION}/ticker/24hr?symbol=BTCUSDT", tries=2)
+        FUENTE["nombre"] = "spot"
     return {
         "last": float(t["lastPrice"]),
         "chg": float(t["priceChangePercent"]),
@@ -76,17 +87,17 @@ def sentiment():
     """Sentimiento de futuros (endpoints publicos). Fallo parcial = n/d."""
     out = {"funding": None, "oi": None, "taker": None}
     try:
-        f = fetch(f"{BASE}/premiumIndex?symbol=BTCUSDT")
+        f = fetch(f"{FAPI}/premiumIndex?symbol=BTCUSDT", tries=1)
         out["funding"] = round(float(f["lastFundingRate"]) * 100, 4)
     except Exception:
         pass
     try:
-        oi = fetch(f"{BASE}/openInterest?symbol=BTCUSDT")
+        oi = fetch(f"{FAPI}/openInterest?symbol=BTCUSDT", tries=1)
         out["oi"] = float(oi["openInterest"])
     except Exception:
         pass
     try:
-        t = fetch(f"{DATA}/takerlongshortRatio?symbol=BTCUSDT&period=1h&limit=1")
+        t = fetch(f"{FDATA}/takerlongshortRatio?symbol=BTCUSDT&period=1h&limit=1", tries=1)
         if t:
             out["taker"] = round(float(t[-1]["buySellRatio"]), 3)
     except Exception:
@@ -333,6 +344,7 @@ def build_parte(t, h1, h4, d1, w1, pd, pw, niv, dirb, prox, senti):
 
     L = []
     L.append("🤖 VIGILANTE BTC v2 PRO")
+    L.append(f"📡 Datos: {FUENTE['nombre']} (Binance)")
     L.append(f"📅 {now}  |  {sesion_hora()}")
     L.append("=================================")
     L.append(f"💰 PRECIO: {fmt_miles(t['last'])}  ({t['chg']:+.2f}% 24h)")
@@ -414,7 +426,7 @@ def main():
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
     except Exception as e:  # noqa: BLE001
-        err = f"⚠️ El Vigilante fallo: {e}"
+        err = f"⚠️ El Vigilante fallo: {e} (si es Telegram 400: revisa Chat ID, pulsa Start en tu bot y verifica el token)"
         try:
             print(err)
         except UnicodeEncodeError:
