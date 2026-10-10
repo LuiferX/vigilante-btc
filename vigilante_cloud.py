@@ -263,6 +263,8 @@ DEDUP_HORAS = 4          # misma direccion en 4 h = 1 sola senal (sin duplicados
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
 MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 FUNDING_EXTREMO = 0.05   # |funding| >= 0.05% = un lado recargado (lectura contrarian)
+UMBRAL_BRUSCO = 1.0      # +/-1% en 1h = movimiento brusco (ballenas/noticias)
+UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 
 
 def fetch(url, timeout=20, tries=3):
@@ -306,6 +308,7 @@ def ticker24():
         "chg": float(t["priceChangePercent"]),
         "hi": float(t["highPrice"]),
         "lo": float(t["lowPrice"]),
+        "vol": float(t.get("volume", 0) or 0),
     }
 
 
@@ -696,7 +699,7 @@ def leer_comandos(offset):
             txt = (m.get("text") or "").strip()
             cid = (m.get("chat") or {}).get("id")
             if txt.startswith("/"):
-                msgs.append({"chat": cid, "texto": txt.split()[0].lower(),
+                msgs.append({"chat": cid, "texto": txt.split()[0].lower(), "full": txt,
                              "nombre": ((m.get("from") or {}).get("first_name") or "")})
         return msgs, new_off
     except Exception:
@@ -704,49 +707,535 @@ def leer_comandos(offset):
 
 
 def responder_comando(cmd, ctx):
-    """Solo responde al dueño (seguridad: verifica el chat)."""
+    """Solo responde al dueño (seguridad: verifica el chat). Devuelve (texto, dirty)."""
     chat_ok = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     if str(cmd["chat"]) != str(chat_ok):
-        return None
+        return None, False
     c = cmd["texto"]
     t = ctx["t"]
     dirb = ctx["dirb"]
     niv = ctx["niv"]
     fg = ctx["fg"]
     est = ctx["est"]
+    ahora = ctx["ahora"]
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
     if c == "/precio":
         return (f"BTC ahora: {fmt_miles(t['last'])} ({t['chg']:+.2f}% 24h). "
-                f"Rango del día: {fmt_miles(t['lo'])} - {fmt_miles(t['hi'])}.")
+                f"Rango del día: {fmt_miles(t['lo'])} - {fmt_miles(t['hi'])}.", False)
     if c == "/direccion":
         return (f"Dirección: {dirb['bias']} (confianza {dirb['confianza']}%). "
                 f"1H {ctx['h1']['tend']}, 4H {ctx['h4']['tend']}, "
-                f"1D {ctx['d1']['tend']}, 1S {ctx['w1']['tend']}.")
+                f"1D {ctx['d1']['tend']}, 1S {ctx['w1']['tend']}.", False)
     if c == "/niveles":
         return ("Soportes: " + " | ".join(fmt_miles(x['precio']) for x in niv['soportes']) +
-                "\nResistencias: " + " | ".join(fmt_miles(x['precio']) for x in niv['resistencias']))
+                "\nResistencias: " + " | ".join(fmt_miles(x['precio']) for x in niv['resistencias']), False)
     if c == "/miedo":
         ff = f"{ctx['senti']['funding']:+.4f}%" if ctx['senti']['funding'] is not None else "n/d"
         tk = ctx['senti']['taker'] if ctx['senti']['taker'] is not None else "n/d"
-        return f"{fg['etiqueta']}: {fg['valor']}/100 (RSI 1D {ctx['d1']['rsi']}, funding {ff}, taker {tk})."
+        return (f"{fg['etiqueta']}: {fg['valor']}/100 (RSI 1D {ctx['d1']['rsi']}, funding {ff}, taker {tk}).", False)
     if c == "/noticias":
         ns = ctx["notis"][:3]
         if not ns:
-            return "Sin noticias relevantes ahora mismo."
-        return "Top noticias:\n" + "\n".join(f"• [{n['score']}] {n['titulo']}" for n in ns)
+            return ("Sin noticias relevantes ahora mismo.", False)
+        return ("Top noticias:\n" + "\n".join(f"• [{n['score']}] {n['titulo']}" for n in ns), False)
     if c == "/eventos":
         evs = ctx["evs"][:3]
         if not evs:
-            return "Sin eventos fuertes esta semana."
-        return "Próximos eventos:\n" + "\n".join(
-            f"• {e['titulo']} ({e['cuando'].strftime('%a %d %H:%M')} UTC)" for e in evs)
+            return ("Sin eventos fuertes esta semana.", False)
+        return ("Próximos eventos:\n" + "\n".join(
+            f"• {e['titulo']} ({e['cuando'].strftime('%a %d %H:%M')} UTC)" for e in evs), False)
     if c == "/precision":
-        return (f"Precisión: ALZA {prec_str(est.get('alza', []))} · "
+        base = (f"Precisión: ALZA {prec_str(est.get('alza', []))} · "
                 f"BAJA {prec_str(est.get('baja', []))}.")
+        aut = ctx.get("aut")
+        if aut:
+            base += (f"\nAuto: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · "
+                     f"peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}.")
+        return (base, False)
+    if c == "/manos":
+        sm = ctx.get("smart")
+        if not sm:
+            return ("Sin datos de flujos ahora.", False)
+        return ((f"Instituciones {sm['inst']}/100 · Minoristas {sm['ret']}/100.\n" + sm["veredicto"]), False)
+    if c == "/alerta":
+        parts = cmd.get("full", "").split()
+        if len(parts) != 2:
+            return ("Uso: /alerta 85000 (te aviso al tocarlo).", False)
+        try:
+            px = float(parts[1])
+        except Exception:
+            return ("Precio inválido.", False)
+        if px <= 0:
+            return ("Precio debe ser > 0.", False)
+        d = "sube" if px >= t["last"] else "baja"
+        al = est.get("mis_alertas", [])
+        al.append({"precio": px, "dir": d})
+        est["mis_alertas"] = al
+        verbo = "suba a" if d == "sube" else "baje a"
+        return (f"Alerta creada: te aviso cuando BTC {verbo} {fmt_miles(px)}.", True)
+    if c == "/alertas":
+        al = est.get("mis_alertas", [])
+        if not al:
+            return ("Sin alertas de precio. Crea con /alerta 85000.", False)
+        return (("Tus alertas:\n" + "\n".join(f"• {fmt_miles(a['precio'])} ({a['dir']})" for a in al)), False)
+    if c == "/borrar":
+        est["mis_alertas"] = []
+        return ("Alertas de precio borradas.", True)
+    if c == "/opere":
+        parts = cmd.get("full", "").split()
+        if len(parts) != 5:
+            return ("Uso: /opere LONG|SHORT entrada stop tp (ej: /opere LONG 83000 82500 84000).", False)
+        d = parts[1].upper()
+        if d not in ("LONG", "SHORT"):
+            return ("Dirección: LONG o SHORT.", False)
+        try:
+            e, s, tp = float(parts[2]), float(parts[3]), float(parts[4])
+        except Exception:
+            return ("Números inválidos.", False)
+        if not (e > 0 and s > 0 and tp > 0):
+            return ("Precios deben ser > 0.", False)
+        ops = est.get("ops", [])
+        ops.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
+        est["ops"] = ops
+        return ((f"Registrada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}). "
+                 "Te aviso al cerrar."), True)
+    if c == "/voy":
+        ops = est.get("ops", [])
+        if not ops:
+            return ("Sin operaciones abiertas.", False)
+        lines = []
+        for o in ops:
+            e, s = o["entrada"], o["stop"]
+            riesgo = abs(e - s) or 1
+            rr = (t["last"] - e) / riesgo if o["dir"] == "LONG" else (e - t["last"]) / riesgo
+            lines.append(f"{o['dir']} {fmt_miles(e)}: {rr:+.1f}R ahora (SL {fmt_miles(s)} / TP {fmt_miles(o['tp'])})")
+        return ("\n".join(lines), False)
+    if c == "/diario":
+        j = est.get("journal", [])
+        if not j:
+            return ("Diario vacío: registra con /opere LONG entrada stop tp.", False)
+        w = sum(1 for x in j if x.get("r", 0) > 0)
+        tr = round(sum(x.get("r", 0) for x in j), 1)
+        return (f"Diario: {len(j)} ops · ganadas {w} ({round(w / len(j) * 100)}%) · total {tr:+.1f}R.", False)
+    if c == "/cerrar":
+        ops = est.get("ops", [])
+        if not ops:
+            return ("No hay operaciones abiertas.", False)
+        j = est.get("journal", [])
+        outs = []
+        for o in ops:
+            e, s = o["entrada"], o["stop"]
+            riesgo = abs(e - s) or 1
+            rr = (t["last"] - e) / riesgo if o["dir"] == "LONG" else (e - t["last"]) / riesgo
+            j.append({"dir": o["dir"], "res": "MANUAL", "r": round(rr, 2), "t": ahora.isoformat()})
+            outs.append(f"{o['dir']} cerrada en {fmt_miles(t['last'])} ({rr:+.1f}R)")
+        est["ops"] = []
+        est["journal"] = j[-50:]
+        return ("\n".join(outs), True)
     hola = f" Hola {cmd['nombre']}." if cmd['nombre'] else " Hola."
-    return (hola + " Te respondo en cada pasada (máx ~30 min).\n"
-            "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision")
+    return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
+             "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /manos "
+             "/alerta /alertas /borrar /opere /voy /diario /cerrar"), False)
+
+
+def journal_check(ops, kl_h1, last):
+    """Revisa operaciones abiertas con la ultima vela 1H cerrada + ticker.
+    Devuelve (abiertas, cierres[{txt, r, dir, res}])."""
+    msgs = []
+    abiertas = []
+    ref_h = kl_h1[-2]["h"] if len(kl_h1) >= 2 else last
+    ref_l = kl_h1[-2]["l"] if len(kl_h1) >= 2 else last
+    for o in ops:
+        try:
+            d, e, s, tp = o["dir"], o["entrada"], o["stop"], o["tp"]
+            cerrada = None
+            if d == "LONG":
+                if ref_l <= s or last <= s:
+                    cerrada = (s, "SL")
+                elif ref_h >= tp or last >= tp:
+                    cerrada = (tp, "TP")
+            else:
+                if ref_h >= s or last >= s:
+                    cerrada = (s, "SL")
+                elif ref_l <= tp or last <= tp:
+                    cerrada = (tp, "TP")
+            if cerrada:
+                px, donde = cerrada
+                riesgo = abs(e - s) or 1
+                r = (px - e) / riesgo if d == "LONG" else (e - px) / riesgo
+                msgs.append({"txt": f"Tu {d} {fmt_miles(e)} cerró en {donde} {fmt_miles(px)} ({r:+.1f}R)",
+                             "r": round(r, 2), "dir": d, "res": donde})
+            else:
+                abiertas.append(o)
+        except Exception:
+            continue
+    return abiertas, msgs
+
+
+def yahoo_cierres(sym):
+    u = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=5d"
+    req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+    with urllib.request.urlopen(req, timeout=12) as r:
+        d = json.load(r)["chart"]["result"][0]
+    q = [v for v in d["indicators"]["quote"][0]["close"] if v]
+    if len(q) < 2:
+        return None
+    return {"px": round(q[-1], 2), "chg": round((q[-1] - q[-2]) / q[-2] * 100, 2)}
+
+
+def macro_ext():
+    """Dolar (DXY) y bolsa (SPX) gratis via Yahoo. Devuelve dict o None."""
+    try:
+        out = {}
+        dxy = yahoo_cierres("DX-Y.NYB")
+        spx = yahoo_cierres("%5EGSPC")
+        if dxy:
+            out["dxy"] = dxy
+        if spx:
+            out["spx"] = spx
+        return out or None
+    except Exception:
+        return None
+
+
+def lectura_macro(mx):
+    if not mx or "dxy" not in mx or "spx" not in mx:
+        return "macro n/d"
+    d, s = mx["dxy"]["chg"], mx["spx"]["chg"]
+    if d <= -0.2 and s >= 0:
+        return "macro a favor de BTC (dólar débil + bolsa fuerte)"
+    if d >= 0.2 and s <= 0:
+        return "macro en contra de BTC (dólar fuerte + bolsa débil)"
+    return "macro mixto"
+
+
+def coinbase_premium(last):
+    """Premium de Coinbase vs Binance: USA pagando mas = demanda institucional."""
+    try:
+        req = urllib.request.Request("https://api.exchange.coinbase.com/products/BTC-USD/ticker",
+                                     headers={"User-Agent": "vigilante-cloud/3.0"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            cb = float(json.load(r)["price"])
+        return round((cb - last) / last * 100, 3) if last else None
+    except Exception:
+        return None
+
+
+def coinbase_analisis(last, vol_bin):
+    """Coinbase (puerta institucional USA): premium vs Binance, peso de su
+    volumen y desbalance del libro (muros). Todo gratis, sin llaves."""
+    out = {"prem": None, "vol_share": None, "imb": None}
+    try:
+        tk = json.load(urllib.request.urlopen(urllib.request.Request(
+            "https://api.exchange.coinbase.com/products/BTC-USD/ticker",
+            headers={"User-Agent": "vigilante-cloud/3.0"}), timeout=10))
+        cb = float(tk["price"])
+        out["prem"] = round((cb - last) / last * 100, 3) if last else 0
+        cv = float(tk.get("volume", 0) or 0)
+        if vol_bin and vol_bin > 0:
+            out["vol_share"] = round(cv / vol_bin * 100, 1)
+        bk = json.load(urllib.request.urlopen(urllib.request.Request(
+            "https://api.exchange.coinbase.com/products/BTC-USD/book?level=2",
+            headers={"User-Agent": "vigilante-cloud/3.0"}), timeout=10))
+        nb = sum(float(p) * float(s) for p, s, _ in bk.get("bids", [])[:30])
+        na = sum(float(p) * float(s) for p, s, _ in bk.get("asks", [])[:30])
+        if nb + na > 0:
+            out["imb"] = round((nb - na) / (nb + na) * 100, 1)
+    except Exception:
+        pass
+    return out
+
+
+def cb_veredicto(cb):
+    p = cb.get("prem") or 0
+    ib = cb.get("imb") or 0
+    if p > 0.03 and ib > 5:
+        return "USA comprando + muro comprador: demanda real"
+    if p < -0.03 and ib < -5:
+        return "USA vendiendo + muro vendedor: presión real"
+    if p > 0.03:
+        return "USA paga de más: interés comprador"
+    if p < -0.03:
+        return "USA con descuento: interés vendedor"
+    return "Coinbase neutro vs Binance"
+
+
+def smart_money(t, h1, senti, notis, prem=None):
+    """Instituciones vs minoristas con proxies gratuitos (premium, ETFs, funding, taker)."""
+    if prem is None:
+        prem = coinbase_premium(t["last"])
+    etf = None
+    for n in notis:
+        tl = n["titulo"].lower()
+        if "etf" in tl and any(k in tl for k in ("inflow", "buy", "bought", "record", "demand")):
+            etf = "entradas"
+            break
+        if "etf" in tl and any(k in tl for k in ("outflow", "sell", "sold", "exit")):
+            etf = "salidas"
+            break
+    inst, ret, det = 50, 50, []
+    if prem is not None:
+        if prem > 0.03:
+            inst += 20
+            det.append(f"Coinbase premium +{prem}%: USA comprando spot")
+        elif prem < -0.03:
+            inst -= 20
+            det.append(f"Coinbase descuento {prem}%: USA vendiendo")
+    if etf == "entradas":
+        inst += 15
+        det.append("ETFs con entradas: instituciones comprando")
+    elif etf == "salidas":
+        inst -= 15
+        det.append("ETFs con salidas: instituciones vendiendo")
+    f = senti["funding"]
+    if f is not None:
+        if f >= 0.03:
+            ret += 20
+            det.append(f"funding alto ({f:+.4f}%): retail eufórico en longs")
+        elif f <= -0.01:
+            ret -= 10
+            det.append("funding negativo: retail con miedo o en shorts")
+    tk = senti["taker"]
+    if tk is not None:
+        if tk >= 1.2:
+            ret += 10
+            det.append("takers comprando agresivo (FOMO)")
+        elif tk <= 0.9:
+            ret -= 10
+            det.append("takers vendiendo agresivo (pánico)")
+    if h1["rsi"] >= 75:
+        ret += 10
+    elif h1["rsi"] <= 25:
+        ret -= 10
+    inst = clamp(inst, 0, 100)
+    ret = clamp(ret, 0, 100)
+    if inst >= 60 and ret >= 60:
+        ver = "todos compran: sube pero cuidado con el techo"
+    elif inst >= 60 and ret < 40:
+        ver = "instituciones acumulan y retail con miedo: gasolina alcista"
+    elif inst < 40 and ret >= 60:
+        ver = "retail eufórico e instituciones vendiendo: techo probable"
+    elif inst < 40 and ret < 40:
+        ver = "todos venden: pánico, los rebotes se venden"
+    else:
+        ver = "sin manos claras: mercado mixto"
+    return {"inst": inst, "ret": ret, "veredicto": ver, "det": det[:3]}
+
+
+def psico(last):
+    """Niveles psicologicos (miles redondos) mas cercanos arriba/abajo."""
+    up = (int(last // 1000) + 1) * 1000
+    down = int(last // 1000) * 1000
+    return up, down
+
+
+def retest(kl, res, sup, last):
+    """Ruptura + vuelta al nivel en las ultimas 24 velas 1H (trampa o confirmacion)."""
+    if len(kl) < 24:
+        return None
+    rec = kl[-24:]
+    if last < res["precio"] and any(c["h"] > res["precio"] for c in rec):
+        if abs(last - res["precio"]) / res["precio"] <= UMBRAL_TOQUE * 1.5:
+            return f"ruptura fallida + re-test de {fmt_miles(res['precio'])}: posible trampa, espera cierre"
+    if last > sup["precio"] and any(c["l"] < sup["precio"] for c in rec):
+        if abs(last - sup["precio"]) / sup["precio"] <= UMBRAL_TOQUE * 1.5:
+            return f"defensa + re-test de {fmt_miles(sup['precio'])}: el soporte aguanta"
+    return None
+
+
+def divergencia(kl):
+    """Divergencia RSI 1H: precio hace minimo mas bajo pero RSI sube (alcista) y viceversa."""
+    closes = [c["c"] for c in kl]
+    if len(closes) < 30:
+        return None
+    p1 = min(closes[-21:-7])
+    p2 = min(closes[-7:])
+    q1 = max(closes[-21:-7])
+    q2 = max(closes[-7:])
+    r_prev = rsi(closes[:-7])
+    r_now = rsi(closes)
+    if p2 < p1 and r_now > r_prev + 2:
+        return "alcista"
+    if q2 > q1 and r_now < r_prev - 2:
+        return "bajista"
+    return None
+
+
+def ballenas():
+    """Cinta de ballenas: prints >= UMBRAL_BALLENA en los ultimos 1000 trades
+    (fapi, con fallback a spot). m=True = vendedor agresivo."""
+    data = None
+    for base in (FAPI, VISION):
+        try:
+            data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
+            break
+        except Exception:
+            continue
+    if not data:
+        return None
+    buys = sells = 0.0
+    nb = ns = 0
+    big = 0.0
+    for tr in data:
+        try:
+            q = float(tr["q"])
+        except Exception:
+            continue
+        if q < UMBRAL_BALLENA:
+            continue
+        if tr.get("m"):
+            sells += q
+            ns += 1
+        else:
+            buys += q
+            nb += 1
+        big = max(big, q)
+    if nb + ns == 0:
+        return {"nb": 0, "ns": 0, "buys": 0, "sells": 0, "big": 0, "txt": "sin prints de ballenas"}
+    if sells > buys * 1.5:
+        ver = "ballenas distribuyendo"
+    elif buys > sells * 1.5:
+        ver = "ballenas acumulando"
+    else:
+        ver = "ballenas mixtas"
+    return {"nb": nb, "ns": ns, "buys": round(buys, 1), "sells": round(sells, 1),
+            "big": round(big, 1), "txt": ver}
+
+
+def imanes(last):
+    """Imanes de precio: strikes con mas Open Interest en opciones Deribit
+    (gratis) + ratio put/call."""
+    try:
+        req = urllib.request.Request(
+            "https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=option",
+            headers={"User-Agent": "vigilante-cloud/3.0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.load(r)
+        oi = {}
+        for ins in data.get("result", []):
+            parts = (ins.get("instrument_name") or "").split("-")
+            if len(parts) != 4:
+                continue
+            try:
+                strike = float(parts[2])
+            except Exception:
+                continue
+            o = oi.setdefault(strike, {"C": 0.0, "P": 0.0})
+            if parts[3] in ("C", "P"):
+                o[parts[3]] += float(ins.get("open_interest", 0) or 0)
+        if not oi:
+            return None
+        calls = sum(v["C"] for v in oi.values())
+        puts = sum(v["P"] for v in oi.values())
+        top = sorted(oi.items(), key=lambda kv: kv[1]["C"] + kv[1]["P"], reverse=True)[:3]
+        niveles = [{"strike": int(s), "oi": round(v["C"] + v["P"], 1)} for s, v in top]
+        arriba = sorted(s for s in oi if s > last)
+        abajo = sorted((s for s in oi if s < last), reverse=True)
+        return {"top": niveles,
+                "pc": round(puts / calls, 2) if calls else None,
+                "up": int(arriba[0]) if arriba else None,
+                "down": int(abajo[0]) if abajo else None}
+    except Exception:
+        return None
+
+
+def oro_vs_btc(btc_chg):
+    """Oro (PAXG) vs BTC: refugio contra riesgo."""
+    try:
+        paxg = yahoo_cierres("PAXG-USD") or yahoo_cierres("GC=F")
+        if not paxg:
+            return None
+        diff = round(btc_chg - paxg["chg"], 2)
+        if diff > 1:
+            lec = "apetito por riesgo (BTC manda)"
+        elif diff < -1:
+            lec = "huida al refugio (oro manda)"
+        else:
+            lec = "a la par"
+        return {"oro": paxg["chg"], "diff": diff, "lectura": lec}
+    except Exception:
+        return None
+
+
+def sesion_bucket(hora):
+    if 0 <= hora < 8:
+        return "Asia"
+    if 8 <= hora < 13:
+        return "Londres"
+    if 13 <= hora < 21:
+        return "NY"
+    return "noche"
+
+
+def auto_stats(eval_log):
+    """Auto-aprendizaje: en que sesion rinden mejor las senales (min 10 evaluadas)."""
+    if len(eval_log) < 10:
+        return None
+    buckets = {}
+    for e in eval_log:
+        try:
+            hh = datetime.datetime.fromisoformat(e["t"]).hour
+        except Exception:
+            continue
+        buckets.setdefault(sesion_bucket(hh), []).append(e.get("r", 0))
+    res = {b: (round(sum(v) / len(v) * 100), len(v)) for b, v in buckets.items() if len(v) >= 3}
+    if not res:
+        return None
+    mejor = max(res, key=lambda b: res[b][0])
+    peor = min(res, key=lambda b: res[b][0])
+    return {"mejor": (mejor, res[mejor][0]), "peor": (peor, res[peor][0]), "n": len(eval_log)}
+
+
+def ls_global():
+    """Ratio long/short global de cuentas (Binance, gratis): lectura contrarian."""
+    try:
+        d = fetch(f"{FDATA}/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=1", tries=1)
+        r = round(float(d[-1]["longShortRatio"]), 2)
+        if r >= 1.5:
+            lec = "cuentas cargadas long (contrarian: cuidado arriba)"
+        elif r <= 0.8:
+            lec = "cuentas cargadas short (contrarian: cuidado abajo)"
+        else:
+            lec = "posicionamiento equilibrado"
+        return {"ratio": r, "lectura": lec}
+    except Exception:
+        return None
+
+
+BULL_W = ("surge", "soar", "soars", "rally", "record", "high", "bull", "gain", "gains",
+          "jump", "jumps", "inflows", "buy", "adopt", "approve", "breakout")
+BEAR_W = ("crash", "plunge", "plunges", "dump", "fear", "outflow", "outflows", "sell",
+          "lawsuit", "ban", "drop", "drops", "hack", "fraud", "probe", "warning")
+
+
+def pulso(notis):
+    """Pulso de titulares: conteo alcista vs bajista del dia."""
+    b = g = 0
+    for n in notis:
+        tl = n["titulo"].lower()
+        if any(k in tl for k in BULL_W):
+            b += 1
+        if any(k in tl for k in BEAR_W):
+            g += 1
+    s = b - g
+    if s >= 3:
+        lec = "prensa alcista"
+    elif s <= -3:
+        lec = "prensa bajista"
+    else:
+        lec = "prensa mixta"
+    return {"score": s, "bull": b, "bear": g, "lectura": lec}
+
+
+def asia_range(kl, ahora):
+    """Maximo/minimo de la sesion Asia (00-08 UTC) de hoy: niveles del dia."""
+    hoy = ahora.strftime("%Y-%m-%d")
+    hs = [c["h"] for c in kl if c["t"].strftime("%Y-%m-%d") == hoy and 0 <= c["t"].hour < 8]
+    ls = [c["l"] for c in kl if c["t"].strftime("%Y-%m-%d") == hoy and 0 <= c["t"].hour < 8]
+    if not hs:
+        return None
+    return {"hi": round(max(hs)), "lo": round(min(ls))}
 
 
 # ---------------- Estado / historial / precision ----------------
@@ -808,10 +1297,15 @@ def evaluar(est, precio_now, ahora, umbral):
         elif p["bias"] == "BAJA":
             hit = 1 if mov <= -umbral else 0
             est["baja"] = (est.get("baja", []) + [hit])[-50:]
+        else:
+            continue
+        log = est.get("eval_log", [])
+        log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat()})
+        est["eval_log"] = log[-200:]
     est["pendientes"] = nuevas_pend
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, ny, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -819,10 +1313,14 @@ def decidir_alerta(precio, niv, dirb, est, ahora):
     dist_sup = (precio - sup["precio"]) / precio if precio > 0 else 1
     bias, conf = dirb["bias"], dirb["confianza"]
     prev = est.get("ultimo_bias", "?")
+    if forzado:
+        return True, forzado, "alerta"
     if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= UMBRAL_CONF_CAMBIO:
         return True, f"Cambio de direccion: {prev} -> {bias}", "alerta"
     if bias in ("ALZA", "BAJA") and conf >= UMBRAL_CONF_FUERTE:
         return True, f"Senal fuerte {bias} (confianza {conf}%)", "alerta"
+    if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO:
+        return True, f"Movimiento brusco {mov1h:+.2f}% en 1h", "alerta"
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"resistencia {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"soporte {fmt_miles(sup['precio'])}"
         return True, f"Tocando {lado}", "alerta"
@@ -932,6 +1430,52 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         sent.append(f"taker L/S {senti['taker']}")
     if sent:
         L.append("⚡ FUTUROS: " + " | ".join(sent))
+    if extras.get("macro") and extras["macro"].get("mx"):
+        mx = extras["macro"]["mx"]
+        dxy = mx.get("dxy")
+        spx = mx.get("spx")
+        if dxy and spx:
+            L.append(f"💵 DÓLAR: {dxy['px']} ({dxy['chg']:+.2f}%) | BOLSA SPX: {spx['px']} ({spx['chg']:+.2f}%)")
+            L.append("🌍 " + extras["macro"]["lectura"])
+    sm = extras.get("smart")
+    if sm:
+        L.append(f"🏛️ INSTITUCIONES {sm['inst']}/100 | 🧍 MINORISTAS {sm['ret']}/100")
+        L.append("⚔️ " + sm["veredicto"])
+        for dd in sm.get("det", [])[:3]:
+            L.append("   • " + dd)
+    cb = extras.get("cb")
+    if cb and cb.get("prem") is not None:
+        vs = f"{cb['vol_share']}%" if cb.get("vol_share") is not None else "n/d"
+        ib = f"{cb['imb']:+.1f}%" if cb.get("imb") is not None else "n/d"
+        L.append(f"🏦 COINBASE: premium {cb['prem']:+.3f}% | vol {vs} de Binance | libro {ib}")
+        L.append("   → " + cb_veredicto(cb))
+    bal = extras.get("bal")
+    if bal and (bal.get("nb", 0) + bal.get("ns", 0)) > 0:
+        L.append(f"🐋 BALLENAS: {bal['ns']} sells {fmt_miles(bal['sells'])} BTC vs {bal['nb']} buys {fmt_miles(bal['buys'])} BTC → {bal['txt']}")
+    ima = extras.get("ima")
+    if ima and ima.get("top"):
+        tops = " | ".join(f"{fmt_miles(x['strike'])} ({fmt_miles(x['oi'])} BTC)" for x in ima["top"])
+        pc = f" P/C {ima['pc']}" if ima.get("pc") is not None else ""
+        L.append(f"🧲 IMANES: {tops}{pc}")
+        if ima.get("up") and ima.get("down"):
+            L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])} / abajo {fmt_miles(ima['down'])}")
+        elif ima.get("up"):
+            L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])}")
+    oro = extras.get("oro")
+    if oro:
+        L.append(f"🥇 ORO {oro['oro']:+.2f}% vs BTC {t['chg']:+.2f}%: {oro['lectura']}")
+    lsr = extras.get("lsr")
+    if lsr:
+        L.append(f"📊 CUENTAS long/short {lsr['ratio']}: {lsr['lectura']}")
+    pul = extras.get("pul")
+    if pul:
+        L.append(f"😨😊 PULSO: {pul['score']:+d} {pul['lectura']} ({pul['bull']}🟢/{pul['bear']}🔴)")
+    ar = extras.get("ar")
+    if ar:
+        L.append(f"🌙 ASIA: máx {fmt_miles(ar['hi'])} / mín {fmt_miles(ar['lo'])}")
+    aut = extras.get("aut")
+    if aut:
+        L.append(f"🧠 AUTO: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}")
     L.append(f"🎯 PRECISION: ALZA {prec_str(est.get('alza', []))} · BAJA {prec_str(est.get('baja', []))}")
     L.append("")
     L.append("📰 NOTICIAS TOP (peso real sobre BTC):")
@@ -1001,11 +1545,47 @@ def main():
         est, hist = cargar_estado()
         umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
         evaluar(est, t["last"], ahora, umbral)
+        mx = macro_ext()
+        cb = coinbase_analisis(t.get("last"), t.get("vol"))
+        sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
+        bal = ballenas()
+        ima = imanes(t["last"])
+        oro = oro_vs_btc(t["chg"])
+        lsr = ls_global()
+        pul = pulso(notis)
+        ar = asia_range(kl_h1, ahora)
+        aut = auto_stats(est.get("eval_log", []))
+        mov1h = None
+        obj1h = (ahora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+        for h in reversed(hist):
+            if h.get("t", "")[:16] <= obj1h and h.get("precio"):
+                mov1h = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
+                break
+        forzado = None
+        vivas = []
+        for a in est.get("mis_alertas", []):
+            try:
+                hit = (a["dir"] == "sube" and t["last"] >= a["precio"]) or (a["dir"] == "baja" and t["last"] <= a["precio"])
+                if hit and forzado is None:
+                    verbo = "llegó a" if a["dir"] == "sube" else "cayó a"
+                    forzado = f"Tu alerta: BTC {verbo} {fmt_miles(a['precio'])}"
+                elif not hit:
+                    vivas.append(a)
+            except Exception:
+                continue
+        est["mis_alertas"] = vivas
+        abiertas, cierres = journal_check(est.get("ops", []), kl_h1, t["last"])
+        est["ops"] = abiertas
+        if cierres:
+            journal = est.get("journal", [])
+            for cc in cierres:
+                journal.append({"dir": cc["dir"], "res": cc["res"], "r": cc["r"], "t": ahora.isoformat()})
+            est["journal"] = journal[-50:]
         hist.append({"t": ahora.isoformat(), "precio": round(t["last"]),
                      "bias": dirb["bias"], "conf": dirb["confianza"], "fg": fg["valor"],
                      "fund": senti["funding"], "taker": senti["taker"]})
 
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h)
         hoy = ahora.strftime("%Y-%m-%d")
         fresco = est.get("runs", 0) == 0
         est["runs"] = est.get("runs", 0) + 1
@@ -1041,7 +1621,7 @@ def main():
 
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
                "h1": h1, "h4": h4, "d1": d1, "w1": w1, "senti": senti,
-               "notis": notis, "evs": evs}
+               "notis": notis, "evs": evs, "ahora": ahora, "cb": cb, "smart": sm, "aut": aut}
         try:
             cmds, new_off = leer_comandos(est.get("offset", 0))
         except Exception:
@@ -1049,12 +1629,15 @@ def main():
         if new_off != est.get("offset", 0):
             est["offset"] = new_off
             guardar_estado(est, hist)
+        for cc in cierres:
+            send_telegram("📓 " + cc["txt"])
         if not fresco:
             for cm in cmds:
-                r = responder_comando(cm, ctx)
+                r, d = responder_comando(cm, ctx)
                 if r:
                     send_telegram("💬 " + cm["texto"] + "\n" + r)
 
+        guardar_estado(est, hist)
         if not enviar:
             print(f"Sin alerta ({motivo}). Estado e historial guardados.")
             return
@@ -1080,6 +1663,15 @@ def main():
         va = vs_ayer(hist, t["last"], ahora)
         if va is not None:
             memoria.append(f"vs ayer a esta hora: {va:+.2f}%")
+        pu, pdn = psico(t["last"])
+        memoria.append(f"psicológicos: {fmt_miles(pu)} (+{round((pu - t['last']) / t['last'] * 100, 2)}%) / {fmt_miles(pdn)} ({round((pdn - t['last']) / t['last'] * 100, 2)}%)")
+        rt = retest(kl_h1, res, sup, t["last"])
+        if rt:
+            memoria.append(rt)
+        div = divergencia(kl_h1)
+        if div and div != est.get("div1h"):
+            memoria.append(f"nueva divergencia {div} en RSI 1H: posible giro")
+        est["div1h"] = div
         lf = None
         for h in reversed(hist[:-1]):
             if h.get("fund") is not None:
@@ -1125,7 +1717,17 @@ def main():
                   "comb": combustible(t, d1),
                   "fflag": funding_flag(senti),
                   "nuevas": nuevas,
-                  "mov_ny": mov_ny}
+                  "mov_ny": mov_ny,
+                  "macro": {"mx": mx, "lectura": lectura_macro(mx)},
+                  "cb": cb,
+                  "smart": sm,
+                  "bal": bal,
+                  "ima": ima,
+                  "oro": oro,
+                  "lsr": lsr,
+                  "pul": pul,
+                  "ar": ar,
+                  "aut": aut}
         if tipo == "ny":
             msg = build_compacto(t, dirb, niv, extras)
         else:
