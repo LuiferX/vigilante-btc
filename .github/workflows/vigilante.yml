@@ -34,9 +34,16 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      - name: Guardar estado e historial (rama estado)
+      - name: Guardar estado e historial (rama estado, se reescribe limpio)
         run: |
           git config user.name "vigilante-bot"
           git config user.email "vigilante-bot@users.noreply.github.com"
+          cp estado.json historial.jsonl /tmp/
+          git checkout --orphan estado_tmp
+          git rm -rf . > /dev/null 2>&1 || true
+          cp /tmp/estado.json /tmp/historial.jsonl .
           git add estado.json historial.jsonl
-          git diff --cached --quiet && echo "sin cambios" || (git commit -m "estado $(date -u +%Y-%m-%dT%H:%MZ)" && git push origin HEAD:estado)
+          git commit -m "estado $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push --force origin estado_tmp:estado
+          git checkout -f ${GITHUB_REF_NAME}
+          git branch -D estado_tmp
