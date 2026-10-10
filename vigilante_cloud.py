@@ -9,7 +9,7 @@ Novedades v3:
  - MIEDO/CODICIA 0-100: RSI 1D, funding, taker L/S, volatilidad, tendencia, 24h.
  - HISTORIAL Y PRECISION: guarda cada pasada y evalua las senales enviadas
    8 h despues (acierto = precio se movio >=0.2% a favor). Muestra precision real.
- - Estado en rama 'estado' del repo (main queda limpio, solo codigo).
+ - Estado en rama 'estado' (se reescribe limpio cada pasada; main solo codigo).
 
 SEGURIDAD: solo API publica de Binance (+ espejo vision si bloquean).
 Secretos por variables de entorno. Sin API keys, sin trading.
