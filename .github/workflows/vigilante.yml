@@ -2,11 +2,14 @@ name: Vigilante BTC Cloud
 
 on:
   schedule:
-    - cron: '0,30 7-21 * * *'   # cada 30 min entre 07:00 y 21:00 UTC (sesiones Londres + NY)
+    - cron: '0 7-12 * * *'        # Londres + recap nocturno 07:00 UTC (= 02:00 Colombia): cada hora
+    - cron: '*/5 13-16 * * *'     # NY CALIENTE: cada 5 min (13:00 = reporte pre-NY detallado)
+    - cron: '*/15 17-20 * * *'    # NY tarde: cada 15 min
+    - cron: '0 0,2,4,6,21,22 * * *'  # cierre 21:00 + madrugada cada 2h (solo alertas)
   workflow_dispatch:            # permite lanzarlo a mano desde la pestana Actions
 
 permissions:
-  contents: read
+  contents: write   # para guardar estado.json e historial.jsonl en la rama 'estado'
 
 concurrency:
   group: vigilante
@@ -20,8 +23,20 @@ jobs:
       - name: Descargar codigo
         uses: actions/checkout@v4
 
+      - name: Cargar estado previo (rama estado)
+        run: |
+          git fetch origin estado 2>/dev/null || true
+          git checkout origin/estado -- estado.json historial.jsonl 2>/dev/null || echo "sin estado previo, empezando de cero"
+
       - name: Ejecutar vigilante (analisis + Telegram)
         run: python vigilante_cloud.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado e historial (rama estado)
+        run: |
+          git config user.name "vigilante-bot"
+          git config user.email "vigilante-bot@users.noreply.github.com"
+          git add estado.json historial.jsonl
+          git diff --cached --quiet && echo "sin cambios" || (git commit -m "estado $(date -u +%Y-%m-%dT%H:%MZ)" && git push origin HEAD:estado)
