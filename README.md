@@ -44,8 +44,14 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
   ("tercera vez que toca ese nivel hoy", "vs ayer +1.2%", "el funding se calentó"),
   mini-lecciones en cada parte, buenos días / mediodía / buenas noches.
 - **⌨️ Chat en 2 vías (con retardo)**: escríbele `/precio`, `/direccion`, `/niveles`,
-  `/miedo`, `/noticias`, `/eventos` o `/precision` y te responde en la siguiente pasada
-  (máx ~30 min). Solo obedece a tu chat.
+  `/miedo`, `/noticias`, `/eventos`, `/precision`, `/alerta 85000`, `/opere LONG entrada stop tp`,
+  `/voy`, `/diario`, `/cerrar` y te responde en la siguiente pasada (máx ~30 min). Solo obedece a tu chat.
+- **📓 Diario de trading + 🎯 alertas de precio + 🌊 detector de bruscos + 💵 DXY/SPX +
+  🔢 psicológicos con re-test + 📉 divergencias RSI**.
+- **🏛️🆚🧍 Instituciones vs minoristas + 🏦 análisis Coinbase** (premium USA, peso de su
+  volumen y muros del libro): quién quiere qué, con veredicto.
+- **🐋 Cinta de ballenas + 🧲 imanes Deribit + 🥇 oro vs BTC + 📊 long/short global +
+  😨😊 pulso de titulares + 🌙 rango asiático + 🧠 auto-aprendizaje por sesión**.
 - **Robustez**: reintentos ante fallos de API, espejo de datos si Binance bloquea la red,
   degradación elegante y aviso a Telegram si algo falla.
 
