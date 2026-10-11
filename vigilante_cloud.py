@@ -1640,10 +1640,14 @@ def main():
         for cc in cierres:
             send_telegram("📓 " + cc["txt"])
         if not fresco:
+            print(f"Comandos pendientes: {len(cmds)}")
             for cm in cmds:
                 r, d = responder_comando(cm, ctx)
                 if r:
                     send_telegram("💬 " + cm["texto"] + "\n" + r)
+                    print(f"  respondido {cm['texto']} (chat {cm['chat']})")
+                else:
+                    print(f"  ignorado {cm['texto']} (chat {cm['chat']})")
 
         guardar_estado(est, hist)
         if not enviar:
