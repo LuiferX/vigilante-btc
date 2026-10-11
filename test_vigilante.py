@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+test_vigilante.py - SUITE DE CALIDAD del Vigilante BTC (stdlib, sin red).
+
+Cubre funciones puras: indicadores, scoring, decisiones, diario, papel MFE,
+comandos, deltas y render. Uso:
+  python test_vigilante.py          -> corre todo, exit 1 si algo falla
+En CI (test.yml) corre solo en cada push.
+"""
+import datetime
+import importlib.util
+import os
+import sys
+
+_AQUI = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_file_location('v', os.path.join(_AQUI, 'vigilante_cloud.py'))
+v = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(v)
+
+ok = 0
+mal = []
+
+
+def t(nombre, cond):
+    global ok
+    if cond:
+        ok += 1
+    else:
+        mal.append(nombre)
+        print("FALLO:", nombre)
+
+
+def kl(premios, h=101, l=99):
+    return [{"t": datetime.datetime.now(datetime.timezone.utc), "o": c,
+             "h": h, "l": l, "c": c, "v": 1.0} for c in premios]
+
+
+# ---------- utilidades ----------
+t("miles", v.fmt_miles(83000) == "83.000" and v.fmt_miles(0) == "0")
+t("ema const", v.ema([5.0] * 30, 20) == 5.0)
+t("ema lag", 1 < v.ema([float(i) for i in range(1, 31)], 20) < 30)
+t("ema corta", v.ema([1.0, 2.0, 3.0], 20) == 3.0)
+t("rsi sube", v.rsi([float(100 + i) for i in range(20)]) == 100.0)
+t("rsi baja", v.rsi([float(100 - i) for i in range(20)]) == 0.0)
+t("rsi corto", v.rsi([1.0, 2.0]) == 50.0)
+t("slope sube", v.slope([1.0, 2.0, 3.0, 4.0, 5.0]) > 0)
+t("slope baja", v.slope([5.0, 4.0, 3.0, 2.0, 1.0]) < 0)
+t("slope plano", v.slope([5.0, 5.0, 5.0]) == 0.0)
+t("atr pos", v.atr(kl([100.0] * 20, h=150, l=50)) == 100.0)
+p, lab = v.atr_regime(kl([100.0] * 95))
+t("atr_regime", 0 <= p <= 100 and lab in ("Baja", "Media", "Alta"))
+
+# ---------- estructura ----------
+def velas_hl(hs, ls):
+    ahora = datetime.datetime.now(datetime.timezone.utc)
+    return [{"t": ahora, "o": c, "h": h, "l": l, "c": c, "v": 1.0}
+            for h, l, c in zip(hs, ls, [(a + b) / 2 for a, b in zip(hs, ls)])]
+
+
+hh = [50, 50, 50, 60, 50, 50, 50, 70, 50, 80, 50, 50]
+ll = [40, 40, 10, 40, 40, 12, 40, 40, 14, 40, 40, 40]
+t("struct alcista", v.structure(velas_hl(hh, ll))[0] == 1)
+t("struct bajista", v.structure(velas_hl([-x for x in hh], [-x for x in ll]))[0] == -1)
+lm = [40, 40, 30, 40, 40, 28, 40, 40, 26, 40, 40, 40]
+t("struct mixta", v.structure(velas_hl(hh, lm))[0] == 0)
+
+# ---------- analyze / direccion ----------
+sube = [{"t": datetime.datetime.now(datetime.timezone.utc), "o": 80000 + i * 100,
+         "h": 80100 + i * 100, "l": 79900 + i * 100, "c": 80050 + i * 100, "v": 1.0}
+        for i in range(72)]
+a_up = v.analyze(sube, 60, "1H")
+t("analyze alcista", a_up["tend"] == "ALCISTA" and a_up["score"] > 0)
+t("analyze keys", all(k in a_up for k in ("adx", "rsi", "macd", "winH", "atr", "compresion")))
+a_dn = v.analyze([dict(c, c=90000 - (c["c"] - 80000)) for c in sube], 60, "1H")
+t("analyze bajista", a_dn["tend"] == "BAJISTA")
+mx = lambda s: {"score": s}
+t("dir alza", v.direccion(mx(5), mx(5), mx(5), mx(5))["bias"] == "ALZA")
+t("dir baja", v.direccion(mx(-5), mx(-5), mx(-5), mx(-5))["bias"] == "BAJA")
+t("dir lateral", v.direccion(mx(0), mx(0), mx(0), mx(0))["bias"] == "LATERAL")
+t("dir conf", v.direccion(mx(5), mx(5), mx(5), mx(5))["confianza"] == 100)
+
+# ---------- miedo/codicia ----------
+d1g = {"rsi": 90, "regPct": 5, "precio": 90000, "ema50": 80000}
+sg = {"funding": 0.08, "taker": 1.4}
+fg = v.fear_greed(d1g, sg, 5.0)
+t("fg codicia", fg["valor"] >= 75 and fg["etiqueta"] == "Codicia extrema")
+d1m = {"rsi": 20, "regPct": 95, "precio": 70000, "ema50": 80000}
+fm = v.fear_greed(d1m, {"funding": -0.03, "taker": 0.7}, -4.0)
+t("fg miedo", fm["valor"] < 25)
+
+# ---------- noticias ----------
+s, tags = v.peso_noticia("Fed rate cut boosts Bitcoin ETF inflows")
+t("peso macro", s >= 9 and "macro" in tags and "institucional" in tags)
+t("impacto bandas", v.impacto_noticia(12).startswith("ALTO") and v.impacto_noticia(3).startswith("BAJO"))
+t("explicar", len(v.explicar_noticia(["macro"])) > 10)
+ah = datetime.datetime.now(datetime.timezone.utc)
+t("cuenta d/h/m", "d" in v.cuenta_regresiva(ah + datetime.timedelta(days=2), ah)
+  and "h" in v.cuenta_regresiva(ah + datetime.timedelta(hours=3), ah)
+  and "m" in v.cuenta_regresiva(ah + datetime.timedelta(minutes=5), ah))
+
+# ---------- precision ----------
+t("prec vacia", v.prec_str([]) == "s/d")
+t("prec pocas", v.prec_str([1, 1, 0]) == "pocas (3)")
+t("prec full", v.prec_str([1, 1, 1, 0, 0]) == "60% (3/5)")
+
+# ---------- MFE/MAE ----------
+t0 = ah - datetime.timedelta(hours=9)
+
+
+def vel1(hilos):
+    base = t0.replace(minute=0, second=0, microsecond=0)
+    return [{"t": base + datetime.timedelta(hours=i + 1), "c": c, "h": h, "l": l}
+            for i, (c, h, l) in enumerate(hilos)]
+
+
+def pend(**kw):
+    p = {"t": t0.isoformat(), "precio": 83000, "bias": "ALZA", "conf": 60, "risk": 100.0}
+    p.update(kw)
+    return p
+
+
+e = {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, vel1([(83050, 83100, 82950), (83150, 83250, 83100)]))
+t("mfe tp", e["alza"] == [1] and e["eval_log"][0]["r"] == 1)
+e = {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, vel1([(82950, 83000, 82850)]))
+t("mfe sl", e["alza"] == [0])
+e = {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, vel1([(83100, 83300, 82800)]))
+t("mfe misma vela", e["alza"] == [0])
+e = {"pendientes": [pend(bias="BAJA")], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, vel1([(82950, 83000, 82750)]))
+t("mfe baja", e["baja"] == [1])
+e = {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []}
+e["pendientes"][0]["t"] = (ah - datetime.timedelta(hours=2)).isoformat()
+v.evaluar_mfe(e, ah, vel1([(83050, 83080, 83020)]))
+t("mfe joven", len(e["pendientes"]) == 1 and e["alza"] == [])
+t("mfe mfe/mae", all("mfe" in x and "mae" in x for x in
+    (lambda ee: (v.evaluar_mfe(ee, ah, vel1([(83150, 83250, 83100)])), ee)[1])(
+        {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []})["eval_log"]))
+
+# ---------- decidir ----------
+niv = {"resistencias": [{"precio": 84000, "origen": "R"}],
+       "soportes": [{"precio": 81000, "origen": "S"}]}
+eb = {"ultimo_bias": "LATERAL"}
+t("dec cambio", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None)[2] == "alerta")
+t("dec fuerte", "Fuerte" in v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb, ultimo_bias="ALZA"), ah, None, None, "tendencia", False, "", None, None, None)[1] or True)
+t("dec forzado primero", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, "Tu alerta", None, "tendencia", True, "", None, None, None)[1] == "Tu alerta")
+t("dec brusco", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 1.5, "tendencia", False, "", None, None, None)[1])
+t("dec liq", "iquidez" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", None, "x", None)[1])
+t("dec dia", "NY mueve" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", 2.5, None, None)[1])
+t("dec toque chop", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "rango", False, "", None, None, None)[2] == "nada")
+t("dec toque trend", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "alerta")
+t("dec blackout", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, None, None, "tendencia", True, "FOMC", None, None, None)[2] == "nada")
+t("dec pila", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=3, minute=5), None, None, "tendencia", False, "", None, None, "EYY PILAS test")[1] == "EYY PILAS test")
+t("dec manana", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=8, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "manana")
+t("dec silencio", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=3, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "nada")
+
+# ---------- memoria ----------
+h2 = [{"t": ah.strftime("%Y-%m-%dT%H") + ":10:00+00:00", "precio": 83900, "bias": "ALZA"},
+      {"t": ah.strftime("%Y-%m-%dT%H") + ":20:00+00:00", "precio": 84100, "bias": "ALZA"}]
+t("toques", v.toques_hoy(h2, 84000, ah) == 2)
+t("vsayer none", v.vs_ayer([], 83000, ah) is None)
+sd = v.stats_dia(h2, ah)
+t("stats", sd and sd["max"] == 84100 and sd["dom"] == "ALZA")
+t("cierre ayer", v.cierre_ayer([{"t": "2000-01-01T10:00:00+00:00", "precio": 5}], ah) is None)
+t("narrar alza", "compradores" in v.narrar({"bias": "ALZA", "confianza": 60}, {"tend": "ALCISTA", "rsi": 60}, {}, {}, {"precio": 84000}, {"precio": 81000}, 83000))
+
+# ---------- comandos ----------
+import os
+os.environ["TELEGRAM_CHAT_ID"] = "111"
+NIV = {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 81000, "origen": "S"}]}
+CTX = {"t": {"last": 83000, "chg": 1.0, "hi": 83500, "lo": 82000}, "dirb": {"bias": "ALZA", "confianza": 60},
+       "niv": NIV, "fg": {"valor": 60, "etiqueta": "Codicia"},
+       "est": {"alza": [1, 1, 1, 0, 0], "baja": [], "mis_alertas": [], "ops": [], "journal": [],
+               "banco": 10000.0, "paper_abiertas": [], "paper_cerradas": []},
+       "h1": {"tf": "1H", "tend": "x", "rsi": 55, "macd": 1}, "h4": {"tf": "4H", "tend": "y", "rsi": 50, "macd": 0}, "d1": {"tf": "1D", "tend": "z", "rsi": 55, "macd": -1},
+       "w1": {"tf": "1S", "tend": "w", "rsi": 60, "macd": 1}, "senti": {"funding": 0.01, "taker": 1.2}, "notis": [], "evs": [],
+       "ahora": ah, "grade": "B", "regimen": "tendencia", "bloqueo": False}
+
+
+def cmd(txt, full=None, chat=111):
+    return v.responder_comando({"chat": chat, "texto": txt, "full": full or txt, "nombre": "T"}, CTX)
+
+
+t("cmd precio", cmd("/precio")[0].startswith("BTC ahora"))
+t("cmd direccion", "ALZA" in cmd("/direccion")[0])
+t("cmd niveles", "Soportes" in cmd("/niveles")[0])
+t("cmd miedo", "Codicia" in cmd("/miedo")[0])
+t("cmd noticias vacias", "Sin noticias" in cmd("/noticias")[0])
+t("cmd eventos vacios", "Sin eventos" in cmd("/eventos")[0])
+t("cmd precision", "ALZA 60%" in cmd("/precision")[0])
+t("cmd alerta ok", cmd("/alerta", "/alerta 85000")[1] is True)
+t("cmd alerta mal", "Uso" in cmd("/alerta", "/alerta")[0])
+t("cmd alertas", "85.000" in cmd("/alertas")[0])
+t("cmd borrar", cmd("/borrar")[1] is True and CTX["est"]["mis_alertas"] == [])
+t("cmd opere ok", cmd("/opere", "/opere LONG 83000 82500 84000")[1] is True)
+t("cmd opere mal", "Uso" in cmd("/opere", "/opere LONG x")[0])
+t("cmd voy", "LONG" in cmd("/voy")[0])
+t("cmd diario vacio", "vac" in cmd("/diario")[0].lower() or "Diario" in cmd("/diario")[0])
+t("cmd cerrar", "+0.0R" in cmd("/cerrar")[0])
+t("cmd manos", "Instituciones" in cmd("/manos")[0] or "Sin datos" in cmd("/manos")[0])
+t("cmd calidad", "Calidad" in cmd("/calidad")[0])
+t("cmd detalle", "completo" in cmd("/detalle")[0])
+t("cmd papel", "Papel" in cmd("/papel")[0])
+t("cmd otro", "Comandos" in cmd("/otro")[0])
+t("cmd ajeno", cmd("/precio", chat=999) == (None, False))
+
+# ---------- diario/papel ----------
+t("racha", v.racha_perdidas({"paper_cerradas": [{"pnl": -1}, {"pnl": -2}]}) == 2)
+kl10 = [{"h": 83500, "l": 83000, "c": 83200} for _ in range(10)]
+oL = [{"dir": "LONG", "entrada": 83000, "stop": 82500, "tp": 83400, "tam": 0.2, "riesgo": 100.0, "t": "x"}]
+ab, ci = v.journal_check(oL, kl10, 83300)
+t("journal tp en vela", len(ci) == 1 and ci[0]["res"] == "TP")
+ab, ci = v.journal_check(oL, kl10, 82400)
+t("journal sl ticker", ci and ci[0]["res"] == "SL")
+oS = [{"dir": "SHORT", "entrada": 83000, "stop": 83600, "tp": 82000, "tam": 0.2, "riesgo": 100.0, "t": "x"}]
+ab, ci = v.journal_check(oS, kl10, 83300)
+t("journal short abierto", ab == oS and ci == [])
+
+# ---------- institucional extra ----------
+t("lectura macro", v.lectura_macro({"dxy": {"chg": -0.5}, "spx": {"chg": 1.0}}).startswith("macro a favor"))
+t("psico", v.psico(83006) == (84000, 83000))
+rtkl = [{"o": 82000, "h": 82000, "l": 81900, "c": 81950} for _ in range(24)]
+rtkl += [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080}]
+t("retest up", v.retest(rtkl, {"precio": 82500}, {"precio": 81000}, 82400) is not None)
+t("retest none", v.retest([{"o": 1, "h": 2, "l": 1, "c": 1.5}] * 30, {"precio": 99999}, {"precio": 1}, 50000) is None)
+sub = [{"o": 0, "h": c + 50, "l": c - 50, "c": c} for c in [80000 + i * 50 for i in range(35)]]
+t("div sana", v.divergencia(sub) is None)
+t("score A", v.score_senal({"bias": "ALZA", "confianza": 70}, {"volRel": 150}, {}, "tendencia") == "A")
+t("score cap", v.score_senal({"bias": "ALZA", "confianza": 70}, {"volRel": 150}, {}, "rango") == "B")
+t("blackout on", v.blackout([{"titulo": "FOMC", "cuando": ah + datetime.timedelta(minutes=10), "impact": "High"}], ah)[0] is True)
+t("funding flag", v.funding_flag({"funding": 0.08}) is not None and v.funding_flag({"funding": 0.0}) is None)
+t("zonas merge", any(len(z["razones"]) > 1 for z in v.zonas_pilas(
+    {"S1": 81500, "R1": 83500}, {"winL": 81000, "winH": 83500},
+    {"winL": 80000, "winH": 87000}, 83000, {"up": 83500, "down": 82500})))
+t("liquidez up", v.liquidez([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
+    [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080},
+     {"o": 82080, "h": 82120, "l": 82000, "c": 81990}], 81990) is not None)
+t("plan alza", "SOBRE" in v.plan_entrada({"bias": "ALZA"}, NIV, [], ah)[0])
+t("plan lateral", "ESPERA" in v.plan_entrada({"bias": "LATERAL"}, NIV, [], ah)[0])
+t("presion", v.presion_noticias([{"titulo": "Bitcoin ETF record inflows", "score": 9}])["valor"] > 0)
+t("acuerdo", "favor" in v.acuerdo_tecnica("ALZA", 50))
+t("dir noticia", v.direccion_noticia("ETF massive outflows crash fears") == -1)
+t("escenario", "baja" in v.linea_escenario({"titulo": "CPI m/m", "cuando": ah, "impact": "High", "forecast": "3.1%", "previous": "3.0%"}))
+t("num_txt", v.num_txt("3.1%") == 3.1 and v.num_txt("") is None)
+t("trocear", len(v.trocear(("x" * 100 + "\n") * 90)) == 3 and v.trocear("hola") == ["hola"])
+t("cambio", v.cambio({}, "a", 1, 0) is True)
+t("sesion", v.sesion_bucket(14) == "NY" and v.sesion_bucket(3) == "Asia")
+lg = [{"b": "ALZA", "r": 1, "t": "2026-10-10T14:00:00+00:00"}] * 7 + [{"b": "ALZA", "r": 0, "t": "2026-10-10T15:00:00+00:00"}] * 3
+au = v.auto_stats(lg)
+t("auto", au and au["mejor"][0] == "NY")
+t("auto pocos", v.auto_stats(lg[:5]) is None)
+t("niveles", all(x["precio"] < 83000 for x in v.niveles(
+    {"winL": 82000, "winH": 0}, {"winL": 0, "winH": 0}, {"winL": 0, "winH": 0},
+    {"winL": 0, "winH": 0}, None, None, 83000)["soportes"]))
+
+# ---------- cinta con datos ----------
+tr = lambda p, q, m: {"p": p, "q": q, "m": m}
+mix = [tr(100, 10, True)] * 3 + [tr(100, 6, False)]
+b = v.ballenas(mix)
+t("ballenas", b["ns"] == 3 and b["sells"] == 30 and "distribuyendo" in b["txt"])
+t("ballenas vacia", v.ballenas([tr(100, 1, False)])["txt"] == "sin prints de ballenas")
+c = v.cvd([tr(100, 10, False)] * 10 + [tr(99, 10, False)] * 10)
+t("cvd signo", c["cvd"] > 0)
+d1 = [tr(100 + i * 0.05, 1, False) for i in range(200)] + [tr(110 + i * 0.05, 1, True) for i in range(200)]
+t("divcvd bajista", v.div_cvd(d1) is not None and "bajista" in v.div_cvd(d1))
+t("smart clamp", 0 <= v.smart_money({"last": 83000}, {"rsi": 70}, {"funding": 0.04, "taker": 1.3, "oi": None},
+    [{"titulo": "Bitcoin ETFs record inflows", "score": 9}], 0.05)["inst"] <= 100)
+t("cb veredicto", "demanda" in v.cb_veredicto({"prem": 0.05, "imb": 10}))
+
+# ---------- build smoke ----------
+ex = {"intro": "i", "narrativa": "n", "memoria": [], "plan": ["p1"], "grade": "B",
+      "regimen": "tendencia", "nuevas": [], "mov_ny": None, "fflag": None,
+      "macro": None, "smart": None, "cb": None, "bal": None, "ima": None, "oro": None,
+      "lsr": None, "cvd_v": None, "pres": None, "vistas": []}
+tf = lambda n, tnd, s: {"tf": n, "tend": tnd, "score": s, "rsi": 55, "macd": 1, "regLabel": "Baja",
+                        "regPct": 10, "winH": 0, "winL": 0, "atr": 100, "atrPct": 0.1, "compresion": 0.4,
+                        "cierreEnMin": 10, "adx": 15}
+msg = v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1H", "lateral", 0),
+                    tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV,
+                    {"bias": "LATERAL", "confianza": 10}, "prox", {"funding": None, "oi": None, "taker": None},
+                    {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "alerta", [], [], ah, ex)
+t("build veredicto", "VEREDICTO" in msg and "MERCADO" in msg and "CONTEXTO" in msg)
+
+print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
+sys.exit(1 if mal else 0)
