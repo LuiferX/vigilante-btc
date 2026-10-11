@@ -36,8 +36,8 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 | Sesión | Ritmo | Qué manda |
 |---|---|---|
 | 📊 Pre-NY 13:00 UTC | 1 reporte | Detallado completo, 30 min antes de la apertura |
-| ⚡ NY caliente 13–17 UTC | cada 5 min | Compacto en vivo; completo si hay alerta |
-| 🌇 NY tarde 17–21 UTC | cada 15 min | Alertas + resumen de cierre 21:00 |
+| ⚡ NY 13–20 UTC (hasta las 3pm Col) | cada 15 min | Solo eventos: cambio, brusco, liquidez, día ±2%, tu precio |
+| 🌇 Cierre 21 UTC + madrugada | 21 + cada 2 h | Alertas + resumen nocturno 02:00 tu hora |
 | 🌙 Madrugada | cada 2 h | Solo si hay alerta |
 | 🌙 07:00 UTC (= 02:00 Colombia) | 1 | Resumen nocturno: cómo le fue a la noche |
 - **💬 Compañero que conversa**: tono cercano con narrativa del "qué está pasando", memoria
