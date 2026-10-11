@@ -1700,6 +1700,20 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     return "\n".join(L)
 
 
+def trocear(texto, limite=3900):
+    """Parte un mensaje largo en trozos <= limite sin romper lineas."""
+    partes = []
+    for bloque in texto.split("\n"):
+        while len(bloque) > limite:
+            partes.append(bloque[:limite])
+            bloque = bloque[limite:]
+        if not partes or len(partes[-1]) + len(bloque) + 1 > limite:
+            partes.append(bloque)
+        else:
+            partes[-1] += "\n" + bloque
+    return [p for p in partes if p]
+
+
 def send_telegram(text):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
@@ -1713,10 +1727,12 @@ def send_telegram(text):
         print("\n[modo local] Variables TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID ausentes.")
         return False
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = json.dumps({"chat_id": chat, "text": text}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        r.read()
+    for i, parte in enumerate(trocear(text)):
+        txt = parte if i == 0 else "(sigue) " + parte
+        payload = json.dumps({"chat_id": chat, "text": txt}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            r.read()
     return True
 
 
