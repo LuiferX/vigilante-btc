@@ -754,6 +754,9 @@ def responder_comando(cmd, ctx):
         if aut:
             base += (f"\nAuto: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · "
                      f"peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}.")
+        cal = calibrar(est)
+        if cal:
+            base += "\nCalib: " + ", ".join(f"{s}x{f}" for s, f in sorted(cal.items())) + "."
         return (base, False)
     if c == "/manos":
         sm = ctx.get("smart")
@@ -1245,6 +1248,47 @@ def div_cvd(data=None):
     return None
 
 
+def mapa_liq(kl, last, funding):
+    """Mapa ESTIMADO de liquidaciones: los stops viven tras maximos/minimos
+    recientes y numeros redondos. El funding cargado marca el lado jugoso
+    (contrarian: longs recargados -> stops abajo)."""
+    if len(kl) < 30:
+        return None
+    rec = kl[-48:]
+    altos, bajos = [], []
+    for i in range(3, len(rec) - 3):
+        if all(rec[i]["h"] >= rec[j]["h"] for j in range(i - 3, i + 4) if j != i):
+            altos.append(rec[i]["h"])
+        if all(rec[i]["l"] <= rec[j]["l"] for j in range(i - 3, i + 4) if j != i):
+            bajos.append(rec[i]["l"])
+    cands = []
+    for h in altos[-4:]:
+        cands.append({"precio": round(h), "origen": "stop sobre máximo"})
+    for l in bajos[-4:]:
+        cands.append({"precio": round(l), "origen": "stop bajo mínimo"})
+    base = (int(last // 1000)) * 1000
+    for r in (base - 1000, base, base + 1000, base + 2000):
+        if r > 0:
+            cands.append({"precio": r, "origen": "redondo"})
+    f = funding or 0.0
+    mag = min(1.0, abs(f) / 0.05)
+    for c in cands:
+        s = 50
+        if c["origen"] == "redondo":
+            s += 25
+        if f > 0 and c["precio"] < last:
+            s += round(25 * mag)
+        if f < 0 and c["precio"] > last:
+            s += round(25 * mag)
+        c["score"] = s
+        c["dist"] = round((c["precio"] - last) / last * 100, 2)
+    arriba = sorted([c for c in cands if c["precio"] > last], key=lambda x: -x["score"])[:2]
+    abajo = sorted([c for c in cands if c["precio"] < last], key=lambda x: -x["score"])[:2]
+    if not arriba and not abajo:
+        return None
+    return {"arriba": arriba, "abajo": abajo}
+
+
 def ballenas(data=None):
     """Cinta de ballenas: prints >= UMBRAL_BALLENA en los ultimos 1000 trades
     (fapi, con fallback a spot). m=True = vendedor agresivo."""
@@ -1443,6 +1487,36 @@ def linea_escenario(e):
     if re.search(r'cpi|ppi|pce|nfp|non-farm|nonfarm|payroll|unemployment|jobless|fomc|rate|interest', t):
         return base + ": ALTO = baja | BAJO = sube"
     return base + ": la sorpresa manda la dirección"
+
+
+def calibrar(est):
+    """Auto-calibracion honesta: factor por sesion segun acierto medido.
+    >=60% -> 0.9 (mas sensible), <=40% -> 1.15 (mas exigente), si no 1.0.
+    Requiere 10+ evaluadas en la sesion. Acotado [0.7, 1.4] (nunca loco)."""
+    log = est.get("eval_log", [])
+    if len(log) < 10:
+        return {}
+    buckets = {}
+    for e in log[-60:]:
+        try:
+            hh = datetime.datetime.fromisoformat(e["t"]).hour
+        except Exception:
+            continue
+        buckets.setdefault(sesion_bucket(hh), []).append(e.get("r", 0))
+    fac = {}
+    for s, v in buckets.items():
+        if len(v) < 10:
+            continue
+        hr = sum(v) / len(v)
+        if hr >= 0.60:
+            fac[s] = 0.9
+        elif hr <= 0.40:
+            fac[s] = 1.15
+        else:
+            fac[s] = 1.0
+    for s in fac:
+        fac[s] = max(0.7, min(1.4, fac[s]))
+    return fac
 
 
 def hay_veto(bias, prem, dxy):
@@ -1646,7 +1720,7 @@ def evaluar_mfe(est, ahora, velas=None):
     est["pendientes"] = nuevas[-100:]
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -1658,9 +1732,9 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, forzado, "alerta"
     if bloqueo:
         return False, f"blackout ({motivo_bloq})", "nada"
-    if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= UMBRAL_CONF_CAMBIO:
+    if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= umbral_cambio:
         return True, f"Cambio de dirección: {prev} → {bias}", "alerta"
-    if bias in ("ALZA", "BAJA") and conf >= UMBRAL_CONF_FUERTE:
+    if bias in ("ALZA", "BAJA") and conf >= umbral_fuerte:
         return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO:
         return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
@@ -1824,6 +1898,12 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     if cv and cambio(est, "cvd", cv["lectura"], 0):
         L.append(f"🌊 CVD {cv['cvd']:+.1f} BTC vs precio {cv['dpx']:+.2f}%: {cv['lectura']}")
         hubo = True
+    lm = extras.get("liqmap")
+    if lm and cambio(est, "liqmap", str(lm.get("arriba")) + str(lm.get("abajo")), 0):
+        arrib = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("arriba", []))
+        abaj = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("abajo", []))
+        L.append(f"🌊 LIQUIDEZ: arriba {arrib or '—'} / abajo {abaj or '—'}")
+        hubo = True
     pr = extras.get("pres")
     if pr and cambio(est, "pres", pr["valor"], 10):
         L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
@@ -1940,6 +2020,7 @@ def main():
         lsr = ls_global()
         pres = presion_noticias(notis)
         dcvd = div_cvd()
+        liqmap = mapa_liq(kl_h1, t["last"], senti["funding"])
         aut = auto_stats(est.get("eval_log", []))
         senti_viejo = ""
         if senti["funding"] is None and senti["taker"] is None and est.get("last_senti"):
@@ -2081,7 +2162,12 @@ def main():
                      "res": niv["resistencias"][0]["precio"], "sup": niv["soportes"][0]["precio"],
                      "grade": grade})
 
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila)
+        calib = calibrar(est)
+        est["calib"] = calib
+        f_ses = calib.get(sesion_bucket(ahora.hour), 1.0)
+        uf = UMBRAL_CONF_FUERTE * f_ses
+        uc = UMBRAL_CONF_CAMBIO * f_ses
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -2262,6 +2348,7 @@ def main():
                   "oro": oro,
                   "lsr": lsr,
                   "aut": aut,
+                  "liqmap": liqmap,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
