@@ -46,3 +46,19 @@ jobs:
           git push --force origin estado_tmp:estado
           git checkout -f ${GITHUB_REF_NAME}
           git branch -D estado_tmp
+
+      - name: Generar dashboard
+        run: python dashboard.py
+
+      - name: Publicar dashboard (rama dashboard, se reescribe limpio)
+        run: |
+          if [ ! -f docs/index.html ]; then echo "sin dashboard"; exit 0; fi
+          cp docs/index.html /tmp/
+          git checkout --orphan dash_tmp
+          git rm -rf . > /dev/null 2>&1 || true
+          cp /tmp/index.html ./index.html
+          git add index.html
+          git commit -m "dashboard $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
+          git push --force origin dash_tmp:dashboard
+          git checkout -f ${GITHUB_REF_NAME}
+          git branch -D dash_tmp
