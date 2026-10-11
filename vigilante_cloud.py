@@ -1543,16 +1543,15 @@ def main():
         evs = calendario()
 
         est, hist = cargar_estado()
-        umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
-        evaluar(est, t["last"], ahora, umbral)
+        es_dup = False
         try:
             if est.get("ultimo_run"):
                 dt_run = (ahora - datetime.datetime.fromisoformat(est["ultimo_run"])).total_seconds()
-                if 0 <= dt_run < 240:
-                    print("Duplicado (<4 min desde la ultima pasada). Salto sin enviar.")
-                    return
+                es_dup = 0 <= dt_run < 240
         except Exception:
             pass
+        umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
+        evaluar(est, t["last"], ahora, umbral)
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
@@ -1652,6 +1651,9 @@ def main():
         guardar_estado(est, hist)
         if not enviar:
             print(f"Sin alerta ({motivo}). Estado e historial guardados.")
+            return
+        if es_dup:
+            print("Duplicado (<4 min desde la ultima pasada). Comandos respondidos, parte omitido.")
             return
         runs = est["runs"]
         if tipo == "alerta":
