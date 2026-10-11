@@ -31,8 +31,7 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 - **📐 Evaluación MFE/MAE**: cada señal se juzga por excursión (¿tocó el 2R antes que el stop?,
   el stop manda en la misma vela) con vectores mfe/mae guardados para futura correlación.
 - **🎯 Plan de entrada**: gatillo + stop + objetivo 2R + guardia de eventos + regla del 1%.
-- **⛽ Combustible del día, ⚠️ funding extremo y 📈 mini-gráfico 24h** en cada parte.
-
+- **⚠️ Funding extremo** cuando un lado va recargado (lectura contrarian).
 ## ⏰ Ritmo por sesiones (NY manda)
 
 | Sesión | Ritmo | Qué manda |
@@ -44,10 +43,10 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 | 🌙 07:00 UTC (= 02:00 Colombia) | 1 | Resumen nocturno: cómo le fue a la noche |
 - **💬 Compañero que conversa**: tono cercano con narrativa del "qué está pasando", memoria
   ("tercera vez que toca ese nivel hoy", "vs ayer +1.2%", "el funding se calentó"),
-  mini-lecciones en cada parte, buenos días / mediodía / buenas noches.
-- **⌨️ Chat en 2 vías (con retardo)**: escríbele `/precio`, `/direccion`, `/niveles`,
-  `/miedo`, `/noticias`, `/eventos`, `/precision`, `/alerta 85000`, `/opere LONG entrada stop tp`,
-  `/voy`, `/diario`, `/cerrar` y te responde en la siguiente pasada (máx ~30 min). Solo obedece a tu chat.
+  buenos días / pre-NY / nocturnos.
+- **⌨️ Chat en 2 vías (con retardo)**: `/precio /direccion /niveles /miedo /noticias /eventos
+  /precision /manos /calidad /detalle /papel /alerta /opere /voy /diario /cerrar`.
+  Responde en la siguiente pasada. Solo obedece a tu chat.
 - **📓 Diario de trading + 🎯 alertas de precio + 🌊 detector de bruscos + 💵 DXY/SPX +
   🔢 psicológicos con re-test + 📉 divergencias RSI**.
 - **💵 `/papel` invisible**: el bot opera solo con $10,000 virtuales (riesgo 1%,
@@ -60,10 +59,10 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
   y avisa corto cuando el precio llega: lado del rebote + anulación (1 vez por zona al día).
 - **🔄 Modo DELTA**: el mercado muestra solo lo que cambió desde tu último parte.
 - **🐋 Cinta de ballenas + 🧲 imanes Deribit + 🥇 oro vs BTC + 📊 long/short global +
-  😨😊 pulso de titulares + 🌙 rango asiático + 🧠 auto-aprendizaje por sesión**.
-- **🏛️ Institucional**: score A/B/C + filtro de régimen (ADX), blackout en eventos High,
-  guardia de datos viejos, CVD con divergencias, auditoría (motivo+grado por señal) y
-  `backtest.py` (repite tu historial con la regla actual: in-sample vs out-of-sample).
+  🌊 CVD con divergencias + 🧠 auto-aprendizaje por sesión**.
+- **🏛️ Institucional**: score A/B/C + filtro de régimen (ADX, MACD neutralizado en rango),
+  veto premium USA/DXY (degrada), blackout en eventos High, guardia de datos viejos,
+  auditoría (motivo+grado por señal) y `backtest.py` (in-sample vs out-of-sample).
 - **Robustez**: reintentos ante fallos de API, espejo de datos si Binance bloquea la red,
   degradación elegante y aviso a Telegram si algo falla.
 
