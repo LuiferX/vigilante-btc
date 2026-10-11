@@ -1545,6 +1545,14 @@ def main():
         est, hist = cargar_estado()
         umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
         evaluar(est, t["last"], ahora, umbral)
+        try:
+            if est.get("ultimo_run"):
+                dt_run = (ahora - datetime.datetime.fromisoformat(est["ultimo_run"])).total_seconds()
+                if 0 <= dt_run < 240:
+                    print("Duplicado (<4 min desde la ultima pasada). Salto sin enviar.")
+                    return
+        except Exception:
+            pass
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
