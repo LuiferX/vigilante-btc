@@ -232,6 +232,7 @@ UMBRAL_MOV = 0.002
 UMBRAL_CONF_FUERTE = 55
 UMBRAL_CONF_CAMBIO = 40
 UMBRAL_CONF_SENAL = 45
+UMBRAL_PAPEL = 35         # el papel opera señales B (aprende mas); las alertas piden A
 UMBRAL_TOQUE = 0.0025  # 0.25% del nivel = "tocando"
 DEDUP_HORAS = 4          # misma direccion en 4 h = 1 sola senal (sin duplicados)
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
@@ -831,13 +832,13 @@ def responder_comando(cmd, ctx):
         j = est.get("paper_cerradas", [])
         ops = est.get("paper_abiertas", [])
         if not j and not ops:
-            return ("Papel: banco 10,000 USDT, sin operaciones aún. Abro solo con señales ALZA/BAJA de 45%+.", False)
+            return ("Papel: banco 10,000 USDT, sin operaciones aún. Abro solo con señales ALZA/BAJA de 35%+.", False)
         w = sum(1 for x in j if x.get("pnl", 0) > 0)
         wr = f"{round(w / len(j) * 100)}% ({w}/{len(j)})" if j else "s/d"
         tr = round(sum(x.get("r", 0) for x in j), 1) if j else 0
         txt = (f"Papel: banco {fmt_miles(banco)} USDT ({banco - 10000.0:+.0f}) · cerradas {len(j)} · ganadas {wr} · total {tr:+.1f}R.")
         if racha_perdidas(est) >= 3:
-            txt += " Penalizado: arriesga 0.5% (3+ perdidas seguidas)."
+            txt += " Penalizado: arriesga 0.5% (3+ pérdidas seguidas)."
         if ops:
             txt += "\nAbiertas:\n" + "\n".join(
                 f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])})" for o in ops)
@@ -872,6 +873,17 @@ def racha_perdidas(est):
         else:
             break
     return n
+
+
+def puede_papel(est, bias, conf, ahora):
+    """El papel opera señales B (35%+): aprende sin spamear. Dedup 4h por direccion."""
+    if bias not in ("ALZA", "BAJA") or conf < UMBRAL_PAPEL:
+        return False
+    pu = est.get("paper_ult") or {}
+    try:
+        return not (pu.get("dir") == bias and (ahora - datetime.datetime.fromisoformat(pu.get("t", ""))).total_seconds() / 3600 < DEDUP_HORAS)
+    except Exception:
+        return True
 
 
 def abrir_papel(est, dirb, niv, precio, ahora):
@@ -1647,19 +1659,19 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if bloqueo:
         return False, f"blackout ({motivo_bloq})", "nada"
     if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= UMBRAL_CONF_CAMBIO:
-        return True, f"Cambio de direccion: {prev} -> {bias}", "alerta"
+        return True, f"Cambio de dirección: {prev} → {bias}", "alerta"
     if bias in ("ALZA", "BAJA") and conf >= UMBRAL_CONF_FUERTE:
-        return True, f"Senal fuerte {bias} (confianza {conf}%)", "alerta"
+        return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO:
-        return True, f"Movimiento brusco {mov1h:+.2f}% en 1h", "alerta"
+        return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
     if liq:
         return True, "Toma de liquidez: " + liq, "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY:
-        return True, f"NY mueve {mov_ny:+.2f}% en el día", "alerta"
+        return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
         return True, pila, "alerta"
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
-        lado = f"resistencia {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"soporte {fmt_miles(sup['precio'])}"
+        lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         if not (conf < 45 and (regimen or "tendencia") == "rango"):
             return True, f"Tocando {lado}", "alerta"
     hoy = ahora.strftime("%Y-%m-%d")
@@ -1672,7 +1684,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, "Buenos días, plan del día (Londres)", "manana"
     if 2 <= hh < 3 and est.get("ultimo_resumen_noche") != hoy:
         return True, "Buenas noches, resumen del día", "noche"
-    return False, "sin senal (rango, sin cambios)", "nada"
+    return False, "sin señal (rango, sin cambios)", "nada"
 
 
 def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras):
@@ -1731,7 +1743,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         L.append(f"⏱ Rango activo | ⏰ {prox} | 4H en {h4['cierreEnMin']} min")
     coil = [x["tf"] for x in (h1, h4, d1, w1) if x["compresion"] < 0.5]
     if coil:
-        L.append(f"🌀 Compresion: {', '.join(coil)} (mercado quieto)")
+        L.append(f"🌀 Compresión: {', '.join(coil)} (mercado quieto)")
     L.append(f"🌡 Volatilidad {h1['regLabel']} ({h1['regPct']}%)")
     L.append("")
     L.append("━━━━━ 📊 MERCADO (solo cambios) ━━━━━")
@@ -2103,8 +2115,12 @@ def main():
                      "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
                               "fund": senti["funding"], "taker": senti["taker"],
                               "fg": fg["valor"]}}]
-                # PAPEL INTERNO (invisible): abre virtual con frenos institucionales
-                abrir_papel(est, dirb, niv, t["last"], ahora)
+        # PAPEL: opera señales B (35%+) aunque la alerta pida A (45%+). Aprende sin spamear.
+        if puede_papel(est, dirb["bias"], dirb["confianza"], ahora):
+            # PAPEL INTERNO (invisible): abre virtual con frenos institucionales
+            pos = abrir_papel(est, dirb, niv, t["last"], ahora)
+            if pos:
+                est["paper_ult"] = {"dir": dirb["bias"], "t": ahora.isoformat()}
         guardar_estado(est, hist)
 
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
