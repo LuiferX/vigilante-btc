@@ -721,7 +721,7 @@ def responder_comando(cmd, ctx):
                 f"Rango del día: {fmt_miles(t['lo'])} - {fmt_miles(t['hi'])}.", False)
     if c == "/direccion":
         def _tf(x):
-            return f"{x['tf']} {x['tend']} RSI {x['rsi']} MACD {'+' if x['macd'] > 0 else '-'}"
+            return f"{x.get('tf', '?')} {x.get('tend', '?')} RSI {x.get('rsi', '?')} MACD {'+' if x.get('macd', 0) > 0 else '-'}"
         return (f"Dirección: {dirb['bias']} (confianza {dirb['confianza']}%). " +
                 " | ".join(_tf(ctx[k]) for k in ("h1", "h4", "d1", "w1")) + ".", False)
     if c == "/niveles":
@@ -1152,16 +1152,17 @@ def divergencia(kl):
     return None
 
 
-def div_cvd():
+def div_cvd(data=None):
     """Divergencia CVD: precio maximo nuevo + CVD cayendo (distribucion)
     o minimo nuevo + CVD subiendo (absorcion)."""
-    data = None
-    for base in (FAPI, VISION):
-        try:
-            data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-            break
-        except Exception:
-            continue
+    if data is None:
+        data = None
+        for base in (FAPI, VISION):
+            try:
+                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
+                break
+            except Exception:
+                continue
     if not data or len(data) < 200:
         return None
     mid = len(data) // 2
@@ -1188,16 +1189,17 @@ def div_cvd():
     return None
 
 
-def ballenas():
+def ballenas(data=None):
     """Cinta de ballenas: prints >= UMBRAL_BALLENA en los ultimos 1000 trades
     (fapi, con fallback a spot). m=True = vendedor agresivo."""
-    data = None
-    for base in (FAPI, VISION):
-        try:
-            data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-            break
-        except Exception:
-            continue
+    if data is None:
+        data = None
+        for base in (FAPI, VISION):
+            try:
+                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
+                break
+            except Exception:
+                continue
     if not data:
         return None
     buys = sells = 0.0
@@ -1415,16 +1417,17 @@ def blackout(evs, ahora):
     return False, ""
 
 
-def cvd():
+def cvd(data=None):
     """Cumulative Volume Delta con la cinta (fapi, fallback spot).
     Divergencia CVD vs precio = absorcion/distribucion oculta."""
-    data = None
-    for base in (FAPI, VISION):
-        try:
-            data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-            break
-        except Exception:
-            continue
+    if data is None:
+        data = None
+        for base in (FAPI, VISION):
+            try:
+                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
+                break
+            except Exception:
+                continue
     if not data:
         return None
     cv = 0.0
