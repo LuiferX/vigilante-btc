@@ -165,7 +165,8 @@ def calendario(limit=5):
             continue
         if cuando <= ahora:
             continue
-        evs.append({"titulo": e.get('title', ''), "cuando": cuando, "impact": e.get('impact')})
+        evs.append({"titulo": e.get('title', ''), "cuando": cuando, "impact": e.get('impact'),
+                      "forecast": e.get('forecast'), "previous": e.get('previous')})
     evs.sort(key=lambda x: x['cuando'])
     return evs[:limit]
 
@@ -771,7 +772,11 @@ def responder_comando(cmd, ctx):
         ns = ctx["notis"][:3]
         if not ns:
             return ("Sin noticias relevantes ahora mismo.", False)
-        return ("Top noticias:\n" + "\n".join(f"• [{n['score']}] {n['titulo']}" for n in ns), False)
+        base = "Top noticias:\n" + "\n".join(f"• [{n['score']}] {n['titulo']}" for n in ns)
+        pr = ctx.get("pres")
+        if pr:
+            base += f"\nPresión: {pr['txt']}."
+        return (base, False)
     if c == "/eventos":
         evs = ctx["evs"][:3]
         if not evs:
@@ -1268,6 +1273,64 @@ def pulso(notis):
     return {"score": s, "bull": b, "bear": g, "lectura": lec}
 
 
+DIR_BULL = ("inflow", "inflows", "buy", "buys", "bought", "record", "demand", "adopt",
+            "approval", "approve", "accumulat", "breakout", "rate cut", "cuts rates")
+DIR_BEAR = ("outflow", "outflows", "sell", "sells", "sold", "lawsuit", "ban", "hack",
+            "crash", "hike", "crackdown", "fraud", "charged", "fine", "bankrupt")
+
+
+def direccion_noticia(titulo):
+    t = titulo.lower()
+    b = any(k in t for k in DIR_BULL)
+    s = any(k in t for k in DIR_BEAR)
+    if b and not s:
+        return 1
+    if s and not b:
+        return -1
+    return 0
+
+
+def presion_noticias(notis):
+    """Presion direccional neta de las noticias (-100..+100), ponderada por peso."""
+    if not notis:
+        return {"valor": 0, "txt": "sin noticias", "nb": 0, "ns": 0}
+    sw = sum(n["score"] * direccion_noticia(n["titulo"]) for n in notis)
+    w = sum(n["score"] for n in notis) or 1
+    v = round(sw / w * 100)
+    nb = sum(1 for n in notis if direccion_noticia(n["titulo"]) > 0)
+    ns = sum(1 for n in notis if direccion_noticia(n["titulo"]) < 0)
+    et = "alcista" if v >= 25 else ("bajista" if v <= -25 else "mixta")
+    return {"valor": v, "txt": f"{v:+d} {et} ({nb}🟢/{ns}🔴)", "nb": nb, "ns": ns}
+
+
+def acuerdo_tecnica(bias, valor):
+    if abs(valor) < 25:
+        return "noticias neutras: manda la técnica"
+    if (bias == "ALZA") == (valor > 0):
+        return f"viento a favor de la técnica ({bias})"
+    return f"VIENTO EN CONTRA: técnica {bias} vs noticias"
+
+
+def num_txt(x):
+    if x is None:
+        return None
+    m = re.search(r'-?\d+\.?\d*', str(x).replace(',', ''))
+    return float(m.group()) if m else None
+
+
+def linea_escenario(e):
+    """Escenario honesto para eventos con pronostico: que pasa si sale alto/bajo."""
+    f = num_txt(e.get("forecast"))
+    p = num_txt(e.get("previous"))
+    if f is None or p is None:
+        return ""
+    t = e["titulo"].lower()
+    base = f"escenario (esp {e['forecast']} vs prev {e['previous']})"
+    if re.search(r'cpi|ppi|pce|nfp|non-farm|nonfarm|payroll|unemployment|jobless|fomc|rate|interest', t):
+        return base + ": ALTO = baja | BAJO = sube"
+    return base + ": la sorpresa manda la dirección"
+
+
 def asia_range(kl, ahora):
     """Maximo/minimo de la sesion Asia (00-08 UTC) de hoy: niveles del dia."""
     hoy = ahora.strftime("%Y-%m-%d")
@@ -1578,6 +1641,9 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     pul = extras.get("pul")
     if pul:
         L.append(f"😨😊 PULSO: {pul['score']:+d} {pul['lectura']} ({pul['bull']}🟢/{pul['bear']}🔴)")
+    pr = extras.get("pres")
+    if pr:
+        L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
     ar = extras.get("ar")
     if ar:
         L.append(f"🌙 ASIA: máx {fmt_miles(ar['hi'])} / mín {fmt_miles(ar['lo'])}")
@@ -1602,6 +1668,9 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
             cuando_s = e['cuando'].strftime('%a %d %H:%M UTC')
             L.append(f"  📌 {e['titulo']} ({cuando_s}, {cuenta_regresiva(e['cuando'], ahora)})")
             L.append(f"     → {explicar_evento(e['titulo'])} · impacto {impacto_evento(e['impact'])}")
+            sc = linea_escenario(e)
+            if sc:
+                L.append(f"     → {sc}")
     else:
         L.append("  (sin eventos fuertes esta semana)")
     L.append("  Rangos ±% = referencia historica tipica, no prediccion.")
@@ -1669,6 +1738,7 @@ def main():
         oro = oro_vs_btc(t["chg"])
         lsr = ls_global()
         pul = pulso(notis)
+        pres = presion_noticias(notis)
         ar = asia_range(kl_h1, ahora)
         aut = auto_stats(est.get("eval_log", []))
         regimen = "tendencia" if h4.get("adx", 0) >= 20 else "rango"
@@ -1760,7 +1830,7 @@ def main():
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
                "h1": h1, "h4": h4, "d1": d1, "w1": w1, "senti": senti,
                "notis": notis, "evs": evs, "ahora": ahora, "cb": cb, "smart": sm, "aut": aut,
-               "grade": grade, "regimen": regimen, "bloqueo": bloqueo}
+               "grade": grade, "regimen": regimen, "bloqueo": bloqueo, "pres": pres}
         try:
             cmds, new_off = leer_comandos(est.get("offset", 0))
         except Exception:
@@ -1879,7 +1949,8 @@ def main():
                   "lsr": lsr,
                   "pul": pul,
                   "ar": ar,
-                  "aut": aut}
+                  "aut": aut,
+                  "pres": pres}
         if tipo == "ny":
             msg = build_compacto(t, dirb, niv, extras)
         else:
