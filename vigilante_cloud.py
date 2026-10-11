@@ -759,9 +759,10 @@ def responder_comando(cmd, ctx):
         return (f"BTC ahora: {fmt_miles(t['last'])} ({t['chg']:+.2f}% 24h). "
                 f"Rango del día: {fmt_miles(t['lo'])} - {fmt_miles(t['hi'])}.", False)
     if c == "/direccion":
-        return (f"Dirección: {dirb['bias']} (confianza {dirb['confianza']}%). "
-                f"1H {ctx['h1']['tend']}, 4H {ctx['h4']['tend']}, "
-                f"1D {ctx['d1']['tend']}, 1S {ctx['w1']['tend']}.", False)
+        def _tf(x):
+            return f"{x['tf']} {x['tend']} RSI {x['rsi']} MACD {'+' if x['macd'] > 0 else '-'}"
+        return (f"Dirección: {dirb['bias']} (confianza {dirb['confianza']}%). " +
+                " | ".join(_tf(ctx[k]) for k in ("h1", "h4", "d1", "w1")) + ".", False)
     if c == "/niveles":
         return ("Soportes: " + " | ".join(fmt_miles(x['precio']) for x in niv['soportes']) +
                 "\nResistencias: " + " | ".join(fmt_miles(x['precio']) for x in niv['resistencias']), False)
@@ -1106,6 +1107,45 @@ def liquidez(kl, last):
     return None
 
 
+def zonas_pilas(pw, d1, w1, last, ima):
+    """Zonas mayores de largo plazo (semanales, diarias, psicologicos, imanes).
+    La paciencia vive aqui: el precio vuelve a estas zonas."""
+    cands = []
+    if pw:
+        if pw.get("S1"):
+            cands.append((pw["S1"], "S1 semanal"))
+        if pw.get("R1"):
+            cands.append((pw["R1"], "R1 semanal"))
+    cands.append((d1["winL"], "mín 1D"))
+    cands.append((d1["winH"], "máx 1D"))
+    cands.append((w1["winL"], "mín 1S"))
+    cands.append((w1["winH"], "máx 1S"))
+    pu, pdn = psico(last)
+    cands.append((pu, "psicológico"))
+    cands.append((pdn, "psicológico"))
+    if ima:
+        if ima.get("up"):
+            cands.append((ima["up"], "imán"))
+        if ima.get("down"):
+            cands.append((ima["down"], "imán"))
+    zonas = []
+    for v, o in cands:
+        if not v:
+            continue
+        v = round(v)
+        hall = None
+        for z in zonas:
+            if abs(z["precio"] - v) < 25:
+                hall = z
+                break
+        if hall:
+            if o not in hall["razones"]:
+                hall["razones"].append(o)
+        else:
+            zonas.append({"precio": v, "razones": [o]})
+    return zonas
+
+
 def divergencia(kl):
     """Divergencia RSI 1H: precio hace minimo mas bajo pero RSI sube (alcista) y viceversa."""
     closes = [c["c"] for c in kl]
@@ -1421,6 +1461,22 @@ def cvd():
 
 # ---------------- Estado / historial / precision ----------------
 
+def cambio(est, clave, valor, eps):
+    """True si el valor cambió vs el último parte (y lo guarda).
+    Con texto compara exacto; con numeros usa tolerancia eps."""
+    try:
+        prev = (est.get("deltas") or {}).get(clave)
+    except Exception:
+        prev = None
+    est.setdefault("deltas", {})[clave] = valor
+    if prev is None:
+        return True
+    try:
+        return abs(float(valor) - float(prev)) > eps
+    except Exception:
+        return valor != prev
+
+
 def cargar_estado():
     est = {"ultimo_bias": "?", "ultima_conf": 0, "ultimo_precio": 0,
            "ultimo_run": "", "ultimo_resumen": "", "ultimo_resumen_noche": "",
@@ -1486,7 +1542,7 @@ def evaluar(est, precio_now, ahora, umbral):
     est["pendientes"] = nuevas_pend
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -1508,6 +1564,8 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, "Toma de liquidez: " + liq, "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY:
         return True, f"NY mueve {mov_ny:+.2f}% en el día", "alerta"
+    if pila:
+        return True, pila, "alerta"
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"resistencia {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"soporte {fmt_miles(sup['precio'])}"
         if not (conf < 45 and (regimen or "tendencia") == "rango"):
@@ -1551,9 +1609,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append(f"📈 max {fmt_miles(t['hi'])} / min {fmt_miles(t['lo'])}")
     L.append("")
     L.append(f"🧭 MARCOS: {dirb['bias']} ({dirb['confianza']}%) · régimen {extras.get('regimen', '?')} · ADX 4H {h4.get('adx', '?')}")
-    for x in (h1, h4, d1, w1):
-        L.append(f"  {icon.get(x['tend'], '🟡')} {x['tf']}: {x['tend'].upper()} (s{x['score']:+d}) "
-                 f"RSI {x['rsi']} | MACD {'+' if x['macd'] > 0 else '-'}")
+    L.append("  " + "  ".join(f"{x['tf']}{icon.get(x['tend'], '🟡')}(s{x['score']:+d})" for x in (h1, h4, d1, w1)))
     L.append("")
     L.append("📖 " + extras.get("narrativa", ""))
     L.append("")
@@ -1561,9 +1617,8 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     r_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["resistencias"])
     L.append(f"🟢 SOPORTES: {s_txt}")
     L.append(f"🔴 RESISTENCIAS: {r_txt}")
-    for m in extras.get("memoria", [])[:4]:
+    for m in extras.get("memoria", [])[:3]:
         L.append("🧠 " + m)
-    L.append("📈 24h: " + extras.get("spark", "") + " · ⛽ " + extras.get("comb", "n/d"))
     if extras.get("fflag"):
         L.append("⚠️ Funding extremo: " + extras["fflag"])
     L.append("")
@@ -1587,9 +1642,12 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         L.append(f"🌀 Compresion: {', '.join(coil)} (antes de expansion)")
     L.append(f"🌡 Volatilidad {h1['regLabel']} ({h1['regPct']}%)")
     L.append("")
-    L.append("━━━━━ 📊 MERCADO ━━━━━")
+    L.append("━━━━━ 📊 MERCADO (solo cambios) ━━━━━")
+    hubo = False
     fg_icon = "😱" if fg["valor"] < 25 else ("😨" if fg["valor"] < 45 else ("😐" if fg["valor"] < 55 else ("🙂" if fg["valor"] < 75 else "🤑")))
-    L.append(f"{fg_icon} MIEDO/CODICIA: {fg['etiqueta']} {fg['valor']}/100")
+    if cambio(est, "fg", fg["valor"], 3):
+        L.append(f"{fg_icon} MIEDO/CODICIA: {fg['etiqueta']} {fg['valor']}/100")
+        hubo = True
     sent = []
     if senti["funding"] is not None:
         sent.append(f"funding {senti['funding']:+.4f}%")
@@ -1598,64 +1656,83 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     if senti["taker"] is not None:
         sent.append(f"taker L/S {senti['taker']}")
     if sent:
-        L.append("⚡ FUTUROS: " + " | ".join(sent))
+        cf = senti["funding"] is not None and cambio(est, "fund", senti["funding"], 0.005)
+        ct = senti["taker"] is not None and cambio(est, "taker", senti["taker"], 0.05)
+        if cf or ct:
+            L.append("⚡ FUTUROS: " + " | ".join(sent))
+            hubo = True
     if extras.get("macro") and extras["macro"].get("mx"):
         mx = extras["macro"]["mx"]
         dxy = mx.get("dxy")
         spx = mx.get("spx")
         if dxy and spx:
-            L.append(f"💵 DÓLAR: {dxy['px']} ({dxy['chg']:+.2f}%) | BOLSA SPX: {spx['px']} ({spx['chg']:+.2f}%)")
-            L.append("🌍 " + extras["macro"]["lectura"])
+            cd = cambio(est, "dxy", dxy["chg"], 0.1)
+            cs = cambio(est, "spx", spx["chg"], 0.1)
+            if cd or cs:
+                L.append(f"💵 DÓLAR: {dxy['px']} ({dxy['chg']:+.2f}%) | BOLSA SPX: {spx['px']} ({spx['chg']:+.2f}%)")
+                L.append("🌍 " + extras["macro"]["lectura"])
+                hubo = True
     sm = extras.get("smart")
     if sm:
-        L.append(f"🏛️ INSTITUCIONES {sm['inst']}/100 | 🧍 MINORISTAS {sm['ret']}/100")
-        L.append("⚔️ " + sm["veredicto"])
-        for dd in sm.get("det", [])[:3]:
-            L.append("   • " + dd)
+        ci = cambio(est, "inst", sm["inst"], 5)
+        cr = cambio(est, "ret", sm["ret"], 5)
+        if ci or cr:
+            L.append(f"🏛️ INSTITUCIONES {sm['inst']}/100 | 🧍 MINORISTAS {sm['ret']}/100")
+            L.append("⚔️ " + sm["veredicto"])
+            for dd in sm.get("det", [])[:2]:
+                L.append("   • " + dd)
+            hubo = True
     cb = extras.get("cb")
     if cb and cb.get("prem") is not None:
         vs = f"{cb['vol_share']}%" if cb.get("vol_share") is not None else "n/d"
         ib = f"{cb['imb']:+.1f}%" if cb.get("imb") is not None else "n/d"
-        L.append(f"🏦 COINBASE: premium {cb['prem']:+.3f}% | vol {vs} de Binance | libro {ib}")
-        L.append("   → " + cb_veredicto(cb))
+        cp = cambio(est, "prem", cb["prem"], 0.02)
+        cb2 = cb.get("imb") is not None and cambio(est, "imb", cb["imb"], 5)
+        if cp or cb2:
+            L.append(f"🏦 COINBASE: premium {cb['prem']:+.3f}% | vol {vs} de Binance | libro {ib}")
+            L.append("   → " + cb_veredicto(cb))
+            hubo = True
     bal = extras.get("bal")
-    if bal and (bal.get("nb", 0) + bal.get("ns", 0)) > 0:
+    if bal and (bal.get("nb", 0) + bal.get("ns", 0)) > 0 and cambio(est, "bal", bal["txt"], 0):
         L.append(f"🐋 BALLENAS: {bal['ns']} sells {fmt_miles(bal['sells'])} BTC vs {bal['nb']} buys {fmt_miles(bal['buys'])} BTC → {bal['txt']}")
+        hubo = True
     ima = extras.get("ima")
     if ima and ima.get("top"):
         tops = " | ".join(f"{fmt_miles(x['strike'])} ({fmt_miles(x['oi'])} BTC)" for x in ima["top"])
         pc = f" P/C {ima['pc']}" if ima.get("pc") is not None else ""
-        L.append(f"🧲 IMANES: {tops}{pc}")
-        if ima.get("up") and ima.get("down"):
-            L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])} / abajo {fmt_miles(ima['down'])}")
-        elif ima.get("up"):
-            L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])}")
+        clave_ima = tops + pc
+        if cambio(est, "ima", clave_ima, 0):
+            L.append(f"🧲 IMANES: {tops}{pc}")
+            if ima.get("up") and ima.get("down"):
+                L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])} / abajo {fmt_miles(ima['down'])}")
+            elif ima.get("up"):
+                L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])}")
+            hubo = True
     oro = extras.get("oro")
-    if oro:
+    if oro and cambio(est, "orodiff", oro["diff"], 0.3):
         L.append(f"🥇 ORO {oro['oro']:+.2f}% vs BTC {t['chg']:+.2f}%: {oro['lectura']}")
+        hubo = True
     lsr = extras.get("lsr")
-    if lsr:
+    if lsr and cambio(est, "lsr", lsr["ratio"], 0.05):
         L.append(f"📊 CUENTAS long/short {lsr['ratio']}: {lsr['lectura']}")
+        hubo = True
     cv = extras.get("cvd_v")
-    if cv:
+    if cv and cambio(est, "cvd", cv["lectura"], 0):
         L.append(f"🌊 CVD {cv['cvd']:+.1f} BTC vs precio {cv['dpx']:+.2f}%: {cv['lectura']}")
+        hubo = True
     pul = extras.get("pul")
-    if pul:
-        L.append(f"😨😊 PULSO: {pul['score']:+d} {pul['lectura']} ({pul['bull']}🟢/{pul['bear']}🔴)")
     pr = extras.get("pres")
-    if pr:
+    if pr and cambio(est, "pres", pr["valor"], 10):
         L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
-    ar = extras.get("ar")
-    if ar:
-        L.append(f"🌙 ASIA: máx {fmt_miles(ar['hi'])} / mín {fmt_miles(ar['lo'])}")
+        hubo = True
+    if not hubo:
+        L.append("(mercado sin cambios desde tu último parte)")
     aut = extras.get("aut")
     if aut:
         L.append(f"🧠 AUTO: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}")
     L.append("━━━━━ 📚 CONTEXTO ━━━━━")
-    L.append(f"🎯 PRECISION: ALZA {prec_str(est.get('alza', []))} · BAJA {prec_str(est.get('baja', []))}")
-    L.append("")
     L.append("📰 NOTICIAS NUEVAS (no vistas):")
-    frescas = [n for n in notis if n["titulo"] not in extras.get("vistas", [])][:5]
+    frescas = [n for n in notis if n["titulo"] not in extras.get("vistas", [])][:3]
     if frescas:
         for n in frescas:
             icono = '🔴' if n['score'] >= 9 else '🟡'
@@ -1666,7 +1743,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append("")
     L.append("🗓 PROXIMOS EVENTOS EE.UU.:")
     if evs:
-        for e in evs:
+        for e in evs[:3]:
             cuando_s = e['cuando'].strftime('%a %d %H:%M UTC')
             L.append(f"  📌 {e['titulo']} ({cuando_s}, {cuenta_regresiva(e['cuando'], ahora)})")
             L.append(f"     → {explicar_evento(e['titulo'])} · impacto {impacto_evento(e['impact'])}")
@@ -1675,11 +1752,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
                 L.append(f"     → {sc}")
     else:
         L.append("  (sin eventos fuertes esta semana)")
-    L.append("  Rangos ±% = referencia historica tipica, no prediccion.")
-    L.append("")
-    L.append("💡 " + extras.get("leccion", ""))
-    L.append("")
-    L.append("⚠️ Analisis probabilistico, no asesoramiento financiero.")
+    L.append("Rangos ±% = ref. histórica. No es asesoramiento financiero.")
     return "\n".join(L)
 
 
@@ -1791,6 +1864,22 @@ def main():
                 mov_ny = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
                 break
         liq = liquidez(kl_h1, t["last"])
+        pila = None
+        try:
+            zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
+            if zonas:
+                zp = min(zonas, key=lambda z: abs(z["precio"] - t["last"]))
+                dist = abs(zp["precio"] - t["last"]) / t["last"]
+                key = str(zp["precio"])
+                if dist <= 0.0035 and est.get("pilas", {}).get(key) != hoy:
+                    lado = "ARRIBA" if zp["precio"] <= t["last"] else "ABAJO"
+                    inv = niv["soportes"][0]["precio"] if lado == "ARRIBA" else niv["resistencias"][0]["precio"]
+                    pre = "bajo" if lado == "ARRIBA" else "sobre"
+                    pila = (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+                            f"({'+'.join(zp['razones'][:3])}) → rebote {lado} posible; se anula {pre} {fmt_miles(inv)} (cierre 1H)")
+                    est.setdefault("pilas", {})[key] = hoy
+        except Exception:
+            pila = None
         forzado = None
         vivas = []
         for a in est.get("mis_alertas", []):
@@ -1817,7 +1906,7 @@ def main():
                      "res": niv["resistencias"][0]["precio"], "sup": niv["soportes"][0]["precio"],
                      "grade": grade})
 
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
