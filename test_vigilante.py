@@ -333,6 +333,54 @@ msg = v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1
                     {"bias": "LATERAL", "confianza": 10}, "prox", {"funding": None, "oi": None, "taker": None},
                     {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "alerta", [], [], ah, ex)
 t("build veredicto", "VEREDICTO" in msg and "MERCADO" in msg and "CONTEXTO" in msg)
+SNAP = {"precio": 83000, "chg": 0.5, "hi": 83500, "lo": 82500, "bias": "ALZA",
+        "conf": 60, "grade": "B", "regimen": "tendencia",
+        "tf": {"h1": {"tend": "alcista", "rsi": 55, "macd": 1, "score": 3},
+               "h4": {"tend": "lateral", "rsi": 50, "macd": 0, "score": 0},
+               "d1": {"tend": "lateral", "rsi": 45, "macd": -1, "score": -1},
+               "w1": {"tend": "alcista", "rsi": 70, "macd": 1, "score": 3}},
+        "niv": {"sop": [{"precio": 82000, "origen": "S"}], "res": [{"precio": 84000, "origen": "R"}]},
+        "fg": {"valor": 60, "etiqueta": "Codicia"},
+        "senti": {"funding": 0.01, "taker": 1.2},
+        "notis": [{"titulo": "X", "score": 8}],
+        "evs": [{"titulo": "CPI m/m", "cuando": "2026-10-12T12:30:00+00:00", "impact": "High"}],
+        "pres": {"valor": 30, "txt": "+30 alcista", "nb": 1, "ns": 0},
+        "smart": {"inst": 70, "ret": 40, "veredicto": "v"}}
+CEST = {"alza": [1, 1, 1, 0, 0], "baja": [], "mis_alertas": [], "ops": [],
+        "journal": [], "banco": 10000.0, "paper_abiertas": [], "paper_cerradas": [],
+        "eval_log": [], "offset": 1, "runs": 5}
+CSNAP = {"t": {"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500},
+         "dirb": {"bias": SNAP["bias"], "confianza": SNAP["conf"]},
+         "niv": {"resistencias": SNAP["niv"]["res"], "soportes": SNAP["niv"]["sop"]},
+         "fg": {"valor": SNAP["fg"]["valor"], "etiqueta": SNAP["fg"]["etiqueta"]},
+         "est": CEST, "h1": SNAP["tf"]["h1"], "h4": SNAP["tf"]["h4"],
+         "d1": SNAP["tf"]["d1"], "w1": SNAP["tf"]["w1"],
+         "senti": {"funding": SNAP["senti"]["funding"], "taker": SNAP["senti"]["taker"]},
+         "notis": SNAP["notis"],
+         "evs": [{"titulo": e["titulo"], "cuando": datetime.datetime.fromisoformat(e["cuando"]), "impact": e["impact"]} for e in SNAP["evs"]],
+         "ahora": ah, "cb": None, "smart": SNAP["smart"], "aut": None,
+         "grade": SNAP["grade"], "regimen": SNAP["regimen"], "bloqueo": False, "pres": SNAP["pres"]}
+
+
+def scmd(txt):
+    return v.responder_comando({"chat": 111, "texto": txt, "full": txt, "nombre": "T"}, CSNAP)
+
+
+t("snap precio", scmd("/precio")[0].startswith("BTC ahora"))
+t("snap direccion", "ALZA" in scmd("/direccion")[0])
+t("snap niveles", "Soportes" in scmd("/niveles")[0])
+t("snap miedo", "Codicia" in scmd("/miedo")[0])
+t("snap noticias", "[8]" in scmd("/noticias")[0])
+t("snap eventos", "CPI" in scmd("/eventos")[0])
+t("snap precision", "ALZA 60%" in scmd("/precision")[0])
+t("snap manos", "Instituciones 70" in scmd("/manos")[0])
+t("snap calidad", "Calidad: B" in scmd("/calidad")[0])
+t("snap alerta2", v.responder_comando({"chat": 111, "texto": "/alerta", "full": "/alerta 85000", "nombre": "T"}, CSNAP)[1] is True)
+t("snap op", v.responder_comando({"chat": 111, "texto": "/opere", "full": "/opere LONG 83000 82500 84000", "nombre": "T"}, CSNAP)[1] is True)
+t("snap voy", "LONG" in scmd("/voy")[0])
+t("snap diario", "Diario" in scmd("/diario")[0])
+t("snap papel", "Papel" in scmd("/papel")[0])
+t("snap otro", "Comandos" in scmd("/otro")[0])
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
