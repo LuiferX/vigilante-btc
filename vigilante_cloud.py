@@ -874,6 +874,50 @@ def racha_perdidas(est):
     return n
 
 
+def abrir_papel(est, dirb, niv, precio, ahora):
+    """Abre papel virtual con frenos institucionales (devuelve la posicion o None):
+    - drawdown -10% desde maximo: frena todo
+    - -3% en el dia: frena el dia
+    - 3+ perdidas seguidas: riesgo 0.5% en vez de 1%"""
+    if dirb["bias"] not in ("ALZA", "BAJA"):
+        return None
+    banco = float(est.get("banco", 10000.0))
+    pico = float(est.get("banco_pico", banco))
+    if banco > pico:
+        pico = banco
+        est["banco_pico"] = pico
+    if pico > 0 and (pico - banco) / pico >= 0.10:
+        return None
+    hoy = ahora.strftime("%Y-%m-%d")
+    pd = est.get("paper_dia") or {}
+    if pd.get("fecha") != hoy:
+        pd = {"fecha": hoy, "pnl": 0.0}
+        est["paper_dia"] = pd
+    if pd.get("pnl", 0) <= -0.03 * banco:
+        return None
+    riesgo_pct = 0.005 if racha_perdidas(est) >= 3 else 0.01
+    if dirb["bias"] == "ALZA":
+        stop = niv["soportes"][0]["precio"]
+        tp = niv["resistencias"][0]["precio"]
+        if tp <= precio:
+            tp = precio + (precio - stop) * 2
+        dire = "LONG"
+    else:
+        stop = niv["resistencias"][0]["precio"]
+        tp = niv["soportes"][0]["precio"]
+        if tp >= precio:
+            tp = precio - (stop - precio) * 2
+        dire = "SHORT"
+    dist_stop = abs(precio - stop)
+    if dist_stop <= 0:
+        return None
+    tam = (banco * riesgo_pct) / dist_stop
+    pos = {"dir": dire, "entrada": round(precio), "stop": stop, "tp": round(tp),
+           "tam": round(tam, 4), "riesgo": round(banco * riesgo_pct, 2), "t": ahora.isoformat()}
+    est["paper_abiertas"] = est.get("paper_abiertas", []) + [pos]
+    return pos
+
+
 def journal_check(ops, kl_h1, last):
     """Revisa operaciones abiertas con la ultima vela 1H cerrada + ticker.
     Devuelve (abiertas, cierres[{txt, r, dir, res}])."""
@@ -1389,6 +1433,15 @@ def linea_escenario(e):
     return base + ": la sorpresa manda la dirección"
 
 
+def hay_veto(bias, prem, dxy):
+    """Veto institucional: premium USA + dolar en contra de la direccion."""
+    if bias == "ALZA" and prem is not None and prem < -0.03 and dxy > 0.2:
+        return True
+    if bias == "BAJA" and prem is not None and prem > 0.03 and dxy < -0.2:
+        return True
+    return False
+
+
 def score_senal(dirb, h1, h4, regimen):
     """Calidad A/B/C/D: confianza + regimen (chop capa la A) + volumen."""
     if dirb["bias"] not in ("ALZA", "BAJA"):
@@ -1617,7 +1670,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, "Resumen nocturno (mientras dormías)", "madrugada"
     if 8 <= hh < 9 and est.get("ultimo_resumen") != f"{hoy}-manana":
         return True, "Buenos días, plan del día (Londres)", "manana"
-    if hh >= 20.5 and est.get("ultimo_resumen_noche") != hoy:
+    if 2 <= hh < 3 and est.get("ultimo_resumen_noche") != hoy:
         return True, "Buenas noches, resumen del día", "noche"
     return False, "sin senal (rango, sin cambios)", "nada"
 
@@ -1698,7 +1751,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         cf = senti["funding"] is not None and cambio(est, "fund", senti["funding"], 0.005)
         ct = senti["taker"] is not None and cambio(est, "taker", senti["taker"], 0.05)
         if cf or ct:
-            L.append("⚡ FUTUROS: " + " | ".join(sent))
+            L.append("⚡ FUTUROS: " + " | ".join(sent) + extras.get("senti_viejo", ""))
             hubo = True
     if extras.get("macro") and extras["macro"].get("mx"):
         mx = extras["macro"]["mx"]
@@ -1708,7 +1761,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
             cd = cambio(est, "dxy", dxy["chg"], 0.1)
             cs = cambio(est, "spx", spx["chg"], 0.1)
             if cd or cs:
-                L.append(f"💵 DÓLAR: {dxy['px']} ({dxy['chg']:+.2f}%) | BOLSA SPX: {spx['px']} ({spx['chg']:+.2f}%)")
+                L.append(f"💵 DÓLAR: {dxy['px']} ({dxy['chg']:+.2f}%) | BOLSA SPX: {spx['px']} ({spx['chg']:+.2f}%)" + extras.get("macro_viejo", ""))
                 L.append("🌍 " + extras["macro"]["lectura"])
                 hubo = True
     sm = extras.get("smart")
@@ -1873,14 +1926,32 @@ def main():
         pres = presion_noticias(notis)
         dcvd = div_cvd()
         aut = auto_stats(est.get("eval_log", []))
+        senti_viejo = ""
+        if senti["funding"] is None and senti["taker"] is None and est.get("last_senti"):
+            try:
+                _ed = (ahora - datetime.datetime.fromisoformat(est["last_senti"]["t"])).total_seconds() / 3600
+            except Exception:
+                _ed = 99
+            if _ed < 12:
+                senti = {"funding": est["last_senti"].get("funding"), "oi": None,
+                         "taker": est["last_senti"].get("taker")}
+                senti_viejo = f" (hace {int(_ed)}h)"
+        if senti["funding"] is not None or senti["taker"] is not None:
+            est["last_senti"] = {"funding": senti["funding"], "taker": senti["taker"],
+                                 "t": ahora.isoformat()}
+        macro_viejo = ""
+        if mx is None and est.get("last_macro"):
+            try:
+                _ed2 = (ahora - datetime.datetime.fromisoformat(est["last_macro"]["t"])).total_seconds() / 3600
+            except Exception:
+                _ed2 = 99
+            if _ed2 < 24 and est["last_macro"].get("mx"):
+                mx = est["last_macro"]["mx"]
+                macro_viejo = f" (hace {int(_ed2)}h)"
+        if mx:
+            est["last_macro"] = {"mx": mx, "t": ahora.isoformat()}
         grade = score_senal(dirb, h1, h4, regimen)
-        veto = False
-        _prem = (cb or {}).get("prem")
-        _dxy = ((mx or {}).get("dxy") or {}).get("chg", 0)
-        if dirb["bias"] == "ALZA" and _prem is not None and _prem < -0.03 and _dxy > 0.2:
-            veto = True
-        if dirb["bias"] == "BAJA" and _prem is not None and _prem > 0.03 and _dxy < -0.2:
-            veto = True
+        veto = hay_veto(dirb["bias"], (cb or {}).get("prem"), ((mx or {}).get("dxy") or {}).get("chg", 0))
         if veto and grade in ("A", "B"):
             grade = chr(ord(grade) + 2)
         bloqueo, motivo_bloq = blackout(evs, ahora)
@@ -1979,6 +2050,11 @@ def main():
                                  "r": round(pnl / o["riesgo"], 2) if o["riesgo"] else 0,
                                  "t": ahora.isoformat()})
                     est["paper_cerradas"] = cerr[-100:]
+                    pdh = est.get("paper_dia") or {}
+                    if pdh.get("fecha") != ahora.strftime("%Y-%m-%d"):
+                        pdh = {"fecha": ahora.strftime("%Y-%m-%d"), "pnl": 0.0}
+                    pdh["pnl"] = round(pdh.get("pnl", 0) + pnl, 2)
+                    est["paper_dia"] = pdh
                 else:
                     abiertas_p.append(o)
             except Exception:
@@ -2027,29 +2103,8 @@ def main():
                      "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
                               "fund": senti["funding"], "taker": senti["taker"],
                               "fg": fg["valor"]}}]
-                # PAPEL INTERNO (invisible): abre virtual con riesgo 1% del banco
-                # (penalizacion: 0.5% si lleva 3+ perdidas seguidas)
-                banco = float(est.get("banco", 10000.0))
-                riesgo_pct = 0.005 if racha_perdidas(est) >= 3 else 0.01
-                if dirb["bias"] == "ALZA":
-                    stop = niv["soportes"][0]["precio"]
-                    tp = niv["resistencias"][0]["precio"]
-                    if tp <= t["last"]:
-                        tp = t["last"] + (t["last"] - stop) * 2
-                    dire = "LONG"
-                else:
-                    stop = niv["resistencias"][0]["precio"]
-                    tp = niv["soportes"][0]["precio"]
-                    if tp >= t["last"]:
-                        tp = t["last"] - (stop - t["last"]) * 2
-                    dire = "SHORT"
-                dist_stop = abs(t["last"] - stop)
-                if dist_stop > 0:
-                    tam = (banco * riesgo_pct) / dist_stop
-                    est["paper_abiertas"] = est.get("paper_abiertas", []) + [
-                        {"dir": dire, "entrada": round(t["last"]), "stop": stop,
-                         "tp": round(tp), "tam": round(tam, 4),
-                         "riesgo": round(banco * riesgo_pct, 2), "t": ahora.isoformat()}]
+                # PAPEL INTERNO (invisible): abre virtual con frenos institucionales
+                abrir_papel(est, dirb, niv, t["last"], ahora)
         guardar_estado(est, hist)
 
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
@@ -2146,9 +2201,12 @@ def main():
             if sd:
                 memoria.append(f"anoche: máx {fmt_miles(sd['max'])}, mín {fmt_miles(sd['min'])}, sesgo {sd['dom']}")
         if tipo == "noche":
-            sd = stats_dia(hist, ahora)
-            if sd:
-                memoria.append(f"hoy: máx {fmt_miles(sd['max'])}, mín {fmt_miles(sd['min'])}, sesgo dominante {sd['dom']}")
+            ini = (ahora - datetime.timedelta(hours=24)).isoformat()
+            ps = [h["precio"] for h in hist if h.get("t", "") >= ini and h.get("precio")]
+            bs = [h["bias"] for h in hist if h.get("t", "") >= ini and h.get("bias")]
+            if ps:
+                dom = max(set(bs), key=bs.count) if bs else "?"
+                memoria.append(f"tu día: máx {fmt_miles(max(ps))}, mín {fmt_miles(min(ps))}, sesgo dominante {dom}")
             if evs:
                 memoria.append("mañana vigilo: " + ", ".join(e["titulo"] for e in evs[:2]))
         extras = {"intro": intro,
@@ -2162,6 +2220,8 @@ def main():
                   "regimen": regimen,
                   "cvd_v": cvd_v,
                   "macro": {"mx": mx, "lectura": lectura_macro(mx)},
+                  "senti_viejo": senti_viejo,
+                  "macro_viejo": macro_viejo,
                   "cb": cb,
                   "smart": sm,
                   "bal": bal,
@@ -2175,6 +2235,7 @@ def main():
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
         if ok:
+            hist[-1]["enviado"] = True
             est["vistas"] = (est.get("vistas", []) + [n["titulo"] for n in notis])[-30:]
             guardar_estado(est, hist)
     except Exception as e:  # noqa: BLE001
