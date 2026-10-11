@@ -1493,7 +1493,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
             return True, f"Tocando {lado}", "alerta"
     hoy = ahora.strftime("%Y-%m-%d")
     hh = ahora.hour + ahora.minute / 60
-    if ahora.hour == 13 and ahora.minute == 0 and est.get("ultimo_preny") != hoy:
+    if 13 <= hh < 13.5 and est.get("ultimo_preny") != hoy:
         return True, "REPORTE PRE-NY (30 min para la apertura)", "preny"
     if ahora.hour == 7 and est.get("ultimo_madrugada") != hoy:
         return True, "Resumen nocturno (mientras dormías)", "madrugada"
