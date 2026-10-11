@@ -50,6 +50,8 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
   🔢 psicológicos con re-test + 📉 divergencias RSI**.
 - **🏛️🆚🧍 Instituciones vs minoristas + 🏦 análisis Coinbase** (premium USA, peso de su
   volumen y muros del libro): quién quiere qué, con veredicto.
+- **📰 Noticias direccionales**: presión neta (-100..+100), viento a favor/en contra
+  de la técnica y escenarios por evento (ALTO=baja/BAJO=sube cuando hay pronóstico).
 - **🐋 Cinta de ballenas + 🧲 imanes Deribit + 🥇 oro vs BTC + 📊 long/short global +
   😨😊 pulso de titulares + 🌙 rango asiático + 🧠 auto-aprendizaje por sesión**.
 - **🏛️ Institucional**: score A/B/C + filtro de régimen (ADX), blackout en eventos High,
