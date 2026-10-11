@@ -48,10 +48,15 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
   `/voy`, `/diario`, `/cerrar` y te responde en la siguiente pasada (máx ~30 min). Solo obedece a tu chat.
 - **📓 Diario de trading + 🎯 alertas de precio + 🌊 detector de bruscos + 💵 DXY/SPX +
   🔢 psicológicos con re-test + 📉 divergencias RSI**.
+- **💵 `/papel` invisible**: el bot opera solo con $10,000 virtuales (riesgo 1%,
+  penalizado a 0.5% tras 3 pérdidas seguidas). Solo visible con `/papel`.
 - **🏛️🆚🧍 Instituciones vs minoristas + 🏦 análisis Coinbase** (premium USA, peso de su
   volumen y muros del libro): quién quiere qué, con veredicto.
 - **📰 Noticias direccionales**: presión neta (-100..+100), viento a favor/en contra
   de la técnica y escenarios por evento (ALTO=baja/BAJO=sube cuando hay pronóstico).
+- **⚠️ EYY PILAS**: vigila zonas mayores de largo plazo (semanales, psicológicos, imanes)
+  y avisa corto cuando el precio llega: lado del rebote + anulación (1 vez por zona al día).
+- **🔄 Modo DELTA**: el mercado muestra solo lo que cambió desde tu último parte.
 - **🐋 Cinta de ballenas + 🧲 imanes Deribit + 🥇 oro vs BTC + 📊 long/short global +
   😨😊 pulso de titulares + 🌙 rango asiático + 🧠 auto-aprendizaje por sesión**.
 - **🏛️ Institucional**: score A/B/C + filtro de régimen (ADX), blackout en eventos High,
