@@ -1487,7 +1487,7 @@ def evaluar(est, precio_now, ahora, umbral):
 
 
 def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None):
-    """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, ny, nada."""
+    """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
     dist_res = (res["precio"] - precio) / precio if res["precio"] > 0 else 1
@@ -1525,29 +1525,6 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     return False, "sin senal (rango, sin cambios)", "nada"
 
 
-def build_compacto(t, dirb, niv, extras):
-    """Mensaje corto para NY en vivo (cada 5 min): precio, sesgo, niveles, 1 linea."""
-    res = niv["resistencias"][0]
-    sup = niv["soportes"][0]
-    ahora_s = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M UTC")
-    d_res = (res["precio"] - t["last"]) / t["last"] * 100 if t["last"] else 0
-    d_sup = (t["last"] - sup["precio"]) / t["last"] * 100 if t["last"] else 0
-    L = []
-    L.append(f"⚡ NY EN VIVO {ahora_s}")
-    L.append(f"💰 {fmt_miles(t['last'])} ({t['chg']:+.2f}%) | 🧭 {dirb['bias']} {dirb['confianza']}% [{extras.get('grade', '?')}]")
-    L.append(f"🎯 R {fmt_miles(res['precio'])} (a {d_res:.1f}%) | S {fmt_miles(sup['precio'])} (a {d_sup:.1f}%)")
-    if extras.get("mov_ny") is not None:
-        L.append(f"🕯 NY: {extras['mov_ny']:+.2f}% desde la apertura")
-    L.append("📖 " + extras.get("narrativa", ""))
-    for m in extras.get("memoria", [])[:2]:
-        L.append("🧠 " + m)
-    for n in extras.get("nuevas", [])[:2]:
-        L.append(f"🆕 [{n['score']}] {n['titulo']}")
-    if extras.get("fflag"):
-        L.append("⚠️ Funding extremo: " + extras["fflag"])
-    return "\n".join(L)
-
-
 def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras):
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -1562,7 +1539,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     else:
         accion = f"espera ruptura {fmt_miles(sup['precio'])}-{fmt_miles(res['precio'])}"
 
-    icono_tipo = {"alerta": "🚨", "preny": "📊", "manana": "☀️", "madrugada": "🌙", "noche": "🌙", "ny": "⚡"}.get(tipo, "🤖")
+    icono_tipo = {"alerta": "🚨", "preny": "📊", "manana": "☀️", "madrugada": "🌙", "noche": "🌙"}.get(tipo, "🤖")
     L = []
     L.append(icono_tipo + " " + motivo)
     L.append("💬 " + extras.get("intro", ""))
@@ -1589,6 +1566,11 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append("📈 24h: " + extras.get("spark", "") + " · ⛽ " + extras.get("comb", "n/d"))
     if extras.get("fflag"):
         L.append("⚠️ Funding extremo: " + extras["fflag"])
+    L.append("")
+    if extras.get("mov_ny") is not None:
+        L.append(f"🕯 NY: {extras['mov_ny']:+.2f}% desde la apertura")
+    for n in extras.get("nuevas", [])[:2]:
+        L.append(f"🆕 [{n['score']}] {n['titulo']}")
     L.append("")
     L.append("🎯 PLAN (qué esperar para entrar):")
     for p in extras.get("plan", []):
@@ -1911,8 +1893,6 @@ def main():
             intro = "Faltan 30 min para NY: reporte detallado pre-apertura."
         elif tipo == "madrugada":
             intro = "Mientras dormías: así le fue a la noche."
-        elif tipo == "ny":
-            intro = "NY en vivo."
         else:
             intro = "Cerramos el día: esto fue lo importante."
         memoria = []
@@ -1989,10 +1969,7 @@ def main():
                   "ar": ar,
                   "aut": aut,
                   "pres": pres}
-        if tipo == "ny":
-            msg = build_compacto(t, dirb, niv, extras)
-        else:
-            msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
+        msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
     except Exception as e:  # noqa: BLE001
