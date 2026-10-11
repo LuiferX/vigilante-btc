@@ -265,6 +265,7 @@ UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo a
 MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 FUNDING_EXTREMO = 0.05   # |funding| >= 0.05% = un lado recargado (lectura contrarian)
 UMBRAL_BRUSCO = 1.0      # +/-1% en 1h = movimiento brusco (ballenas/noticias)
+UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
 
@@ -1089,6 +1090,22 @@ def retest(kl, res, sup, last):
     return None
 
 
+def liquidez(kl, last):
+    """Toma de liquidez: barrido de maximos/minimos 24h con cierre de vuelta.
+    Quien persigue el barrido suele quedar atrapado (trampa)."""
+    if len(kl) < 27:
+        return None
+    base = kl[-27:-3]
+    hi = max(c["h"] for c in base)
+    lo = min(c["l"] for c in base)
+    ult3 = kl[-3:]
+    if any(c["h"] > hi for c in ult3) and last < hi and abs(last - hi) / hi <= 0.004:
+        return f"barrido sobre máximos {fmt_miles(hi)} con devolución (trampa alcista)"
+    if any(c["l"] < lo for c in ult3) and last > lo and abs(last - lo) / lo <= 0.004:
+        return f"barrido bajo mínimos {fmt_miles(lo)} con devolución (trampa bajista)"
+    return None
+
+
 def divergencia(kl):
     """Divergencia RSI 1H: precio hace minimo mas bajo pero RSI sube (alcista) y viceversa."""
     closes = [c["c"] for c in kl]
@@ -1469,7 +1486,7 @@ def evaluar(est, precio_now, ahora, umbral):
     est["pendientes"] = nuevas_pend
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq=""):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, ny, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -1487,6 +1504,10 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, f"Senal fuerte {bias} (confianza {conf}%)", "alerta"
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO:
         return True, f"Movimiento brusco {mov1h:+.2f}% en 1h", "alerta"
+    if liq:
+        return True, "Toma de liquidez: " + liq, "alerta"
+    if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY:
+        return True, f"NY mueve {mov_ny:+.2f}% en el día", "alerta"
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"resistencia {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"soporte {fmt_miles(sup['precio'])}"
         if not (conf < 45 and (regimen or "tendencia") == "rango"):
@@ -1497,8 +1518,6 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, "REPORTE PRE-NY (30 min para la apertura)", "preny"
     if ahora.hour == 7 and est.get("ultimo_madrugada") != hoy:
         return True, "Resumen nocturno (mientras dormías)", "madrugada"
-    if 13 < hh < 17:
-        return True, "NY en vivo", "ny"
     if 8 <= hh < 9 and est.get("ultimo_resumen") != f"{hoy}-manana":
         return True, "Buenos días, plan del día (Londres)", "manana"
     if hh >= 20.5 and est.get("ultimo_resumen_noche") != hoy:
@@ -1765,6 +1784,14 @@ def main():
             if h.get("t", "")[:16] <= obj1h and h.get("precio"):
                 mov1h = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
                 break
+        hoy = ahora.strftime("%Y-%m-%d")
+        mov_ny = None
+        corte = hoy + "T13:30"
+        for h in hist:
+            if h.get("t", "")[:16] >= corte and h.get("precio"):
+                mov_ny = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
+                break
+        liq = liquidez(kl_h1, t["last"])
         forzado = None
         vivas = []
         for a in est.get("mis_alertas", []):
@@ -1791,10 +1818,9 @@ def main():
                      "res": niv["resistencias"][0]["precio"], "sup": niv["soportes"][0]["precio"],
                      "grade": grade})
 
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
-        hoy = ahora.strftime("%Y-%m-%d")
         fresco = est.get("runs", 0) == 0
         est["runs"] = est.get("runs", 0) + 1
         res = niv["resistencias"][0]
@@ -1887,6 +1913,8 @@ def main():
         rt = retest(kl_h1, res, sup, t["last"])
         if rt:
             memoria.append(rt)
+        if liq:
+            memoria.append("toma de liquidez: " + liq)
         div = divergencia(kl_h1)
         if div and div != est.get("div1h"):
             memoria.append(f"nueva divergencia {div} en RSI 1H: posible giro")
@@ -1904,12 +1932,6 @@ def main():
         nuevas = [n for n in notis if n["titulo"] not in est.get("vistas", [])][:2]
         if nuevas:
             est["vistas"] = (est.get("vistas", []) + [n["titulo"] for n in nuevas])[-30:]
-        mov_ny = None
-        corte = hoy + "T13:30"
-        for h in hist:
-            if h.get("t", "")[:16] >= corte and h.get("precio"):
-                mov_ny = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
-                break
         if tipo == "manana":
             ca = cierre_ayer(hist, ahora)
             if ca:
