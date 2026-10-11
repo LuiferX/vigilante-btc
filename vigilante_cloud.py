@@ -1631,7 +1631,7 @@ def evaluar_mfe(est, ahora, velas=None):
         log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
                     "mfe": round(mfe, 4), "mae": round(mae, 4)})
         est["eval_log"] = log[-200:]
-    est["pendientes"] = nuevas
+    est["pendientes"] = nuevas[-100:]
 
 
 def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None):
