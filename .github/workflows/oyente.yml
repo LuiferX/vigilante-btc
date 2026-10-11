@@ -1,0 +1,48 @@
+name: Oyente
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vigilante
+  cancel-in-progress: false
+
+jobs:
+  oir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Cargar estado previo (rama estado)
+        run: |
+          git fetch origin estado 2>/dev/null || true
+          git checkout origin/estado -- estado.json historial.jsonl 2>/dev/null || echo "sin estado previo, empezando de cero"
+
+      - name: Responder comandos
+        run: python comandos.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Guardar estado (rama estado, se reescribe limpio)
+        run: |
+          git config user.name "vigilante-bot"
+          git config user.email "vigilante-bot@users.noreply.github.com"
+          if [ ! -f estado.json ]; then echo "sin estado que guardar"; exit 0; fi
+          mkdir -p /tmp/oyente && cp estado.json /tmp/oyente/
+          cp historial.jsonl /tmp/oyente/ 2>/dev/null || true
+          git checkout --orphan estado_tmp
+          git rm -rf . > /dev/null 2>&1 || true
+          cp /tmp/oyente/estado.json .
+          cp /tmp/oyente/historial.jsonl . 2>/dev/null || true
+          git add estado.json
+          [ -f historial.jsonl ] && git add historial.jsonl || true
+          git commit -m "oyente $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
+          git push --force origin estado_tmp:estado
+          git checkout -f ${GITHUB_REF_NAME}
+          git branch -D estado_tmp
