@@ -276,6 +276,18 @@ t("veto alza", v.hay_veto("ALZA", -0.05, 0.5) is True)
 t("veto alza no", v.hay_veto("ALZA", 0.05, 0.5) is False)
 t("veto baja", v.hay_veto("BAJA", 0.05, -0.5) is True)
 t("veto lateral", v.hay_veto("LATERAL", -0.05, 0.5) is False)
+lgc = [{"b": "ALZA", "r": 1, "t": "2026-10-10T14:00:00+00:00"}] * 7 + [{"b": "ALZA", "r": 0, "t": "2026-10-10T15:00:00+00:00"}] * 3
+t("calib ny ok", v.calibrar({"eval_log": lgc}).get("NY") == 0.9)
+lgm = [{"b": "ALZA", "r": 0, "t": "2026-10-10T02:00:00+00:00"}] * 10
+t("calib asia exigente", v.calibrar({"eval_log": lgm}).get("Asia") == 1.15)
+t("calib pocos", v.calibrar({"eval_log": lgc[:5]}) == {})
+t("dec umbral custom", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None, 90, 90)[2] == "nada")
+t("dec umbral bajo", "fuerte" in v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb, ultimo_bias="ALZA"), ah, None, None, "tendencia", False, "", None, None, None, 50, 40)[1])
+klL = [{"o": 82000, "h": 82000 + (300 if 10 <= i < 14 else 0), "l": 81900 - (300 if 20 <= i < 24 else 0), "c": 82000} for i in range(50)]
+lm = v.mapa_liq(klL, 82000, 0.06)
+t("liqmap hay", lm and len(lm["arriba"]) > 0 and len(lm["abajo"]) > 0)
+t("liqmap funding", all(x["score"] >= 50 for x in lm["abajo"]))
+t("liqmap poco", v.mapa_liq(klL[:10], 82000, 0.0) is None)
 t("noche 2am", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=2, minute=11), None, None, "tendencia", False, "", None, None, None)[2] == "noche")
 t("noche 2030 no", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=20, minute=35), None, None, "tendencia", False, "", None, None, None)[2] == "nada")
 d1t = [{"p": 100 + i * 0.05, "q": 1, "m": False} for i in range(200)] + [{"p": 110 + i * 0.05, "q": 1, "m": True} for i in range(200)]
@@ -333,6 +345,14 @@ msg = v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1
                     {"bias": "LATERAL", "confianza": 10}, "prox", {"funding": None, "oi": None, "taker": None},
                     {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "alerta", [], [], ah, ex)
 t("build veredicto", "VEREDICTO" in msg and "MERCADO" in msg and "CONTEXTO" in msg)
+import dashboard as _db
+_h = [{"precio": 83000 + i * 10, "conf": 20, "bias": "LATERAL", "tipo": "nada"} for i in range(5)]
+_h[2]["tipo"] = "alerta"
+_e = {"ultimo_bias": "LATERAL", "ultima_conf": 20, "runs": 5, "alza": [1, 0, 1, 1, 0],
+      "baja": [], "banco": 9900.0, "paper_cerradas": [{"pnl": -100.0}, {"pnl": 50.0}]}
+_dh = _db.build_dashboard(_e, _h)
+t("dash html", "<svg" in _dh and "Vigilante BTC" in _dh and "9.900" in _dh)
+t("dash vacio", "<svg" in _db.build_dashboard({}, []) or "sin datos" in _db.build_dashboard({}, []))
 SNAP = {"precio": 83000, "chg": 0.5, "hi": 83500, "lo": 82500, "bias": "ALZA",
         "conf": 60, "grade": "B", "regimen": "tendencia",
         "tf": {"h1": {"tend": "alcista", "rsi": 55, "macd": 1, "score": 3},
