@@ -1731,7 +1731,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         L.append(f"⏱ Rango activo | ⏰ {prox} | 4H en {h4['cierreEnMin']} min")
     coil = [x["tf"] for x in (h1, h4, d1, w1) if x["compresion"] < 0.5]
     if coil:
-        L.append(f"🌀 Compresion: {', '.join(coil)} (antes de expansion)")
+        L.append(f"🌀 Compresion: {', '.join(coil)} (mercado quieto)")
     L.append(f"🌡 Volatilidad {h1['regLabel']} ({h1['regPct']}%)")
     L.append("")
     L.append("━━━━━ 📊 MERCADO (solo cambios) ━━━━━")
