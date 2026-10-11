@@ -103,6 +103,30 @@ t("cuenta d/h/m", "d" in v.cuenta_regresiva(ah + datetime.timedelta(days=2), ah)
 t("prec vacia", v.prec_str([]) == "s/d")
 t("prec pocas", v.prec_str([1, 1, 0]) == "pocas (3)")
 t("prec full", v.prec_str([1, 1, 1, 0, 0]) == "60% (3/5)")
+t0m = ah - datetime.timedelta(hours=9)
+
+
+def velm(hilos):
+    base = t0m.replace(minute=0, second=0, microsecond=0)
+    return [{"t": base + datetime.timedelta(hours=i + 1), "c": c, "h": h, "l": l}
+            for i, (c, h, l) in enumerate(hilos)]
+
+
+def pendm(**kw):
+    p = {"t": t0m.isoformat(), "precio": 83000, "bias": "ALZA", "conf": 60, "risk": 100.0}
+    p.update(kw)
+    return p
+
+
+e = {"pendientes": [pendm()], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, velm([(83050, 83100, 82950), (83150, 83250, 83100)]))
+t("mfe tp", e["alza"] == [1])
+e = {"pendientes": [pendm()], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, velm([(83100, 83300, 82800)]))
+t("mfe misma vela", e["alza"] == [0])
+e = {"pendientes": [pendm(bias="BAJA")], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, velm([(82950, 83000, 82750)]))
+t("mfe baja", e["baja"] == [1])
 
 # ---------- MFE/MAE ----------
 t0 = ah - datetime.timedelta(hours=9)
@@ -209,6 +233,18 @@ t("cmd ajeno", cmd("/precio", chat=999) == (None, False))
 
 # ---------- diario/papel ----------
 t("racha", v.racha_perdidas({"paper_cerradas": [{"pnl": -1}, {"pnl": -2}]}) == 2)
+NV2 = {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 81000, "origen": "S"}]}
+AH2 = datetime.datetime.now(datetime.timezone.utc)
+EB = {"bias": "ALZA", "confianza": 60}
+p = v.abrir_papel({"banco": 10000.0}, EB, NV2, 83000, AH2)
+t("papel abre", p and p["dir"] == "LONG" and p["riesgo"] == 100.0 and abs(p["tam"] - 100.0 / 2000) < 0.001)
+t("papel lateral no", v.abrir_papel({}, {"bias": "LATERAL"}, NV2, 83000, AH2) is None)
+t("papel stop cero no", v.abrir_papel({"banco": 10000.0}, EB, {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 83000, "origen": "S"}]}, 83000, AH2) is None)
+t("papel kill drawdown", v.abrir_papel({"banco": 9000.0, "banco_pico": 10000.0}, EB, NV2, 83000, AH2) is None)
+t("papel kill dia", v.abrir_papel({"banco": 10000.0, "paper_dia": {"fecha": AH2.strftime("%Y-%m-%d"), "pnl": -300.0}}, EB, NV2, 83000, AH2) is None)
+e3 = {"banco": 10000.0, "paper_cerradas": [{"pnl": -1}, {"pnl": -2}, {"pnl": -3}]}
+p3 = v.abrir_papel(e3, EB, NV2, 83000, AH2)
+t("papel tilt medio", p3 and p3["riesgo"] == 50.0)
 kl10 = [{"h": 83500, "l": 83000, "c": 83200} for _ in range(10)]
 oL = [{"dir": "LONG", "entrada": 83000, "stop": 82500, "tp": 83400, "tam": 0.2, "riesgo": 100.0, "t": "x"}]
 ab, ci = v.journal_check(oL, kl10, 83300)
@@ -231,6 +267,15 @@ t("div sana", v.divergencia(sub) is None)
 t("score A", v.score_senal({"bias": "ALZA", "confianza": 70}, {"volRel": 150}, {}, "tendencia") == "A")
 t("score cap", v.score_senal({"bias": "ALZA", "confianza": 70}, {"volRel": 150}, {}, "rango") == "B")
 t("blackout on", v.blackout([{"titulo": "FOMC", "cuando": ah + datetime.timedelta(minutes=10), "impact": "High"}], ah)[0] is True)
+t("veto alza", v.hay_veto("ALZA", -0.05, 0.5) is True)
+t("veto alza no", v.hay_veto("ALZA", 0.05, 0.5) is False)
+t("veto baja", v.hay_veto("BAJA", 0.05, -0.5) is True)
+t("veto lateral", v.hay_veto("LATERAL", -0.05, 0.5) is False)
+t("noche 2am", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=2, minute=11), None, None, "tendencia", False, "", None, None, None)[2] == "noche")
+t("noche 2030 no", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=20, minute=35), None, None, "tendencia", False, "", None, None, None)[2] == "nada")
+d1t = [{"p": 100 + i * 0.05, "q": 1, "m": False} for i in range(200)] + [{"p": 110 + i * 0.05, "q": 1, "m": True} for i in range(200)]
+t("divcvd bajista", v.div_cvd(d1t) is not None and "bajista" in v.div_cvd(d1t))
+t("divcvd poco", v.div_cvd([{"p": 100, "q": 1, "m": False}] * 10) is None)
 t("funding flag", v.funding_flag({"funding": 0.08}) is not None and v.funding_flag({"funding": 0.0}) is None)
 t("zonas merge", any(len(z["razones"]) > 1 for z in v.zonas_pilas(
     {"S1": 81500, "R1": 83500}, {"winL": 81000, "winH": 83500},
