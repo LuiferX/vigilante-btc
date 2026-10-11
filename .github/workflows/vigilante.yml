@@ -34,7 +34,12 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Generar dashboard
-        run: python dashboard.py
+        run: |
+          ls -la dashboard.py
+          python dashboard.py
+          ls -la docs/
+          cp docs/index.html /tmp/dash_index.html
+          echo "dashboard listo para publicar"
 
       - name: Guardar estado e historial (rama estado, se reescribe limpio)
         run: |
@@ -52,11 +57,10 @@ jobs:
 
       - name: Publicar dashboard (rama dashboard, se reescribe limpio)
         run: |
-          if [ ! -f docs/index.html ]; then echo "sin dashboard"; exit 0; fi
-          cp docs/index.html /tmp/
+          if [ ! -f /tmp/dash_index.html ]; then echo "sin dashboard"; exit 0; fi
           git checkout --orphan dash_tmp
           git rm -rf . > /dev/null 2>&1 || true
-          cp /tmp/index.html ./index.html
+          cp /tmp/dash_index.html ./index.html
           git add index.html
           git commit -m "dashboard $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
           git push --force origin dash_tmp:dashboard
