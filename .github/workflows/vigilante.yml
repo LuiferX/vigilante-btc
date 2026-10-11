@@ -33,6 +33,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+      - name: Generar dashboard
+        run: python dashboard.py
+
       - name: Guardar estado e historial (rama estado, se reescribe limpio)
         run: |
           git config user.name "vigilante-bot"
@@ -46,9 +49,6 @@ jobs:
           git push --force origin estado_tmp:estado
           git checkout -f ${GITHUB_REF_NAME}
           git branch -D estado_tmp
-
-      - name: Generar dashboard
-        run: python dashboard.py
 
       - name: Publicar dashboard (rama dashboard, se reescribe limpio)
         run: |
