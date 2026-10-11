@@ -52,6 +52,9 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
   volumen y muros del libro): quién quiere qué, con veredicto.
 - **🐋 Cinta de ballenas + 🧲 imanes Deribit + 🥇 oro vs BTC + 📊 long/short global +
   😨😊 pulso de titulares + 🌙 rango asiático + 🧠 auto-aprendizaje por sesión**.
+- **🏛️ Institucional**: score A/B/C + filtro de régimen (ADX), blackout en eventos High,
+  guardia de datos viejos, CVD con divergencias, auditoría (motivo+grado por señal) y
+  `backtest.py` (repite tu historial con la regla actual: in-sample vs out-of-sample).
 - **Robustez**: reintentos ante fallos de API, espejo de datos si Binance bloquea la red,
   degradación elegante y aviso a Telegram si algo falla.
 
@@ -76,4 +79,3 @@ El trading con apalancamiento conlleva riesgo de pérdida del capital.
 
 ---
 *Proyecto educativo construido paso a paso. 🎓*
-_Last check: 2026-10-10 18:54 UTC (keepalive programador)_
