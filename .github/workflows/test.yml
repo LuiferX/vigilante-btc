@@ -1,0 +1,21 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths: ['vigilante_cloud.py', 'test_vigilante.py']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Suite de calidad (sin red)
+        run: python test_vigilante.py
