@@ -1654,14 +1654,15 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append("━━━━━ 📚 CONTEXTO ━━━━━")
     L.append(f"🎯 PRECISION: ALZA {prec_str(est.get('alza', []))} · BAJA {prec_str(est.get('baja', []))}")
     L.append("")
-    L.append("📰 NOTICIAS TOP (peso real sobre BTC):")
-    if notis:
-        for n in notis:
+    L.append("📰 NOTICIAS NUEVAS (no vistas):")
+    frescas = [n for n in notis if n["titulo"] not in extras.get("vistas", [])][:5]
+    if frescas:
+        for n in frescas:
             icono = '🔴' if n['score'] >= 9 else '🟡'
             L.append(f"  {icono} [{n['score']}] {n['titulo']}")
             L.append(f"     → {explicar_noticia(n['tags'])} · impacto {impacto_noticia(n['score'])}")
     else:
-        L.append("  (sin noticias relevantes ahora)")
+        L.append("  (sin noticias nuevas desde tu último parte)")
     L.append("")
     L.append("🗓 PROXIMOS EVENTOS EE.UU.:")
     if evs:
@@ -1968,10 +1969,14 @@ def main():
                   "pul": pul,
                   "ar": ar,
                   "aut": aut,
-                  "pres": pres}
+                  "pres": pres,
+                  "vistas": list(est.get("vistas", []))}
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
+        if ok:
+            est["vistas"] = (est.get("vistas", []) + [n["titulo"] for n in notis])[-30:]
+            guardar_estado(est, hist)
     except Exception as e:  # noqa: BLE001
         err = f"⚠️ El Vigilante fallo: {e} (si es Telegram 400: revisa Chat ID, pulsa Start en tu bot y verifica el token)"
         try:
