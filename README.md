@@ -28,6 +28,8 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 - **🗓 Eventos futuros**: calendario macro EE.UU. (FOMC, CPI, empleo...) con cuenta regresiva.
 - **🎯 Precisión calibrada**: sin señales duplicadas (1 por dirección cada 4 h), umbral de acierto
   relativo al ATR y % visible solo con muestra mínima (5 señales).
+- **📐 Evaluación MFE/MAE**: cada señal se juzga por excursión (¿tocó el 2R antes que el stop?,
+  el stop manda en la misma vela) con vectores mfe/mae guardados para futura correlación.
 - **🎯 Plan de entrada**: gatillo + stop + objetivo 2R + guardia de eventos + regla del 1%.
 - **⛽ Combustible del día, ⚠️ funding extremo y 📈 mini-gráfico 24h** en cada parte.
 
