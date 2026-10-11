@@ -2,10 +2,10 @@ name: Vigilante BTC Cloud
 
 on:
   schedule:
-    - cron: '0 7-12 * * *'        # Londres + recap nocturno 07:00 UTC (= 02:00 Colombia): cada hora
-    - cron: '*/5 13-16 * * *'     # NY CALIENTE: cada 5 min (13:00 = reporte pre-NY detallado)
-    - cron: '*/15 17-20 * * *'    # NY tarde: cada 15 min
-    - cron: '0 0,2,4,6,21,22 * * *'  # cierre 21:00 + madrugada cada 2h (solo alertas)
+    - cron: '7 7-12 * * *'        # Londres + recap nocturno: cada hora (minuto raro, evita colas)
+    - cron: '2-57/5 13-16 * * *'  # NY CALIENTE: cada 5 min (minutos raros)
+    - cron: '7,22,37,52 17-20 * * *'  # NY tarde: cada 15 min (minutos raros)
+    - cron: '11 0,2,4,6,21,22 * * *'  # cierre + madrugada (minuto raro)
   workflow_dispatch:            # permite lanzarlo a mano desde la pestana Actions
 
 permissions:
