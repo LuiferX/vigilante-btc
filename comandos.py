@@ -48,19 +48,23 @@ def main():
         bloq, _ = vc.blackout(evs, ahora)
     except Exception:
         bloq = False
-    ctx = {"t": t,
-           "dirb": {"bias": snap["bias"], "confianza": snap["conf"]},
-           "niv": {"resistencias": snap["niv"]["res"], "soportes": snap["niv"]["sop"]},
-           "fg": {"valor": snap["fg"]["valor"], "etiqueta": snap["fg"]["etiqueta"]},
-           "est": est,
-           "h1": snap["tf"]["h1"], "h4": snap["tf"]["h4"],
-           "d1": snap["tf"]["d1"], "w1": snap["tf"]["w1"],
-           "senti": {"funding": snap["senti"]["funding"], "taker": snap["senti"]["taker"]},
-           "notis": snap.get("notis", []), "evs": evs, "ahora": ahora,
-           "cb": None, "smart": snap.get("smart"),
-           "aut": vc.auto_stats(est.get("eval_log", [])),
-           "grade": snap.get("grade", "?"), "regimen": snap.get("regimen", "?"),
-           "bloqueo": bloq, "pres": snap.get("pres")}
+    try:
+        ctx = {"t": t,
+               "dirb": {"bias": snap["bias"], "confianza": snap["conf"]},
+               "niv": {"resistencias": snap["niv"]["res"], "soportes": snap["niv"]["sop"]},
+               "fg": {"valor": snap["fg"]["valor"], "etiqueta": snap["fg"]["etiqueta"]},
+               "est": est,
+               "h1": snap["tf"]["h1"], "h4": snap["tf"]["h4"],
+               "d1": snap["tf"]["d1"], "w1": snap["tf"]["w1"],
+               "senti": {"funding": snap["senti"]["funding"], "taker": snap["senti"]["taker"]},
+               "notis": snap.get("notis", []), "evs": evs, "ahora": ahora,
+               "cb": None, "smart": snap.get("smart"),
+               "aut": vc.auto_stats(est.get("eval_log", [])),
+               "grade": snap.get("grade", "?"), "regimen": snap.get("regimen", "?"),
+               "bloqueo": bloq, "pres": snap.get("pres")}
+    except Exception as e:
+        print(f"Snapshot incompatible, espero al proximo parte ({e}).")
+        return
     chat_ok = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     fresco = est.get("runs", 0) == 0
     n_resp = 0
