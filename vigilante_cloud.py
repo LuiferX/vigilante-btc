@@ -1541,32 +1541,79 @@ def prec_str(lista):
     return f"{round(ok / len(lista) * 100)}% ({ok}/{len(lista)})"
 
 
-def evaluar(est, precio_now, ahora, umbral):
-    """Evalua senales enviadas hace >= EVAL_HORAS: acierto si el precio se
-    movio >= umbral (relativo al ATR) a favor."""
-    nuevas_pend = []
-    for p in est.get("pendientes", []):
+def evaluar_mfe(est, ahora, velas=None):
+    """Evalua pendientes vencidas (>=8h) por MFE/MAE sobre velas 1H:
+    exito si el objetivo 2R se toca antes que el stop 1R.
+    En la misma vela manda el stop (conservador). Sin toques: fallback por cierre.
+    Guarda vector de resultado (mfe/mae) para futura correlacion."""
+    pends = est.get("pendientes", [])
+    if not pends:
+        return
+    if velas is None:
+        try:
+            velas = klines("1h", 220)
+        except Exception:
+            return
+    nuevas = []
+    for p in pends:
         try:
             t0 = datetime.datetime.fromisoformat(p["t"])
-            edad = (ahora - t0).total_seconds() / 3600
         except Exception:
             continue
-        if edad < EVAL_HORAS:
-            nuevas_pend.append(p)
+        if (ahora - t0).total_seconds() / 3600 < EVAL_HORAS:
+            nuevas.append(p)
             continue
-        mov = (precio_now - p["precio"]) / p["precio"] if p["precio"] else 0
+        entry = p["precio"]
+        risk = p.get("risk") or max(entry * UMBRAL_MOV, 1)
         if p["bias"] == "ALZA":
-            hit = 1 if mov >= umbral else 0
-            est["alza"] = (est.get("alza", []) + [hit])[-50:]
+            tp, sl = entry + 2 * risk, entry - risk
         elif p["bias"] == "BAJA":
-            hit = 1 if mov <= -umbral else 0
-            est["baja"] = (est.get("baja", []) + [hit])[-50:]
+            tp, sl = entry - 2 * risk, entry + risk
         else:
             continue
+        ventana = [v for v in velas if t0 < v["t"] <= t0 + datetime.timedelta(hours=8)]
+        hit = None
+        mfe = mae = 0.0
+        for v in ventana:
+            if p["bias"] == "ALZA":
+                mfe = max(mfe, (v["h"] - entry) / entry)
+                mae = max(mae, (entry - v["l"]) / entry)
+                toca_tp = v["h"] >= tp
+                toca_sl = v["l"] <= sl
+            else:
+                mfe = max(mfe, (entry - v["l"]) / entry)
+                mae = max(mae, (v["h"] - entry) / entry)
+                toca_tp = v["l"] <= tp
+                toca_sl = v["h"] >= sl
+            if toca_sl and toca_tp:
+                hit = 0
+                break
+            if toca_tp:
+                hit = 1
+                break
+            if toca_sl:
+                hit = 0
+                break
+        if hit is None:
+            if not ventana:
+                nuevas.append(p)
+                continue
+            cierre = ventana[-1]["c"]
+            mov = (cierre - entry) / entry
+            if p["bias"] == "ALZA":
+                hit = 1 if mov >= risk / entry else 0
+            else:
+                hit = 1 if mov <= -risk / entry else 0
+        r = 2 if hit else -1
+        if p["bias"] == "ALZA":
+            est["alza"] = (est.get("alza", []) + [hit])[-50:]
+        else:
+            est["baja"] = (est.get("baja", []) + [hit])[-50:]
         log = est.get("eval_log", [])
-        log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat()})
+        log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
+                    "mfe": round(mfe, 4), "mae": round(mae, 4)})
         est["eval_log"] = log[-200:]
-    est["pendientes"] = nuevas_pend
+    est["pendientes"] = nuevas
 
 
 def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None):
@@ -1847,7 +1894,7 @@ def main():
         except Exception:
             pass
         umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
-        evaluar(est, t["last"], ahora, umbral)
+        evaluar_mfe(est, ahora)
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
@@ -2000,7 +2047,11 @@ def main():
             if not reciente:
                 est["pendientes"] = est.get("pendientes", []) + [
                     {"t": ahora.isoformat(), "precio": round(t["last"]),
-                     "bias": dirb["bias"], "conf": dirb["confianza"]}]
+                     "bias": dirb["bias"], "conf": dirb["confianza"],
+                     "risk": round(umbral * t["last"], 1),
+                     "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
+                              "fund": senti["funding"], "taker": senti["taker"],
+                              "fg": fg["valor"]}}]
                 # PAPEL INTERNO (invisible): abre virtual con riesgo 1% del banco
                 # (penalizacion: 0.5% si lleva 3+ perdidas seguidas)
                 banco = float(est.get("banco", 10000.0))
