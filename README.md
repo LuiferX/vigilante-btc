@@ -57,6 +57,9 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
   volumen y muros del libro): quién quiere qué, con veredicto.
 - **📰 Noticias direccionales**: presión neta (-100..+100), viento a favor/en contra
   de la técnica y escenarios por evento (ALTO=baja/BAJO=sube cuando hay pronóstico).
+- **📊 Dashboard web**: página gratis (GitHub Pages, rama `dashboard`) con precio+alertas,
+  confianza, banco papel y precisión. Se regenera sola cada pasada. Requiere activarla
+  1 vez en Settings → Pages (rama `dashboard`).
 - **⚠️ EYY PILAS**: vigila zonas mayores de largo plazo (semanales, psicológicos, imanes)
   y avisa corto cuando el precio llega: lado del rebote + anulación (1 vez por zona al día).
 - **🔄 Modo DELTA**: el mercado muestra solo lo que cambió desde tu último parte.
