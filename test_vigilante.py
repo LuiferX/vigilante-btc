@@ -245,6 +245,11 @@ t("papel kill dia", v.abrir_papel({"banco": 10000.0, "paper_dia": {"fecha": AH2.
 e3 = {"banco": 10000.0, "paper_cerradas": [{"pnl": -1}, {"pnl": -2}, {"pnl": -3}]}
 p3 = v.abrir_papel(e3, EB, NV2, 83000, AH2)
 t("papel tilt medio", p3 and p3["riesgo"] == 50.0)
+t("puede B", v.puede_papel({}, "ALZA", 35, AH2) is True)
+t("puede bajo no", v.puede_papel({}, "ALZA", 34, AH2) is False)
+t("puede lateral no", v.puede_papel({}, "LATERAL", 80, AH2) is False)
+t("puede dup no", v.puede_papel({"paper_ult": {"dir": "ALZA", "t": AH2.isoformat()}}, "ALZA", 60, AH2) is False)
+t("puede otro si", v.puede_papel({"paper_ult": {"dir": "BAJA", "t": AH2.isoformat()}}, "ALZA", 60, AH2) is True)
 kl10 = [{"h": 83500, "l": 83000, "c": 83200} for _ in range(10)]
 oL = [{"dir": "LONG", "entrada": 83000, "stop": 82500, "tp": 83400, "tam": 0.2, "riesgo": 100.0, "t": "x"}]
 ab, ci = v.journal_check(oL, kl10, 83300)
