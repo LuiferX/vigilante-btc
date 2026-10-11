@@ -865,6 +865,22 @@ def responder_comando(cmd, ctx):
         w = sum(1 for x in j if x.get("r", 0) > 0)
         tr = round(sum(x.get("r", 0) for x in j), 1)
         return (f"Diario: {len(j)} ops · ganadas {w} ({round(w / len(j) * 100)}%) · total {tr:+.1f}R.", False)
+    if c == "/papel":
+        banco = float(est.get("banco", 10000.0))
+        j = est.get("paper_cerradas", [])
+        ops = est.get("paper_abiertas", [])
+        if not j and not ops:
+            return ("Papel: banco 10,000 USDT, sin operaciones aún. Abro solo con señales ALZA/BAJA de 45%+.", False)
+        w = sum(1 for x in j if x.get("pnl", 0) > 0)
+        wr = f"{round(w / len(j) * 100)}% ({w}/{len(j)})" if j else "s/d"
+        tr = round(sum(x.get("r", 0) for x in j), 1) if j else 0
+        txt = (f"Papel: banco {fmt_miles(banco)} USDT ({banco - 10000.0:+.0f}) · cerradas {len(j)} · ganadas {wr} · total {tr:+.1f}R.")
+        if racha_perdidas(est) >= 3:
+            txt += " Penalizado: arriesga 0.5% (3+ perdidas seguidas)."
+        if ops:
+            txt += "\nAbiertas:\n" + "\n".join(
+                f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])})" for o in ops)
+        return (txt, False)
     if c == "/cerrar":
         ops = est.get("ops", [])
         if not ops:
@@ -883,7 +899,18 @@ def responder_comando(cmd, ctx):
     hola = f" Hola {cmd['nombre']}." if cmd['nombre'] else " Hola."
     return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
              "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /manos "
-             "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle"), False)
+             "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel"), False)
+
+
+def racha_perdidas(est):
+    """Perdidas seguidas en papel (para la penalizacion anti-tilt)."""
+    n = 0
+    for c in reversed(est.get("paper_cerradas", [])):
+        if c.get("pnl", 0) < 0:
+            n += 1
+        else:
+            break
+    return n
 
 
 def journal_check(ops, kl_h1, last):
@@ -1900,6 +1927,41 @@ def main():
             for cc in cierres:
                 journal.append({"dir": cc["dir"], "res": cc["res"], "r": cc["r"], "t": ahora.isoformat()})
             est["journal"] = journal[-50:]
+        # PAPEL: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
+        abiertas_p = []
+        for o in est.get("paper_abiertas", []):
+            try:
+                ref_h = kl_h1[-2]["h"] if len(kl_h1) >= 2 else t["last"]
+                ref_l = kl_h1[-2]["l"] if len(kl_h1) >= 2 else t["last"]
+                cerrada = None
+                if o["dir"] == "LONG":
+                    if ref_l <= o["stop"] or t["last"] <= o["stop"]:
+                        cerrada = (o["stop"], "SL")
+                    elif ref_h >= o["tp"] or t["last"] >= o["tp"]:
+                        cerrada = (o["tp"], "TP")
+                else:
+                    if ref_h >= o["stop"] or t["last"] >= o["stop"]:
+                        cerrada = (o["stop"], "SL")
+                    elif ref_l <= o["tp"] or t["last"] <= o["tp"]:
+                        cerrada = (o["tp"], "TP")
+                if cerrada:
+                    px, donde = cerrada
+                    if o["dir"] == "LONG":
+                        pnl = (px - o["entrada"]) * o["tam"]
+                    else:
+                        pnl = (o["entrada"] - px) * o["tam"]
+                    banco = float(est.get("banco", 10000.0)) + pnl
+                    est["banco"] = round(banco, 2)
+                    cerr = est.get("paper_cerradas", [])
+                    cerr.append({"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
+                                 "r": round(pnl / o["riesgo"], 2) if o["riesgo"] else 0,
+                                 "t": ahora.isoformat()})
+                    est["paper_cerradas"] = cerr[-100:]
+                else:
+                    abiertas_p.append(o)
+            except Exception:
+                continue
+        est["paper_abiertas"] = abiertas_p
         hist.append({"t": ahora.isoformat(), "precio": round(t["last"]),
                      "bias": dirb["bias"], "conf": dirb["confianza"], "fg": fg["valor"],
                      "fund": senti["funding"], "taker": senti["taker"],
@@ -1939,6 +2001,29 @@ def main():
                 est["pendientes"] = est.get("pendientes", []) + [
                     {"t": ahora.isoformat(), "precio": round(t["last"]),
                      "bias": dirb["bias"], "conf": dirb["confianza"]}]
+                # PAPEL INTERNO (invisible): abre virtual con riesgo 1% del banco
+                # (penalizacion: 0.5% si lleva 3+ perdidas seguidas)
+                banco = float(est.get("banco", 10000.0))
+                riesgo_pct = 0.005 if racha_perdidas(est) >= 3 else 0.01
+                if dirb["bias"] == "ALZA":
+                    stop = niv["soportes"][0]["precio"]
+                    tp = niv["resistencias"][0]["precio"]
+                    if tp <= t["last"]:
+                        tp = t["last"] + (t["last"] - stop) * 2
+                    dire = "LONG"
+                else:
+                    stop = niv["resistencias"][0]["precio"]
+                    tp = niv["soportes"][0]["precio"]
+                    if tp >= t["last"]:
+                        tp = t["last"] - (stop - t["last"]) * 2
+                    dire = "SHORT"
+                dist_stop = abs(t["last"] - stop)
+                if dist_stop > 0:
+                    tam = (banco * riesgo_pct) / dist_stop
+                    est["paper_abiertas"] = est.get("paper_abiertas", []) + [
+                        {"dir": dire, "entrada": round(t["last"]), "stop": stop,
+                         "tp": round(tp), "tam": round(tam, 4),
+                         "riesgo": round(banco * riesgo_pct, 2), "t": ahora.isoformat()}]
         guardar_estado(est, hist)
 
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
