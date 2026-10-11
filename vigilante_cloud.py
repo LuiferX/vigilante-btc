@@ -183,33 +183,6 @@ def cuenta_regresiva(cuando, ahora):
     return f"en {ms}m"
 
 
-BLOQUES = "▁▂▃▄▅▆▇█"
-
-
-def sparkline(precios):
-    """Mini-grafico 24h con caracteres de bloque (sin librerias)."""
-    if not precios:
-        return ""
-    lo, hi = min(precios), max(precios)
-    n = min(len(precios), 24)
-    sel = precios[-n:]
-    if hi <= lo:
-        return BLOQUES[3] * n
-    return "".join(BLOQUES[min(7, int((p - lo) / (hi - lo) * 8))] for p in sel)
-
-
-def combustible(t, d1):
-    """Cuanto le queda al dia vs su ATR: con nafta / medio / agotado."""
-    if not d1["atr"]:
-        return "n/d"
-    uso = (t["hi"] - t["lo"]) / d1["atr"]
-    if uso < 0.5:
-        return f"con nafta ({round(uso * 100)}% del ATR usado)"
-    if uso <= 1.0:
-        return f"medio ({round(uso * 100)}% del ATR usado)"
-    return f"agotado ({round(uso * 100)}% del ATR usado)"
-
-
 def funding_flag(senti):
     """Funding extremo = un lado recargado (lectura contrarian)."""
     f = senti["funding"]
@@ -630,18 +603,6 @@ ABRIDORES = [
     "Pasaba por aquí y vi esto",
     "Actualización del mercado",
     "Te traigo noticias frescas",
-]
-LECCIONES = [
-    "Funding positivo alto = muchos longs apalancados: si el precio cae, las liquidaciones aceleran la caída.",
-    "RSI sobre 70 no significa 'vende ya': en tendencias fuertes se queda arriba días. Mira la estructura.",
-    "Un soporte roto se vuelve resistencia: el mercado tiene memoria de niveles.",
-    "Compresión + volatilidad baja = el mercado carga energía. La expansión suele ser violenta.",
-    "El volumen confirma: ruptura sin volumen suele ser trampa.",
-    "Taker L/S sobre 1.2 = compradores agresivos; bajo 0.9 = vendedores agresivos.",
-    "El ATR te dice el tamaño normal del movimiento: no esperes 5% en un mercado de 0.5%.",
-    "Los fines de semana el volumen cae: los movimientos de domingo se revierten fácil el lunes.",
-    "FOMC y CPI son los eventos que más mueven a BTC: opera menos (o nada) alrededor de ellos.",
-    "La confianza del parte es confluencia de marcos: más marcos alineados = señal más seria.",
 ]
 
 
@@ -1191,6 +1152,42 @@ def divergencia(kl):
     return None
 
 
+def div_cvd():
+    """Divergencia CVD: precio maximo nuevo + CVD cayendo (distribucion)
+    o minimo nuevo + CVD subiendo (absorcion)."""
+    data = None
+    for base in (FAPI, VISION):
+        try:
+            data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
+            break
+        except Exception:
+            continue
+    if not data or len(data) < 200:
+        return None
+    mid = len(data) // 2
+
+    def _cv(trs):
+        s = 0.0
+        for tr in trs:
+            try:
+                q = float(tr["q"])
+            except Exception:
+                continue
+            s += -q if tr.get("m") else q
+        return s
+
+    c1, c2 = _cv(data[:mid]), _cv(data[mid:])
+    p1 = [float(t["p"]) for t in data[:mid] if t.get("p")]
+    p2 = [float(t["p"]) for t in data[mid:] if t.get("p")]
+    if not p1 or not p2:
+        return None
+    if max(p2) > max(p1) and c2 < c1:
+        return "bajista (máximo nuevo + CVD cayendo: distribución)"
+    if min(p2) < min(p1) and c2 > c1:
+        return "alcista (mínimo nuevo + CVD subiendo: absorción)"
+    return None
+
+
 def ballenas():
     """Cinta de ballenas: prints >= UMBRAL_BALLENA en los ultimos 1000 trades
     (fapi, con fallback a spot). m=True = vendedor agresivo."""
@@ -1332,31 +1329,6 @@ def ls_global():
         return None
 
 
-BULL_W = ("surge", "soar", "soars", "rally", "record", "high", "bull", "gain", "gains",
-          "jump", "jumps", "inflows", "buy", "adopt", "approve", "breakout")
-BEAR_W = ("crash", "plunge", "plunges", "dump", "fear", "outflow", "outflows", "sell",
-          "lawsuit", "ban", "drop", "drops", "hack", "fraud", "probe", "warning")
-
-
-def pulso(notis):
-    """Pulso de titulares: conteo alcista vs bajista del dia."""
-    b = g = 0
-    for n in notis:
-        tl = n["titulo"].lower()
-        if any(k in tl for k in BULL_W):
-            b += 1
-        if any(k in tl for k in BEAR_W):
-            g += 1
-    s = b - g
-    if s >= 3:
-        lec = "prensa alcista"
-    elif s <= -3:
-        lec = "prensa bajista"
-    else:
-        lec = "prensa mixta"
-    return {"score": s, "bull": b, "bear": g, "lectura": lec}
-
-
 DIR_BULL = ("inflow", "inflows", "buy", "buys", "bought", "record", "demand", "adopt",
             "approval", "approve", "accumulat", "breakout", "rate cut", "cuts rates")
 DIR_BEAR = ("outflow", "outflows", "sell", "sells", "sold", "lawsuit", "ban", "hack",
@@ -1413,16 +1385,6 @@ def linea_escenario(e):
     if re.search(r'cpi|ppi|pce|nfp|non-farm|nonfarm|payroll|unemployment|jobless|fomc|rate|interest', t):
         return base + ": ALTO = baja | BAJO = sube"
     return base + ": la sorpresa manda la dirección"
-
-
-def asia_range(kl, ahora):
-    """Maximo/minimo de la sesion Asia (00-08 UTC) de hoy: niveles del dia."""
-    hoy = ahora.strftime("%Y-%m-%d")
-    hs = [c["h"] for c in kl if c["t"].strftime("%Y-%m-%d") == hoy and 0 <= c["t"].hour < 8]
-    ls = [c["l"] for c in kl if c["t"].strftime("%Y-%m-%d") == hoy and 0 <= c["t"].hour < 8]
-    if not hs:
-        return None
-    return {"hi": round(max(hs)), "lo": round(min(ls))}
 
 
 def score_senal(dirb, h1, h4, regimen):
@@ -1794,7 +1756,6 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     if cv and cambio(est, "cvd", cv["lectura"], 0):
         L.append(f"🌊 CVD {cv['cvd']:+.1f} BTC vs precio {cv['dpx']:+.2f}%: {cv['lectura']}")
         hubo = True
-    pul = extras.get("pul")
     pr = extras.get("pres")
     if pr and cambio(est, "pres", pr["valor"], 10):
         L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
@@ -1877,6 +1838,10 @@ def main():
         w1 = analyze(klines("1w", 52), 10080, "1S")
         pd = pivots("1d", "D")
         pw = pivots("1w", "S")
+        regimen = "tendencia" if h4.get("adx", 0) >= 20 else "rango"
+        if regimen == "rango":
+            for _x in (h1, h4):
+                _x["score"] = _x["score"] - _x.get("macd", 0)
         niv = niveles(h1, h4, d1, w1, pd, pw, t["last"])
         dirb = direccion(h1, h4, d1, w1)
         prox = proxima_sesion()
@@ -1902,12 +1867,19 @@ def main():
         ima = imanes(t["last"])
         oro = oro_vs_btc(t["chg"])
         lsr = ls_global()
-        pul = pulso(notis)
         pres = presion_noticias(notis)
-        ar = asia_range(kl_h1, ahora)
+        dcvd = div_cvd()
         aut = auto_stats(est.get("eval_log", []))
-        regimen = "tendencia" if h4.get("adx", 0) >= 20 else "rango"
         grade = score_senal(dirb, h1, h4, regimen)
+        veto = False
+        _prem = (cb or {}).get("prem")
+        _dxy = ((mx or {}).get("dxy") or {}).get("chg", 0)
+        if dirb["bias"] == "ALZA" and _prem is not None and _prem < -0.03 and _dxy > 0.2:
+            veto = True
+        if dirb["bias"] == "BAJA" and _prem is not None and _prem > 0.03 and _dxy < -0.2:
+            veto = True
+        if veto and grade in ("A", "B"):
+            grade = chr(ord(grade) + 2)
         bloqueo, motivo_bloq = blackout(evs, ahora)
         try:
             edad_h = (ahora - kl_h1[-1]["t"]).total_seconds() / 3600
@@ -2122,6 +2094,8 @@ def main():
         else:
             intro = "Cerramos el día: esto fue lo importante."
         memoria = []
+        if veto:
+            memoria.append("veto institucional: premium USA + dólar en contra (calidad degradada)")
         if tipo == "alerta" and motivo.startswith("Tocando"):
             nivel = res["precio"] if "resistencia" in motivo else sup["precio"]
             n = toques_hoy(hist, nivel, ahora)
@@ -2141,6 +2115,9 @@ def main():
         if div and div != est.get("div1h"):
             memoria.append(f"nueva divergencia {div} en RSI 1H: posible giro")
         est["div1h"] = div
+        if dcvd and dcvd != est.get("divcvd"):
+            memoria.append("divergencia CVD " + dcvd)
+        est["divcvd"] = dcvd
         lf = None
         for h in reversed(hist[:-1]):
             if h.get("fund") is not None:
@@ -2174,10 +2151,7 @@ def main():
         extras = {"intro": intro,
                   "narrativa": narrar(dirb, h1, h4, d1, res, sup, t["last"]),
                   "memoria": memoria,
-                  "leccion": LECCIONES[runs % len(LECCIONES)],
                   "plan": plan_entrada(dirb, niv, evs, ahora),
-                  "spark": sparkline([c["c"] for c in kl_h1[-24:]]),
-                  "comb": combustible(t, d1),
                   "fflag": funding_flag(senti),
                   "nuevas": nuevas,
                   "mov_ny": mov_ny,
@@ -2191,8 +2165,6 @@ def main():
                   "ima": ima,
                   "oro": oro,
                   "lsr": lsr,
-                  "pul": pul,
-                  "ar": ar,
                   "aut": aut,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
