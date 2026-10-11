@@ -47,6 +47,8 @@ Vigilante de **BTCUSDT** multi-timeframe (**1H · 4H · 1D · 1S** semana) que c
 - **⌨️ Chat en 2 vías (con retardo)**: `/precio /direccion /niveles /miedo /noticias /eventos
   /precision /manos /calidad /detalle /papel /alerta /opere /voy /diario /cerrar`.
   Responde en la siguiente pasada. Solo obedece a tu chat.
+- **📡 Oyente cada 5 min**: los comandos se responden en ≤5 min día y noche con la última
+  foto del mercado + precio en vivo. `/detalle` pide el parte completo en la próxima pasada.
 - **📓 Diario de trading + 🎯 alertas de precio + 🌊 detector de bruscos + 💵 DXY/SPX +
   🔢 psicológicos con re-test + 📉 divergencias RSI**.
 - **💵 `/papel` invisible**: el bot opera solo con $10,000 virtuales (riesgo 1%,
