@@ -20,3 +20,11 @@
 11. **⏱️ Ritmo 5-min 24/7** (decisión pendiente: espera máxima 5 min siempre).
 
 *Regla del proyecto: uso personal, sin vender señales. La precisión publicada manda.*
+
+## 🧪 Entrenamiento 11/10 (3 semanas reales, 500x1H+200x4H)
+- Volatilidad: mediana 0.144% · p90 0.51% · p99 1.34% → brusco 1.0% validado (p97)
+- 2R disponible en 8h el 93% de las horas → plan factible
+- Sesiones: NY 0.26% > Londres 0.25% > Asia 0.20% > noche 0.15% (ritmo NY confirmado)
+- ADX4H: 52% tendencia / 36% chop
+- Compresión NO adelanta expansión en 8h (0.61% vs 1.40% normal) → se reporta como "quieto"
+- Veredicto: parámetros se mantienen; recalibración por datos en vivo (auto-calibración)
