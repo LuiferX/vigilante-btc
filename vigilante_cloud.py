@@ -1919,6 +1919,9 @@ def main():
         evs = calendario()
 
         est, hist = cargar_estado()
+        pide = bool(est.get("pide_detalle"))
+        if pide:
+            est["pide_detalle"] = False
         es_dup = False
         try:
             if est.get("ultimo_run"):
@@ -2146,8 +2149,22 @@ def main():
                 else:
                     print(f"  ignorado {cm['texto']} (chat {cm['chat']})")
 
+        est["snapshot"] = {
+            "t": ahora.isoformat(),
+            "precio": t["last"], "chg": t["chg"], "hi": t["hi"], "lo": t["lo"],
+            "bias": dirb["bias"], "conf": dirb["confianza"], "grade": grade, "regimen": regimen,
+            "tf": {k: {"tend": x["tend"], "rsi": x["rsi"], "macd": x["macd"], "score": x["score"]}
+                   for k, x in (("h1", h1), ("h4", h4), ("d1", d1), ("w1", w1))},
+            "niv": {"sop": niv["soportes"], "res": niv["resistencias"]},
+            "fg": {"valor": fg["valor"], "etiqueta": fg["etiqueta"]},
+            "senti": {"funding": senti["funding"], "taker": senti["taker"]},
+            "notis": [{"titulo": n["titulo"], "score": n["score"]} for n in notis[:5]],
+            "evs": [{"titulo": e["titulo"], "cuando": e["cuando"].isoformat(), "impact": e["impact"]} for e in evs[:5]],
+            "pres": pres,
+            "smart": ({"inst": sm["inst"], "ret": sm["ret"], "veredicto": sm["veredicto"]} if sm else None),
+        }
         guardar_estado(est, hist)
-        forzar = any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False
+        forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
         if forzar:
             motivo, tipo, enviar = "Detalle pedido", "alerta", True
         if not enviar:
