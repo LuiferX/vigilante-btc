@@ -1,18 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-dashboard.py - genera docs/index.html (GitHub Pages) con el estado del bot.
-
-Lee estado.json + historial.jsonl (ya en disco tras la pasada) y dibuja
-SVG a mano (sin dependencias): precio+alertas, confianza, precision y
-banco papel. Nunca revienta: ante cualquier error deja pagina de aviso.
-"""
+"""dashboard.py v2 - genera docs/index.html (GitHub Pages).
+Acceso a prueba de todo: ningun campo rompe el render."""
 import datetime
 import json
 import os
 
+VERSION = "v2-robusto"
+
+
+def _num(x, default=0):
+    try:
+        v = float(x)
+        if v != v:  # NaN
+            return default
+        return v
+    except Exception:
+        return default
+
+
+def _txt(x, default="?"):
+    if isinstance(x, str) and x.strip():
+        return x
+    return default
+
 
 def svg_linea(vals, w=560, h=150, color="#1f77b4", marcas=None):
+    vals = [v for v in vals if isinstance(v, (int, float))]
     if len(vals) < 2:
         return "<p>sin datos aún</p>"
     lo, hi = min(vals), max(vals)
@@ -33,13 +47,14 @@ def svg_linea(vals, w=560, h=150, color="#1f77b4", marcas=None):
 
 
 def svg_barras(vals, etiquetas, w=560, h=150):
-    if not vals:
+    pares = [(v, e) for v, e in zip(vals, etiquetas) if isinstance(v, (int, float))]
+    if not pares:
         return "<p>sin datos aún</p>"
-    mx = max(vals) or 1
-    n = len(vals)
+    mx = max(v for v, _ in pares) or 1
+    n = len(pares)
     bw = (w - 20) / n
     s = [f'<svg width="{w}" height="{h}" style="background:#0f172a;border-radius:8px">']
-    for i, (v, e) in enumerate(zip(vals, etiquetas)):
+    for i, (v, e) in enumerate(pares):
         bh = (v / mx) * (h - 40)
         x = 10 + i * bw + 2
         col = "#22c55e" if v >= 50 else "#f59e0b"
@@ -51,35 +66,37 @@ def svg_barras(vals, etiquetas, w=560, h=150):
 
 def miles(x):
     try:
-        return f"{x:,.0f}".replace(",", ".")
+        return f"{float(x):,.0f}".replace(",", ".")
     except Exception:
         return "?"
 
 
 def build_dashboard(est, hist):
+    if not isinstance(est, dict):
+        est = {}
+    if not isinstance(hist, list):
+        hist = []
     ahora = datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m %H:%M UTC")
-    ult = hist[-30:] if len(hist) > 30 else hist
+    ult = [h for h in hist[-30:] if isinstance(h, dict)]
     px = [h.get("precio", 0) for h in ult]
     cf = [h.get("conf", 0) for h in ult]
     marcas = [i for i, h in enumerate(ult) if h.get("tipo") == "alerta"]
-    alza = est.get("alza", []) or []
-    baja = est.get("baja", []) or []
+    alza = est.get("alza") or []
+    baja = est.get("baja") or []
     pa = f"{round(sum(alza) / len(alza) * 100)}% ({sum(alza)}/{len(alza)})" if len(alza) >= 5 else "s/d"
     pb = f"{round(sum(baja) / len(baja) * 100)}% ({sum(baja)}/{len(baja)})" if len(baja) >= 5 else "s/d"
     banco = est.get("banco")
     eq = [10000.0]
-    for c in est.get("paper_cerradas", [])[-100:]:
+    for c in est.get("paper_cerradas", []) or []:
         try:
-            eq.append(eq[-1] + float(c.get("pnl", 0)))
+            eq.append(eq[-1] + float((c or {}).get("pnl", 0)))
         except Exception:
             continue
-    if banco is not None:
-        eq_txt = f"{miles(banco)} USDT"
-    else:
-        eq_txt = "10.000 USDT (sin empezar)"
-    bias = est.get("ultimo_bias", "?")
-    conf = est.get("ultimo_conf", "?")
-    precio = ult[-1] if ult else 0
+    eq_txt = f"{miles(banco)} USDT" if banco is not None else "10.000 USDT (sin empezar)"
+    bias = _txt(est.get("ultimo_bias"))
+    _conf = est.get("ultima_conf")
+    conf = _conf if isinstance(_conf, (int, float)) else "?"
+    precio = (ult[-1].get("precio", 0) if ult else 0) or 0
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -123,7 +140,3 @@ def main():
     with open("docs/index.html", "w", encoding="utf-8") as fh:
         fh.write(html)
     print("dashboard OK")
-
-
-if __name__ == "__main__":
-    main()
