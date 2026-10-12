@@ -500,6 +500,21 @@ t("liq fade largo", "desvanecer hacia 84.000" in v.decidir_alerta(
 t("liq contra calla", v.decidir_alerta(
     82500, niv, {"bias": "ALZA", "confianza": 10}, dict(eb), _ah10,
     None, None, "tendencia", False, "", None, "barrido sobre máximos X", None)[2] == "nada")
+t("eficiencia trend", (v.eficiencia([float(100 + i * 2) for i in range(100)]) or 0) > 0.5)
+t("eficiencia chop", (lambda e: e is not None and e < 0.25)(
+    v.eficiencia([float(100 + (5 if i % 2 else -5)) for i in range(100)])))
+t("eficiencia poca", v.eficiencia([1.0, 2.0, 3.0]) is None)
+t("zscore base", v.zscore([float(i) for i in range(1, 21)]) is not None)
+t("zscore estirado", abs(v.zscore([100.0] * 19 + [120.0]) or 0) >= 2)
+t("zscore poco", v.zscore([1.0]) is None)
+_akl = kl([80000.0 + i * 10 for i in range(100)])
+_aa = v.analyze(_akl, 60, "1H")
+t("analyze trae er+z", "er" in _aa and "z" in _aa and _aa["er"] is not None)
+t("dash chip er", "ER 0.62" in _db._contexto_html(
+    {"regimen": "x", "grade": "y",
+     "tf": {"h1": {"tend": "t", "rsi": 1}, "h4": {"tend": "t", "rsi": 1},
+            "d1": {"tend": "t", "rsi": 1}, "w1": {"tend": "t", "rsi": 1, "er": 0.62}},
+     "fg": {}, "senti": {}, "pres": {}, "niv": {}, "evs": []}))
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
