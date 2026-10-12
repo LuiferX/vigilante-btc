@@ -44,3 +44,8 @@
 - Castigo aplicado: LIQ/TOQUE solo a favor del sesgo (28→39% y 30→41%, sobre break-even 33%)
 - Semilla de calibración medida en `SEMILLA_SESION` (los datos vivos la pisan al llegar)
 - Ajuste noche: DIR 28.6% <33% → noche exigente 1.1 (UMBRAL_CONF_SENAL 45→50 no gana: 38.6 vs 38.7, ER≥0.25 tampoco: 36.8)
+
+## 🏋️ Entrenamiento 3 (12/10, replay 2 años 2024-10→2026-10, 2582 pasos)
+- DIR 34.2% EV +0.03R · LIQ 26.8%→33.3% confluencia · TOQUE 33.2%→40.0% (EV +0.20R) · zonas reaccionan 55–65%
+- Sesiones INESTABLES entre periodos (Londres 52.8→32.8, Asia 36.8→40.5) → semilla NEUTRA 1.0;
+  solo los datos vivos (10+ evals) podrán sesgar. No sobreajustar es también entrenar.
