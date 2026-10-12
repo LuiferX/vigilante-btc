@@ -1027,20 +1027,20 @@ def build_dashboard(est, hist):
     grade = snap_g.get("grade", "?") if isinstance(snap_g, dict) else "?"
     max_cls = " alerta-max" if grade == "A" else ""
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-<meta http-equiv="refresh" content="300">
+<meta http-equiv="refresh" content="120">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
-<span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">5:00</b></span>
+<span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">2:00</b></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v22.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v23.</footer>
 </div>
-<script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
-if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
+<script>var RL=120;setInterval(function(){{var el=document.getElementById('recarga');
+if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
 else{{var m=Math.floor(RL/60),s=RL%60;
 if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}}}},1000);</script>
 {CD_JS}
