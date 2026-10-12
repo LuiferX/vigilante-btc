@@ -117,15 +117,22 @@ def svg_barras(vals, etiquetas, w=560, h=170):
     y_of = lambda v: bot - max(0, min(100, v)) / 100 * (bot - top)
     y45, y55 = y_of(45), y_of(55)
     s = [f'<svg class="resp bars" viewBox="0 0 {w} {h}">']
+    for g in (0, 25, 50, 75, 100):
+        gy = y_of(g)
+        s.append(f'<line x1="10" y1="{gy:.1f}" x2="{w - 10}" y2="{gy:.1f}" class="rejilla"/>')
+        s.append(f'<text x="{w - 8}" y="{gy - 3:.1f}" text-anchor="end" class="tag">{g}</text>')
     s.append(f'<line x1="10" y1="{y45:.1f}" x2="{w - 10}" y2="{y45:.1f}" class="umbral"/>')
     s.append(f'<text x="{w - 8}" y="{y45 - 4:.1f}" text-anchor="end" class="tag">45 registra</text>')
     s.append(f'<line x1="10" y1="{y55:.1f}" x2="{w - 10}" y2="{y55:.1f}" class="umbral fuerte"/>')
     s.append(f'<text x="{w - 8}" y="{y55 - 4:.1f}" text-anchor="end" class="tag">55 fuerte</text>')
+    ceros = sum(1 for v, _ in pares if v == 0)
     for i, (v, e) in enumerate(pares):
         vc = max(0, min(100, v))
         y = y_of(vc)
+        if bot - y < 2:
+            y = bot - 2
         x = 10 + i * bw + 1.5
-        cls = "b-green" if vc >= 55 else ("b-amber" if vc >= 40 else "b-slate")
+        cls = "b-green" if vc >= 55 else ("b-amber" if vc >= 40 else ("b-zero" if vc == 0 else "b-slate"))
         s.append(
             f'<rect class="bar {cls}" x="{x:.1f}" y="{y:.1f}" width="{bw - 3:.1f}" '
             f'height="{bot - y:.1f}" rx="3" style="animation-delay:{min(i * 25, 700)}ms">'
@@ -134,6 +141,8 @@ def svg_barras(vals, etiquetas, w=560, h=170):
             s.append(f'<text x="{x + 2:.1f}" y="{h - 8}" class="tag">{e}</text>')
         if vc >= 55:
             s.append(f'<text x="{x + (bw - 3) / 2:.1f}" y="{y - 4:.1f}" text-anchor="middle" class="tag hi">{v:g}</text>')
+    if ceros == n:
+        s.append(f'<text x="{w / 2}" y="{top + 12}" text-anchor="middle" class="tag">todo en 0 = empate total de marcos</text>')
     s.append("</svg>")
     return "".join(s)
 
@@ -205,7 +214,8 @@ svg .bar{transform-origin:bottom;transform-box:fill-box;animation:grow .5s both;
 transition:fill .2s ease,filter .2s ease;cursor:pointer}
 svg .bar:hover{fill:#f8fafc;filter:drop-shadow(0 0 6px #ffffff99)}
 @keyframes grow{from{transform:scaleY(.1)}to{transform:scaleY(1)}}
-.b-green{fill:#22c55e}.b-amber{fill:#f59e0b}.b-slate{fill:#475569}
+.b-green{fill:#22c55e}.b-amber{fill:#f59e0b}.b-slate{fill:#475569}.b-zero{fill:#1e293b;stroke:#475569;stroke-width:1}
+svg .rejilla{stroke:#ffffff14;stroke-width:1}
 svg .linea{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.4s .1s forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 svg circle.alert{fill:var(--red);animation:blink 1.6s infinite;transition:filter .2s ease;cursor:pointer}
@@ -773,11 +783,33 @@ FONDO_JS = ("<script>(function(){"
           "frame(0);})();</script>")
 
 
-def _alertas_html(hist):
+def _alertas_html(est, hist, ahora_dt=None):
+    COOL_H = {"fuerte": 4, "brusco": 2, "liq": 4, "ritmo": 2, "toque": 4, "diadc": 24}
+    sil = []
+    try:
+        cools = (est or {}).get("cools") or {}
+        if isinstance(cools, dict) and ahora_dt is not None:
+            for k, t0 in cools.items():
+                try:
+                    cat, resto = str(k).split(":", 1)
+                    hh = COOL_H.get(cat)
+                    if hh is None:
+                        continue
+                    t0d = datetime.datetime.fromisoformat(t0)
+                    if t0d.tzinfo is None:
+                        t0d = t0d.replace(tzinfo=datetime.timezone.utc)
+                    fin = t0d + datetime.timedelta(hours=hh)
+                    if fin > ahora_dt:
+                        sil.append(f"{cat} {resto} → hasta {fin.strftime('%H:%M')}")
+                except Exception:
+                    continue
+    except Exception:
+        pass
     als = [h for h in (hist or []) if isinstance(h, dict) and h.get("tipo") == "alerta"]
+    sils = (f"<p class='mini'>🤫 Silenciados (ya avisados): {'; '.join(sil)}</p>" if sil else "")
     if not als:
-        return ("<p class='mini'>Sin alertas en ventana — el bot sólo avisa con cambio real, "
-                "no cada pasada.</p>")
+        return (f"<p class='mini'>Sin alertas en ventana — el bot sólo avisa con cambio real, "
+                f"no cada pasada.</p>{sils}")
     filas = ""
     for h in reversed(als[-8:]):
         try:
@@ -792,7 +824,7 @@ def _alertas_html(hist):
                   f"<td>{miles(h.get('precio'))}</td><td>{h.get('conf', '?')}%</td>"
                   f"<td title='{mot}'>{corto}</td></tr>")
     return (f"<div class='tscroll'><table class='ops'><thead><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr></thead>"
-            f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>"
+            f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>{sils}"
             f"<p class='mini'>🧱 TECHO = estás debajo, puede devolver abajo · "
             f"🛡 PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
 
@@ -1078,7 +1110,7 @@ def build_dashboard(est, hist):
         tarjetas.append(ban)
     tarjetas.append(_card("hero", "Precio y sesgo", hero))
     tarjetas.append(_card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva))
-    tarjetas.append(_card("alertas", "Alertas 🔔", _alertas_html(ult)))
+    tarjetas.append(_card("alertas", "Alertas 🔔", _alertas_html(est, ult, ahora_dt)))
     tarjetas.append(_card("conf", "Confianza (escala 0–100)", confb))
     tfs = _tfs_html(est.get("snapshot"))
     if tfs:
