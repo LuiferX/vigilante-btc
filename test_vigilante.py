@@ -528,6 +528,10 @@ _ahc = {"cools": {"ritmo:baja": _ah.isoformat(),
                   "liq:max": "2020-01-01T00:00:00+00:00"}}
 _sil = _db._alertas_html(_ahc, [], _ah)
 t("dash silencios", "ritmo baja" in _sil and "hasta" in _sil and "liq" not in _sil)
+t("dash silencio ruptura", "ALCISTA confirmada" in _db._alertas_html(
+    {"cools": {"ruptura:ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)": _ah.isoformat()}}, [], _ah)
+    and "ruptura ruptura" not in _db._alertas_html(
+    {"cools": {"ruptura:ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)": _ah.isoformat()}}, [], _ah))
 t("dash barras cero", "empate total de marcos" in _db.svg_barras([0, 0, 0], ["0", "1", "2"]))
 _xsec = _db.build_dashboard({"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
                              "snapshot": {"tf": {"h1": {"tend": "t", "rsi": 1}, "h4": {"tend": "t", "rsi": 1},
