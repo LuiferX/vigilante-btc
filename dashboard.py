@@ -221,6 +221,24 @@ ul.pq{list-style:none;margin:8px 0 0;padding:0}
 ul.pq li{font-size:12.5px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
 border-radius:10px;padding:7px 10px;margin-bottom:6px}
 ul.pq li:hover{border-color:#ffffff38}
+.duel{display:flex;align-items:stretch;gap:8px;margin-top:8px}
+.fighter{flex:1;background:#0c0c0e;border:1px solid var(--line);border-radius:12px;padding:10px;
+text-align:center;transition:all .3s ease}
+.fighter .femo{font-size:34px;display:inline-block}
+.fighter .fname{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-top:2px}
+.fighter .fpow{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
+.fighter.winner{border-color:#ffd76a;box-shadow:0 0 22px #ffd76a55,0 0 44px #ffd76a22;
+animation:winGlow 1.8s ease-in-out infinite}
+.fighter.winner .femo{animation:rebote 1s ease-in-out infinite}
+.fighter.loser{opacity:.55;filter:grayscale(.9);transform:rotate(-3deg) scale(.96)}
+@keyframes winGlow{0%,100%{box-shadow:0 0 14px #ffd76a44}50%{box-shadow:0 0 30px #ffd76a88,0 0 60px #ffd76a33}}
+@keyframes rebote{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(4deg)}}
+.vs{align-self:center;font-size:20px;font-weight:800;color:#ffd76a;text-shadow:0 0 12px #ffd76a88;
+animation:blink 2.4s infinite;white-space:nowrap}
+.winbanner{margin-top:8px;text-align:center;font-weight:800;font-size:14px;border-radius:10px;padding:8px;
+background:linear-gradient(90deg,#3b2f04,#5b4a08,#3b2f04);background-size:200% 100%;
+border:1px solid #ffd76a88;color:#ffe9a8;animation:brillo 3s linear infinite}
+@keyframes brillo{from{background-position:0% 0}to{background-position:200% 0}}
 
 .stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
@@ -711,6 +729,59 @@ def _macro_html(snap, ahora_dt):
             f"{filas}</table><p class='mini'>±30 min de eventos High: sin señales (blackout).</p>")
 
 
+def _duelo_html(snap):
+    if not isinstance(snap, dict):
+        return ""
+    bal = snap.get("bal") if isinstance(snap.get("bal"), dict) else None
+    taker = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
+    pw = None
+    if bal and (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) > 0:
+        try:
+            pw = float(bal.get("buys", 0)) / (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) * 100
+        except Exception:
+            pw = None
+    pt = None
+    try:
+        if taker is not None:
+            pt = max(0, min(100, (float(taker) - 0.7) / 0.6 * 100))
+    except Exception:
+        pt = None
+    if pw is None and pt is None:
+        return ("<p class='mini'>Midiendo fuerzas… el dato de ballenas aparece en la próxima pasada "
+                "y el taker cuando la API lo sirva.</p>")
+    pw_d = pw if pw is not None else 50
+    pt_d = pt if pt is not None else 50
+    diff = pw_d - pt_d
+    if abs(diff) >= 15:
+        wwin = diff > 0
+        banner = ("🐋 ¡VICTORIA BALLENA! " + str((bal or {}).get("txt", "")) if wwin
+                  else "🐂 ¡VICTORIA TORO! compradores agresivos mandan")
+        cw, cl = ("winner", "loser") if wwin else ("loser", "winner")
+    else:
+        banner, cw, cl = "⚖️ Pelea pareja — nadie domina", "", ""
+    det_w = ""
+    if bal and (int(bal.get("nb", 0)) + int(bal.get("ns", 0))) > 0:
+        det_w = (f"<div class='tmeta'>🟢 {bal.get('buys', 0)} BTC en {bal.get('nb', 0)} prints · "
+                 f"🔴 {bal.get('sells', 0)} BTC en {bal.get('ns', 0)} · max {bal.get('big', 0)}</div>")
+    elif bal:
+        det_w = "<div class='tmeta'>sin prints ≥5 BTC en la cinta</div>"
+    else:
+        det_w = "<div class='tmeta'>cinta de ballenas s/d aún</div>"
+    det_t = f"<div class='tmeta'>taker buy/sell {taker if taker is not None else 's/d'}</div>"
+    return (
+        f"<div class='duel'>"
+        f"<div class='fighter {cw}'><span class='femo'>🐋</span><div class='fname'>Ballenas</div>"
+        f"<div class='fpow'>{pw_d:.0f}</div>"
+        f"<div class='rsibar'><i style='width:{pw_d:.0f}%;background:#38bdf8'></i></div>{det_w}</div>"
+        f"<div class='vs'>⚔️<br>VS</div>"
+        f"<div class='fighter {cl}'><span class='femo'>🐂</span><div class='fname'>Toros</div>"
+        f"<div class='fpow'>{pt_d:.0f}</div>"
+        f"<div class='rsibar'><i style='width:{pt_d:.0f}%;background:#4ade80'></i></div>{det_t}</div>"
+        f"</div><div class='winbanner'>{banner}</div>"
+        f"<p class='mini'>🐋 = compras/(compras+ventas) en prints ≥5 BTC · "
+        f"🐂 = taker buy/sell (misma fórmula del bot). Gana por ≥15.</p>")
+
+
 def build_dashboard(est, hist):
     if not isinstance(est, dict):
         est = {}
@@ -792,6 +863,9 @@ def build_dashboard(est, hist):
     pq = _porque_html(est.get("snapshot"))
     if pq:
         tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
+    du = _duelo_html(est.get("snapshot"))
+    if du:
+        tarjetas.append(_card("duelo", "Ballenas 🐋 vs Toros 🐂", du))
     mc = _macro_html(est.get("snapshot"), ahora_dt)
     if mc:
         tarjetas.append(_card("macro", "Macro 📅", mc))
@@ -812,7 +886,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v10.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v11.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 {CD_JS}
