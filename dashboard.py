@@ -164,7 +164,9 @@ svg.resp{width:100%;height:auto;display:block;background:#0f172a;border-radius:1
 svg .tag{fill:#94a3b8;font-size:11px}
 svg .umbral{stroke:#f59e0b;stroke-dasharray:5 4;stroke-width:1;opacity:.7}
 svg .umbral.fuerte{stroke:#22c55e}
-svg .bar{transform-origin:bottom;transform-box:fill-box;animation:grow .5s both}
+svg .bar{transform-origin:bottom;transform-box:fill-box;animation:grow .5s both;
+transition:fill .2s ease,filter .2s ease;cursor:pointer}
+svg .bar:hover{fill:#f8fafc;filter:drop-shadow(0 0 6px #ffffff99)}
 @keyframes grow{from{transform:scaleY(.1)}to{transform:scaleY(1)}}
 .b-green{fill:#22c55e}.b-amber{fill:#f59e0b}.b-slate{fill:#475569}
 svg .linea{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.4s .1s forwards}
