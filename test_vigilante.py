@@ -436,5 +436,26 @@ t("dash porque", "Tendencia" in _db._porque_html(
     {"tf": _sn["tf"], "regimen": "rango", "grade": "D"}))
 t("dash alertas tabla", "Últimas" in _db._alertas_html(_ht))
 
+# ---------- anti-spam (solo lo importante) ----------
+_e2 = {}
+t("enfriar 1ro", v.enfriar(_e2, "x", 4, ah) is True)
+t("enfriar 2do", v.enfriar(_e2, "x", 4, ah) is False)
+t("enfriar vence", v.enfriar(_e2, "x", 0.001, ah + datetime.timedelta(hours=1)) is True)
+_ah10 = ah.replace(hour=10, minute=5)
+_liq1 = v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
+                         None, None, "tendencia", False, "", None, "barrido test", None)
+t("liq avisa", _liq1[2] == "alerta")
+_eb2 = dict(eb)
+v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb2, _ah10,
+                 None, None, "tendencia", False, "", None, "barrido test", None)
+_liq2 = v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb2, _ah10,
+                         None, None, "tendencia", False, "", None, "barrido test", None)
+t("liq no repite", _liq2[2] == "nada")
+_eb3 = dict(eb, ultimo_bias="ALZA")
+v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, _eb3, _ah10,
+                 None, None, "tendencia", False, "", None, None, None, 50, 40)
+t("fuerte no repite", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, _eb3, _ah10,
+    None, None, "tendencia", False, "", None, None, None, 50, 40)[2] == "nada")
+
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
