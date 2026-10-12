@@ -905,7 +905,10 @@ def _alertas_html(est, hist, ahora_dt=None):
                         t0d = t0d.replace(tzinfo=datetime.timezone.utc)
                     fin = t0d + datetime.timedelta(hours=hh)
                     if fin > ahora_dt:
-                        sil.append(f"{cat} {resto} → hasta {fin.strftime('%H:%M')}")
+                        txt = resto
+                        if cat == "ruptura" and txt.startswith("ruptura"):
+                            txt = txt[len("ruptura"):].strip()
+                        sil.append(f"{cat} {txt} → hasta {fin.strftime('%H:%M')}")
                 except Exception:
                     continue
     except Exception:
