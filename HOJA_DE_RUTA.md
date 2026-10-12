@@ -21,6 +21,15 @@
 
 *Regla del proyecto: uso personal, sin vender señales. La precisión publicada manda.*
 
+## 📊 Dashboard (página, v7→v25, 12/10)
+- v7 plegables + sonido por sesgo · v8 sparklines TF en vivo · v9 tema negro + fondo vivo
+- v10 feed alertas + porqué + macro · v11 arena 🐋vs🐂 (bot guarda cinta en snapshot)
+- v12 fondo según sesgo + vibración grado A + cuenta atrás · v13 niveles con glow + canal
+- v14 melodía loop + beat · v15 fade + flash · v16 detector relativo · v17 warmup
+- v18 overlay + testigo motor · v19 marcos + héroe glow · v20 blanco neutral · v21-v22 pulso solo con música
+- v23 recarga 2 min · v24 ticker BTC 10s · v25 edad de datos en vivo
+- Bot: PILAS en idioma techo/piso 🧱🛡 · anti-doble 90s (cadencia 2 min) · test hora fija (flake 02-03 UTC)
+
 ## 🧪 Entrenamiento 11/10 (3 semanas reales, 500x1H+200x4H)
 - Volatilidad: mediana 0.144% · p90 0.51% · p99 1.34% → brusco 1.0% validado (p97)
 - 2R disponible en 8h el 93% de las horas → plan factible
