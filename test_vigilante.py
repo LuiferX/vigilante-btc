@@ -413,6 +413,14 @@ _ev2 = [{"titulo": "Core CPI m/m", "cuando": datetime.datetime(2026, 10, 12, 11,
 t("ev estudia", v.estudiar_eventos(_ee, _hh, _ev2, datetime.datetime(2026, 10, 12, 14, 0, tzinfo=datetime.timezone.utc)) == 1
     and _ee["ev_study"]["CPI"] == [0.5, 1.0, 1.5, 1.0])
 t("ev no repite", v.estudiar_eventos(_ee, _hh, _ev2, datetime.datetime(2026, 10, 12, 15, 0, tzinfo=datetime.timezone.utc)) == 0)
+_ahora = datetime.datetime(2026, 10, 12, 12, 0, tzinfo=datetime.timezone.utc)
+_ev3 = [{"titulo": "Core CPI m/m", "cuando": datetime.datetime(2026, 10, 12, 12, 30, tzinfo=datetime.timezone.utc), "impacto": "High", "impact": "High"}]
+t("preaviso avisa", (v.preaviso({}, _ev3, _ahora, "2026-10-12") or "").startswith("⚠️ Core CPI"))
+_ee2 = {}
+v.preaviso(_ee2, _ev3, _ahora, "2026-10-12")
+t("preaviso unico", v.preaviso(_ee2, _ev3, _ahora, "2026-10-12") is None)
+t("preaviso lejos", v.preaviso({}, _ev3, datetime.datetime(2026, 10, 12, 10, 0, tzinfo=datetime.timezone.utc), "2026-10-12") is None)
+t("preaviso low", v.preaviso({}, [{"titulo": "X", "cuando": _ev3[0]["cuando"], "impact": "Low"}], _ahora, "2026-10-12") is None)
 t("simula crea", v.responder_comando(
     {"chat": 111, "texto": "/simula", "full": "/simula LONG 83000", "nombre": "T"}, CSNAP)[0].startswith("🔬 Simulada"))
 t("simula estado", "Simulador:" in v.responder_comando(
