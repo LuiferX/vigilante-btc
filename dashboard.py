@@ -127,13 +127,21 @@ def svg_barras(vals, etiquetas, w=560, h=170):
 
 
 CSS = """
-:root{--bg:#020617;--card:rgba(30,41,59,.82);--line:rgba(148,163,184,.16);
+:root{--bg:#000;--card:rgba(12,13,16,.88);--line:rgba(255,255,255,.09);
 --txt:#e2e8f0;--mut:#94a3b8;--acc:#38bdf8;--grn:#22c55e;--amb:#f59e0b;--red:#ef4444}
 *{box-sizing:border-box}
-body{background:radial-gradient(1200px 500px at 20% -10%,#0c4a6e55,transparent),
-radial-gradient(1000px 500px at 90% 0%,#4c1d9555,transparent),var(--bg);
-color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:16px}
-.wrap{max-width:1120px;margin:0 auto}
+body{background:#000;
+color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:16px;
+min-height:100vh}
+body::before,body::after{content:"";position:fixed;border-radius:50%;filter:blur(90px);
+pointer-events:none;z-index:0}
+body::before{width:44vw;height:44vw;left:-12vw;top:-14vw;
+background:radial-gradient(circle,#0b1e3a 0%,transparent 70%);opacity:.5;animation:deriva 26s ease-in-out infinite alternate}
+body::after{width:40vw;height:40vw;right:-10vw;bottom:-12vw;
+background:radial-gradient(circle,#1c1033 0%,transparent 70%);opacity:.45;animation:deriva 32s ease-in-out infinite alternate-reverse}
+@keyframes deriva{from{transform:translate(0,0) scale(1)}to{transform:translate(6vw,4vh) scale(1.15)}}
+#fondo{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
+.wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 header h1{font-size:21px;margin:0}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);
@@ -155,12 +163,12 @@ vertical-align:middle;margin-left:6px}
 .badge.alza{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
 .badge.baja{background:#450a0a;color:#fca5a5;border:1px solid #ef444455}
 .badge.lateral{background:#1e293b;color:#cbd5e1;border:1px solid var(--line)}
-.pill{height:8px;border-radius:99px;background:#0f172a;overflow:hidden;margin-top:8px}
+.pill{height:8px;border-radius:99px;background:#0c0c0e;overflow:hidden;margin-top:8px}
 .pill i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--amb),var(--grn));
 width:0;animation:fill 1.1s .2s forwards}
 @keyframes fill{to{width:var(--w,30%)}}
 .sub{font-size:12px;color:var(--mut);margin-top:6px}
-svg.resp{width:100%;height:auto;display:block;background:#0f172a;border-radius:10px}
+svg.resp{width:100%;height:auto;display:block;background:#070709;border-radius:10px}
 svg .tag{fill:#94a3b8;font-size:11px}
 svg .umbral{stroke:#f59e0b;stroke-dasharray:5 4;stroke-width:1;opacity:.7}
 svg .umbral.fuerte{stroke:#22c55e}
@@ -180,7 +188,7 @@ svg .lvl:hover{opacity:1;stroke:#f8fafc}
 svg .lvl.nsop{stroke:#22c55e}svg .lvl.nres{stroke:#ef4444}
 svg .tag.lvl-nsop{fill:#4ade80}svg .tag.lvl-nres{fill:#fca5a5}
 .kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:#cbd5e1;background:#0f172a;
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:#cbd5e1;background:#0c0c0e;
 transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;cursor:default}
 .chip b{color:#fff}
 .chip:hover{border-color:#e2e8f0;color:#fff;box-shadow:0 0 10px #ffffff22;transform:translateY(-1px)}
@@ -191,11 +199,11 @@ footer{color:#64748b;font-size:12px;margin:14px 2px}
 @media(max-width:480px){.big{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 .stats{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.stat{flex:1 1 100px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:6px 9px;
+.stat{flex:1 1 100px;background:#0c0c0e;border:1px solid var(--line);border-radius:10px;padding:6px 9px;
 transition:border-color .2s ease,box-shadow .2s ease}
 .stat:hover{border-color:#ffffff38;box-shadow:0 0 10px #ffffff14}
 .tfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:6px}
-.tf{background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:8px;
+.tf{background:#0c0c0e;border:1px solid var(--line);border-radius:10px;padding:8px;
 transition:border-color .2s ease,box-shadow .2s ease}
 .tf:hover{border-color:#ffffff38;box-shadow:0 0 10px #ffffff14}
 .tf .thead{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
@@ -206,7 +214,7 @@ transition:border-color .2s ease,box-shadow .2s ease}
 .tend.lateral{background:#1e293b;color:#cbd5e1}
 svg.spark{width:100%;height:56px;display:block}
 svg.spark .sline{fill:none;stroke-width:2;stroke-linejoin:round}
-.rsibar{height:5px;border-radius:99px;background:#1e293b;overflow:hidden;margin-top:6px}
+.rsibar{height:5px;border-radius:99px;background:#17171a;overflow:hidden;margin-top:6px}
 .rsibar i{display:block;height:100%;border-radius:99px}
 .tf .tmeta{font-size:11px;color:var(--mut);margin-top:4px;font-variant-numeric:tabular-nums}
 
@@ -214,7 +222,7 @@ svg.spark .sline{fill:none;stroke-width:2;stroke-linejoin:round}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
 table.ops{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
 table.ops th{text-align:left;color:var(--mut);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
-table.ops td{padding:4px 6px;border-bottom:1px solid #1e293b;font-variant-numeric:tabular-nums}
+table.ops td{padding:4px 6px;border-bottom:1px solid #1c1c1f;font-variant-numeric:tabular-nums}
 .win{color:#4ade80;font-weight:700}.loss{color:#fca5a5;font-weight:700}
 .tagLONG{color:#4ade80;font-weight:700}.tagSHORT{color:#fca5a5;font-weight:700}
 .mini{font-size:12px;color:var(--mut)}
@@ -231,7 +239,7 @@ padding:4px 12px;cursor:pointer}
 .tbtn:hover{border-color:#38bdf8;color:#fff}
 .gwrap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .gauge{width:150px;flex:none}
-.gauge .track{stroke:#1e293b}
+.gauge .track{stroke:#17171a}
 .gauge .fill{stroke-linecap:round;transition:stroke-dashoffset 1.2s ease}
 .gnum{font-size:26px;font-weight:800;fill:#fff}
 .glab{font-size:10px;fill:var(--mut)}
@@ -535,8 +543,7 @@ def _tfs_html(snap):
             f"<p class='mini'>Curvas en vivo (Binance) · RSI/MACD del último parte.</p>")
 
 
-TF_JS = ("<script>(function(){"
-          "var boxes=document.querySelectorAll('svg.spark[data-tf]');"
+TF_JS = ("<script>(function(){"          "var boxes=document.querySelectorAll('svg.spark[data-tf]');"
           "if(!boxes.length)return;"
           "function col(t){var b=document.body.dataset.bias||'';return b==='ALZA'?'#4ade80':(b==='BAJA'?'#fca5a5':'#38bdf8');}"
           "boxes.forEach(function(svg){"
@@ -556,6 +563,54 @@ TF_JS = ("<script>(function(){"
           "svg.innerHTML+='<circle cx=\"'+lx.toFixed(1)+'\" cy=\"'+ly.toFixed(1)+'\" r=\"3\" fill=\"'+c+'\"/>';"
           "}).catch(function(){svg.style.display='none';});"
           "});})();</script>")
+
+FONDO_JS = ("<script>(function(){"
+          "var cv=document.getElementById('fondo');if(!cv||!cv.getContext)return;"
+          "var ctx=cv.getContext('2d');"
+          "var quiet=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;"
+          "var raw=(document.body.dataset.px||'').split(',');"
+          "var px=raw.map(function(x){return parseFloat(x);}).filter(function(x){return x>0;});"
+          "var bias=document.body.dataset.bias||'?';"
+          "var conf=document.body.dataset.conf||'?';"
+          "var run=document.body.dataset.run||'?';"
+          "function size(){var d=Math.min(window.devicePixelRatio||1,1.5);"
+          "cv.width=Math.floor(innerWidth*d);cv.height=Math.floor(innerHeight*d);"
+          "cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';"
+          "ctx.setTransform(d,0,0,d,0,0);}"
+          "size();window.addEventListener('resize',size);"
+          "var W=function(){return innerWidth;},H=function(){return innerHeight;};"
+          "function grid(){ctx.strokeStyle='rgba(148,163,184,0.05)';ctx.lineWidth=1;ctx.beginPath();"
+          "for(var x=0;x<W();x+=56){ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,H());}"
+          "for(var y=0;y<H();y+=56){ctx.moveTo(0,y+.5);ctx.lineTo(W(),y+.5);}"
+          "ctx.stroke();}"
+          "function linea(){if(px.length<2)return;"
+          "var lo=Math.min.apply(null,px),hi=Math.max.apply(null,px),rg=(hi-lo)||1;"
+          "ctx.strokeStyle='rgba(56,189,248,0.10)';ctx.lineWidth=1.2;ctx.beginPath();"
+          "px.forEach(function(v,i){"
+          "var x=20+i*((W()-40)/(px.length-1)),y=H()*0.32+(1-(v-lo)/rg)*H()*0.30;"
+          "if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});"
+          "ctx.stroke();return {lo:lo,rg:rg};}"
+          "function punto(m,t){if(px.length<2||!m)return;"
+          "var i=Math.floor(t/40)%px.length;"
+          "var v=px[i];var x=20+i*((W()-40)/(px.length-1));"
+          "var y=H()*0.32+(1-(v-m.lo)/m.rg)*H()*0.30;"
+          "var p=(t%1200)/1200;"
+          "ctx.fillStyle='rgba(125,211,252,'+(0.10+0.10*Math.sin(p*6.28))+')';"
+          "ctx.beginPath();ctx.arc(x,y,2.5+p*5,0,6.29);ctx.fill();"
+          "ctx.fillStyle='rgba(224,242,254,0.20)';"
+          "ctx.beginPath();ctx.arc(x,y,2,0,6.29);ctx.fill();}"
+          "var msgs=[bias+' '+conf+'%','run '+run,'BTCUSDT'];"
+          "function textos(t){ctx.font='12px ui-monospace,monospace';"
+          "msgs.forEach(function(m,i){"
+          "var sp=H()+80;"
+          "var y=(sp-((t*0.02+i*sp/3)%sp))%sp-40;"
+          "var x=W()*0.08+i*W()*0.28;"
+          "ctx.fillStyle='rgba(226,232,240,0.055)';"
+          "ctx.fillText(m,x,y);});}"
+          "function frame(t){if(document.hidden){requestAnimationFrame(frame);return;}"
+          "ctx.clearRect(0,0,W(),H());grid();var m=linea();punto(m,t);textos(t);"
+          "if(!quiet)requestAnimationFrame(frame);}"
+          "frame(0);})();</script>")
 
 
 def build_dashboard(est, hist):
@@ -640,23 +695,25 @@ def build_dashboard(est, hist):
     tarjetas.append(_card("prec", "Precisión", prec_b))
     tarjetas.append(_card("act", "Actividad", act_b))
     grid = "".join(tarjetas)
+    fpx = ",".join(str(int(v)) for v in px[-30:] if v) or ""
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}"><div class="wrap">
+<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}"><canvas id="fondo"></canvas><div class="wrap">
 <header><h1>🤖 Vigilante BTC</h1>
 <span class="live"><span class="dot"></span>actualizado {ahora} · se refresca solo</span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v8.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v9.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 {CD_JS}
 {UI_JS}
 {TF_JS}
+{FONDO_JS}
 </body></html>"""
 
 
