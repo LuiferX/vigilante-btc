@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-vigilante_cloud.py - VIGILANTE BTCUSDT v3 (1H 4H 1D 1S) en la nube.
+vigilante_cloud.py - VIGILANTE BTCUSDT v6 (1H 4H 1D 1S) en la nube.
 
-Novedades v3:
- - ALERTAS INTELIGENTES: solo envia a Telegram cuando hay senal (cambio de
-   direccion, confianza alta, toque de nivel) + resumen en aperturas. Sin ruido.
- - MIEDO/CODICIA 0-100: RSI 1D, funding, taker L/S, volatilidad, tendencia, 24h.
- - HISTORIAL Y PRECISION: guarda cada pasada y evalua las senales enviadas
-   8 h despues (acierto = precio se movio >=0.2% a favor). Muestra precision real.
- - Estado en rama 'estado' (se reescribe limpio cada pasada; main solo codigo).
+v6 institucional: score A/B/C, regimen ADX + MACD en rango, veto premium/DXY,
+blackout de eventos, anti-spam por categoria, PILAS techo/piso, plan 2R,
+paper invisible con frenos, precision MFE/MAE a 8h.
+v5 Companero (tono, narrativa, memoria, comandos) + v4 Maquina + v3 base.
 
 SEGURIDAD: solo API publica de Binance (+ espejo vision si bloquean).
 Secretos por variables de entorno. Sin API keys, sin trading.
@@ -22,6 +19,8 @@ import re
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
+
+VERSION = "v6"
 
 FAPI = "https://fapi.binance.com/fapi/v1"
 FDATA = "https://fapi.binance.com/futures/data"
@@ -1148,9 +1147,9 @@ def liquidez(kl, last):
     lo = min(c["l"] for c in base)
     ult3 = kl[-3:]
     if any(c["h"] > hi for c in ult3) and last < hi and abs(last - hi) / hi <= 0.004:
-        return f"barrido sobre máximos {fmt_miles(hi)} con devolución (trampa alcista)"
+        return f"barrido sobre máximos {fmt_miles(hi)} con devolución (trampa para compradores)"
     if any(c["l"] < lo for c in ult3) and last > lo and abs(last - lo) / lo <= 0.004:
-        return f"barrido bajo mínimos {fmt_miles(lo)} con devolución (trampa bajista)"
+        return f"barrido bajo mínimos {fmt_miles(lo)} con devolución (trampa para vendedores)"
     return None
 
 
@@ -1835,7 +1834,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {extras.get('grade', '?')} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
     L.append(f"🎯 {accion}")
     L.append("")
-    L.append(f"🤖 VIGILANTE BTC v3 | {now} | {sesion_hora()} | datos {FUENTE['nombre']}")
+    L.append(f"🤖 VIGILANTE BTC {VERSION} | {now} | {sesion_hora()} | datos {FUENTE['nombre']}")
     L.append(f"📈 max {fmt_miles(t['hi'])} / min {fmt_miles(t['lo'])}")
     L.append("")
     L.append(f"🧭 MARCOS: {dirb['bias']} ({dirb['confianza']}%) · régimen {extras.get('regimen', '?')} · ADX 4H {h4.get('adx', '?')}")
