@@ -420,6 +420,18 @@ t("dash empate", "empate total" in _db.build_dashboard(
     {"ultimo_bias": "LATERAL", "ultima_conf": 0, "runs": 1}, _ht))
 t("dash no empate", "empate total" not in _db.build_dashboard(
     {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1}, _ht))
+t("poc medio", v.punto_control(
+    [{"h": 100 + i, "l": 99 + i, "c": 99.5 + i, "v": 10.0} for i in range(30)]) is not None)
+t("poc pico", v.punto_control(
+    [{"h": 101, "l": 100, "c": 100.5, "v": (500.0 if i == 15 else 10.0)} for i in range(30)])["poc"] == 101)
+t("poc poco", v.punto_control([{"h": 1, "l": 1, "c": 1, "v": 1.0}] * 5) is None)
+t("kelly duerme", v.kelly_half([1.0, -1.0]) is None)
+t("kelly rango", 0.0025 <= (v.kelly_half([1.5] * 8 + [-1.0] * 2) or 0) <= 0.02)
+t("sharpe duerme", v.sharpe([1.0]) is None)
+t("sharpe gana", (v.sharpe([1.5, 2.0, 1.0, 2.5, 1.0]) or 0) > 1)
+t("dash ev", "EV ALZA" in _db.build_dashboard(
+    {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
+     "alza": [1, 1, 1, 1, 0], "baja": []}, _ht))
 t("dash card", _db._card("x", "Título", "cuerpo").count("chead") == 1)
 _sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
               "h4": {"tend": "bajista", "rsi": 30, "macd": -1},
