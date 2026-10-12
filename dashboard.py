@@ -140,3 +140,7 @@ def main():
     with open("docs/index.html", "w", encoding="utf-8") as fh:
         fh.write(html)
     print("dashboard OK")
+
+
+if __name__ == "__main__":
+    main()
