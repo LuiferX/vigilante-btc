@@ -1807,10 +1807,12 @@ def linea_estudio(est, titulo):
         return ""
 
 
-def preaviso(est, evs, ahora, hoy):
+def preaviso(est, evs, ahora, hoy=None):
     """Aviso único 15–60 min antes de un evento High (con su historial medido).
     Devuelve texto o None. Marca por evento para no repetir en el día."""
     try:
+        if hoy is None:
+            hoy = ahora.strftime("%Y-%m-%d")
         for e in evs or []:
             if e.get("impact") != "High":
                 continue
