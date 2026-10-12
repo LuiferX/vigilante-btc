@@ -2184,6 +2184,10 @@ def main():
         est["ultima_conf"] = dirb["confianza"]
         est["ultimo_precio"] = round(t["last"])
         est["ultimo_run"] = ahora.isoformat()
+        if enviar and tipo == "alerta":
+            est["ultima_alerta"] = {"t": ahora.isoformat(), "motivo": motivo,
+                                    "precio": round(t["last"]), "bias": dirb["bias"],
+                                    "conf": dirb["confianza"]}
         if tipo == "manana":
             est["ultimo_resumen"] = f"{hoy}-manana"
         elif tipo == "noche":
