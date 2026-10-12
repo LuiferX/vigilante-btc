@@ -1807,6 +1807,32 @@ def linea_estudio(est, titulo):
         return ""
 
 
+def preaviso(est, evs, ahora, hoy):
+    """Aviso único 15–60 min antes de un evento High (con su historial medido).
+    Devuelve texto o None. Marca por evento para no repetir en el día."""
+    try:
+        for e in evs or []:
+            if e.get("impact") != "High":
+                continue
+            try:
+                dt = (e["cuando"] - ahora).total_seconds() / 60
+            except Exception:
+                continue
+            if not (15 <= dt <= 60):
+                continue
+            key = str(e["cuando"]) + "|" + str(e.get("titulo", ""))
+            if (est.get("preavisos", {}) or {}).get(key) == hoy:
+                continue
+            stu = linea_estudio(est, e.get("titulo", ""))
+            est.setdefault("preavisos", {})[key] = hoy
+            return (f"⚠️ {e['titulo']} en {cuenta_regresiva(e['cuando'], ahora)}"
+                    + (f" ({stu})" if stu else "") +
+                    ": cierro la boca ±30 min (blackout). Cuida el apalancamiento.")
+        return None
+    except Exception:
+        return None
+
+
 def blackout(evs, ahora):
     """Bloqueo institucional: sin senales nuevas cerca de evento High."""
     for e in evs:
@@ -2394,6 +2420,7 @@ def main():
         if veto and grade in ("A", "B"):
             grade = chr(ord(grade) + 2)
         bloqueo, motivo_bloq = blackout(evs, ahora)
+        aviso_previo = preaviso(est, evs, ahora, hoy)
         try:
             edad_h = (ahora - kl_h1[-1]["t"]).total_seconds() / 3600
         except Exception:
@@ -2734,6 +2761,9 @@ def main():
                   "poc": poc,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
+        if aviso_previo and not es_dup:
+            send_telegram(aviso_previo)
+            print("Pre-evento enviado")
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
