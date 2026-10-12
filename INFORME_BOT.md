@@ -101,6 +101,8 @@ fondo negro vivo. No expone tokens, chats ni tus operaciones reales.
 
 Solo lectura pública · secretos en GitHub Actions Secrets · nada en código (verificado) ·
 tokens revocables · sin ejecución de dinero · uso personal.
+Protocolos: `guardia_lectura()` (fail-closed: se niega a arrancar si detecta claves de trading),
+comandos solo del dueño (verifica chat), tope 20 alertas + rango sensato, cero rutas de órdenes en código.
 
 ## 11. Umbrales clave
 
