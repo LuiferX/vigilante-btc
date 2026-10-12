@@ -1288,6 +1288,22 @@ def retest(kl, res, sup, last):
     return None
 
 
+def ruptura(kl_h1, sup, res):
+    """Ruptura confirmada: la última vela 1H CERRADA quedó más allá del
+    soporte (bajista) o la resistencia (alcista) más cercanos."""
+    try:
+        if not kl_h1 or len(kl_h1) < 2:
+            return None
+        c = kl_h1[-2]["c"]
+        if sup and c < sup:
+            return f"ruptura BAJISTA confirmada bajo {fmt_miles(sup)} (cierre 1H)"
+        if res and c > res:
+            return f"ruptura ALCISTA confirmada sobre {fmt_miles(res)} (cierre 1H)"
+        return None
+    except Exception:
+        return None
+
+
 def liquidez(kl, last):
     """Toma de liquidez: barrido de maximos/minimos 24h con cierre de vuelta.
     Quien persigue el barrido suele quedar atrapado (trampa)."""
@@ -1944,7 +1960,7 @@ def evaluar_mfe(est, ahora, velas=None):
     est["pendientes"] = nuevas[-100:]
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -1967,6 +1983,8 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
             est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
+    if rup and enfriar(est, "ruptura:" + rup, 12, ahora):
+        return True, rup, "alerta"
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
         lado = "max" if "sobre" in liq else "min"
@@ -2346,6 +2364,7 @@ def main():
                 break
         liq = liquidez(kl_h1, t["last"])
         poc = punto_control(kl_h1)
+        rup = ruptura(kl_h1, niv["soportes"][0]["precio"], niv["resistencias"][0]["precio"])
         pila = None
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
@@ -2435,7 +2454,7 @@ def main():
         f_ses = calib.get(sesion_bucket(ahora.hour), 1.0)
         uf = UMBRAL_CONF_FUERTE * f_ses
         uc = UMBRAL_CONF_CAMBIO * f_ses
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
