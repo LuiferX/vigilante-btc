@@ -239,6 +239,13 @@ animation:blink 2.4s infinite;white-space:nowrap}
 background:linear-gradient(90deg,#3b2f04,#5b4a08,#3b2f04);background-size:200% 100%;
 border:1px solid #ffd76a88;color:#ffe9a8;animation:brillo 3s linear infinite}
 @keyframes brillo{from{background-position:0% 0}to{background-position:200% 0}}
+.fighter.dormido .femo{filter:grayscale(.7);animation:respirar 3.2s ease-in-out infinite}
+@keyframes respirar{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.07);opacity:1}}
+.zzz{position:relative;height:22px;font-size:13px;color:#94a3b8}
+.zzz span{position:absolute;left:50%;bottom:0;opacity:0;animation:subir 3s ease-in infinite}
+.zzz span:nth-child(2){animation-delay:1s;font-size:16px}
+.zzz span:nth-child(3){animation-delay:2s;font-size:19px}
+@keyframes subir{0%{transform:translateX(-50%);opacity:0}30%{opacity:.9}100%{transform:translate(-8px,-22px);opacity:0}}
 
 .stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
@@ -747,8 +754,36 @@ def _duelo_html(snap):
     except Exception:
         pt = None
     if pw is None and pt is None:
-        return ("<p class='mini'>Midiendo fuerzas… el dato de ballenas aparece en la próxima pasada "
-                "y el taker cuando la API lo sirva.</p>")
+        dor = ("<div class='fighter dormido'><span class='femo'>{e}</span>"
+               "<div class='zzz'><span>z</span><span>z</span><span>Z</span></div>"
+               "<div class='fname'>{n} durmiendo</div></div>")
+        return (
+            f"<div class='duel'>{dor.format(e='🐋', n='Ballena')}"
+            f"<div class='vs'>😴<br>VS</div>{dor.format(e='🐂', n='Toro')}</div>"
+            f"<div class='winbanner'>😴 Nadie en la arena todavía</div>"
+            f"<p class='mini'>La cinta de ballenas y el taker aparecen en la próxima pasada.</p>")
+    plz = ("<div class='fighter dormido'><span class='femo'>{e}</span>"
+           "<div class='zzz'><span>z</span><span>z</span><span>Z</span></div>"
+           "<div class='fname'>{n} durmiendo</div><div class='fpow'>s/d</div></div>")
+    if pw is None or pt is None:
+        dw = ""
+        if bal and (int(bal.get("nb", 0)) + int(bal.get("ns", 0))) > 0:
+            dw = (f"<div class='tmeta'>🟢 {bal.get('buys', 0)} BTC en {bal.get('nb', 0)} prints · "
+                  f"🔴 {bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</div>")
+        fw = (f"<div class='fighter'><span class='femo'>🐋</span><div class='fname'>Ballenas</div>"
+              f"<div class='fpow'>{pw:.0f}</div>"
+              f"<div class='rsibar'><i style='width:{pw:.0f}%;background:#38bdf8'></i></div>{dw}</div>"
+              if pw is not None else plz.format(e='🐋', n='Ballena'))
+        tk = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
+        dt = f"<div class='tmeta'>taker buy/sell {tk if tk is not None else 's/d'}</div>"
+        ft = (f"<div class='fighter'><span class='femo'>🐂</span><div class='fname'>Toros</div>"
+              f"<div class='fpow'>{pt:.0f}</div>"
+              f"<div class='rsibar'><i style='width:{pt:.0f}%;background:#4ade80'></i></div>{dt}</div>"
+              if pt is not None else plz.format(e='🐂', n='Toro'))
+        return (f"<div class='duel'>{fw}<div class='vs'>⚔️<br>VS</div>{ft}</div>"
+                f"<div class='winbanner'>⏳ Esperando al rival…</div>"
+                f"<p class='mini'>🐋 = compras/(compras+ventas) en prints ≥5 BTC · "
+                f"🐂 = taker buy/sell (misma fórmula del bot).</p>")
     pw_d = pw if pw is not None else 50
     pt_d = pt if pt is not None else 50
     diff = pw_d - pt_d
