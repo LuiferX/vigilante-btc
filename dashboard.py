@@ -165,6 +165,8 @@ body[data-bias="LATERAL"]::after{background:radial-gradient(circle,#141519 0%,tr
 #latido{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent}
 #destello{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0}
 #motor{font-size:11px;color:#64748b}
+#pvivo{font-variant-numeric:tabular-nums;transition:color .3s ease}
+#pvivo.sub{color:#4ade80}#pvivo.baj{color:#fca5a5}
 .wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 header h1{font-size:21px;margin:0}
@@ -693,6 +695,18 @@ TF_JS = ("<script>(function(){"          "var boxes=document.querySelectorAll('s
           "}).catch(function(){svg.style.display='none';});"
           "});})();</script>")
 
+VIVO_JS = ("<script>(function(){"
+          "var el=document.getElementById('pvivo');if(!el)return;"
+          "var ant=0;"
+          "function fmt(x){try{return Number(x).toLocaleString('de-DE',{maximumFractionDigits:0});}catch(e){return x;}}"
+          "function tic(){fetch('https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT')"
+          ".then(function(r){if(!r.ok)throw 0;return r.json();})"
+          ".then(function(j){var p=parseFloat(j.price);if(!(p>0))throw 0;"
+          "el.textContent=fmt(p);"
+          "if(ant>0){el.className=p>ant?'sub':(p<ant?'baj':'');}"
+          "ant=p;}).catch(function(){});}"
+          "tic();setInterval(tic,10000);})();</script>")
+
 FONDO_JS = ("<script>(function(){"
           "var cv=document.getElementById('fondo');if(!cv||!cv.getContext)return;"
           "var ctx=cv.getContext('2d');"
@@ -1033,11 +1047,12 @@ def build_dashboard(est, hist):
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
 <span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">2:00</b></span>
+<span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v23.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v24.</footer>
 </div>
 <script>var RL=120;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
@@ -1046,6 +1061,7 @@ if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}}}},1
 {CD_JS}
 {UI_JS}
 {TF_JS}
+{VIVO_JS}
 {FONDO_JS}
 </body></html>"""
 
