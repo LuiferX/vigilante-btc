@@ -238,6 +238,7 @@ UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo a
 MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 FUNDING_EXTREMO = 0.05   # |funding| >= 0.05% = un lado recargado (lectura contrarian)
 UMBRAL_BRUSCO = 1.0      # +/-1% en 1h = movimiento brusco (ballenas/noticias)
+UMBRAL_RITMO = 0.6       # +/-0.6% en 30min = ritmo acelerado (pesca desplomes que no llegan a 1%/1h)
 UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
@@ -1767,7 +1768,7 @@ def evaluar_mfe(est, ahora, velas=None):
     est["pendientes"] = nuevas[-100:]
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -1787,6 +1788,9 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
             est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 2, ahora):
         return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
+    if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
+            est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
+        return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
     if liq and enfriar(est, "liq:" + ("max" if "sobre" in liq else "min"), 4, ahora):
         return True, "Toma de liquidez: " + liq + ". Quien la persigue suele quedar atrapado.", "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
@@ -2123,6 +2127,12 @@ def main():
             if h.get("t", "")[:16] <= obj1h and h.get("precio"):
                 mov1h = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
                 break
+        mov30 = None
+        obj30 = (ahora - datetime.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M")
+        for h in reversed(hist):
+            if h.get("t", "")[:16] <= obj30 and h.get("precio"):
+                mov30 = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
+                break
         hoy = ahora.strftime("%Y-%m-%d")
         mov_ny = None
         corte = hoy + "T13:30"
@@ -2211,7 +2221,7 @@ def main():
         f_ses = calib.get(sesion_bucket(ahora.hour), 1.0)
         uf = UMBRAL_CONF_FUERTE * f_ses
         uc = UMBRAL_CONF_CAMBIO * f_ses
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
