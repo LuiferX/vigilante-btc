@@ -445,6 +445,10 @@ _mt, _ = v.mensaje_pila(_zs, 83752, [{"precio": 82992}], [{"precio": 84199}])
 t("pila techo", _mt is not None and "TECHO" in _mt and "sobre 84.199" in _mt)
 t("pila lejos", v.mensaje_pila(_zs, 80000, [], []) == (None, None))
 t("pila vacia", v.mensaje_pila([], 83000, [], []) == (None, None))
+t("liq claro", "compradores" in v.liquidez([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
+    [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080},
+     {"o": 82080, "h": 82120, "l": 82000, "c": 81990}], 81990))
+t("version", v.VERSION == "v6")
 
 # ---------- anti-spam (solo lo importante) ----------
 _e2 = {}
