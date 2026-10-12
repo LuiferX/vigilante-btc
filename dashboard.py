@@ -181,7 +181,21 @@ body[data-bias="LATERAL"]::after{background:radial-gradient(circle,#141519 0%,tr
 #pvivo.sub{color:#4ade80}#pvivo.baj{color:#fca5a5}
 .wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-header h1{font-size:21px;margin:0}
+header h1{font-size:21px;margin:0;display:flex;align-items:center;gap:9px}
+.logo{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;
+font-weight:800;font-size:16px;color:#fff;background:linear-gradient(135deg,#0ea5e9,#6366f1);
+box-shadow:0 0 14px #38bdf855}
+.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:5px}
+.atag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.6px;color:#fca5a5;
+border:1px solid #ef444455;background:#450a0a;border-radius:5px;padding:2px 7px;margin-right:6px}
+.fmono{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;
+font-weight:800;font-size:22px;color:#fff}
+.fmono.b{background:linear-gradient(135deg,#0ea5e9,#1e3a8a);box-shadow:0 0 18px #38bdf855}
+.fmono.t{background:linear-gradient(135deg,#22c55e,#14532d);box-shadow:0 0 18px #22c55e55}
+.fighter.dormido .fmono{filter:grayscale(.8);animation:respirar 3.2s ease-in-out infinite}
+.simtag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.6px;color:#93c5fd;
+border:1px solid var(--line);background:#0c0c0e;border-radius:5px;padding:2px 7px;margin-right:6px}
+ul.pq li{border-left:3px solid #38bdf8}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);
 border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
@@ -277,12 +291,12 @@ html{scroll-behavior:smooth}
 .duel{display:flex;align-items:stretch;gap:8px;margin-top:8px}
 .fighter{flex:1;background:#0c0c0e;border:1px solid var(--line);border-radius:12px;padding:10px;
 text-align:center;transition:all .3s ease}
-.fighter .femo{font-size:34px;display:inline-block}
+.fighter .fmono{font-size:22px;display:inline-block}
 .fighter .fname{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-top:2px}
 .fighter .fpow{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
 .fighter.winner{border-color:#ffd76a;box-shadow:0 0 22px #ffd76a55,0 0 44px #ffd76a22;
 animation:winGlow 1.8s ease-in-out infinite}
-.fighter.winner .femo{animation:rebote 1s ease-in-out infinite}
+.fighter.winner .fmono{animation:rebote 1s ease-in-out infinite}
 .fighter.loser{opacity:.55;filter:grayscale(.9);transform:rotate(-3deg) scale(.96)}
 @keyframes winGlow{0%,100%{box-shadow:0 0 14px #ffd76a44}50%{box-shadow:0 0 30px #ffd76a88,0 0 60px #ffd76a33}}
 @keyframes rebote{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(4deg)}}
@@ -292,7 +306,7 @@ animation:blink 2.4s infinite;white-space:nowrap}
 background:linear-gradient(90deg,#3b2f04,#5b4a08,#3b2f04);background-size:200% 100%;
 border:1px solid #ffd76a88;color:#ffe9a8;animation:brillo 3s linear infinite}
 @keyframes brillo{from{background-position:0% 0}to{background-position:200% 0}}
-.fighter.dormido .femo{filter:grayscale(.7);animation:respirar 3.2s ease-in-out infinite}
+.fighter.dormido .fmono{filter:grayscale(.7);animation:respirar 3.2s ease-in-out infinite}
 @keyframes respirar{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.07);opacity:1}}
 .zzz{position:relative;height:22px;font-size:13px;color:#94a3b8}
 .zzz span{position:absolute;left:50%;bottom:0;opacity:0;animation:subir 3s ease-in infinite}
@@ -378,23 +392,23 @@ def _contexto_html(snap):
         chips.append(f"<span class='chip'><b>{lbl}</b> {t} · RSI {r}{erc}</span>")
     fg = snap.get("fg") or {}
     senti = snap.get("senti") or {}
-    chips.append(f"<span class='chip'>😨🤑 <b>{fg.get('valor', '?')}</b> {fg.get('etiqueta', '')}</span>")
+    chips.append(f"<span class='chip'>Miedo <b>{fg.get('valor', '?')}</b> {fg.get('etiqueta', '')}</span>")
     fund = senti.get("funding", None)
     chips.append(f"<span class='chip'>funding <b>{fund if fund is not None else 's/d'}</b></span>")
     pres = snap.get("pres") or {}
     if pres.get("txt"):
-        chips.append(f"<span class='chip'>📰 {pres.get('txt')}</span>")
+        chips.append(f"<span class='chip'>News {pres.get('txt')}</span>")
     niv = snap.get("niv") or {}
     try:
         sop = (niv.get("sop") or [{}])[0].get("precio", "?")
         res = (niv.get("res") or [{}])[0].get("precio", "?")
-        chips.append(f"<span class='chip'>🛡 <b>{sop}</b> · 🧲 <b>{res}</b></span>")
+        chips.append(f"<span class='chip'>SOP <b>{sop}</b> · RES <b>{res}</b></span>")
     except Exception:
         pass
     evs = snap.get("evs") or []
     if evs:
         e0 = evs[0]
-        chips.append(f"<span class='chip'>📅 {e0.get('titulo', '?')}</span>")
+        chips.append(f"<span class='chip'>Evt {e0.get('titulo', '?')}</span>")
     return (f"<p>Régimen <b style='color:#e2e8f0'>{reg}</b> · grado <b style='color:#e2e8f0'>{grade}</b></p>"
             f"<div class='kv'>{''.join(chips)}</div>")
 
@@ -479,19 +493,19 @@ def _ops_html(est, ahora):
         pico = float(est.get("banco_pico", b))
         dd = (pico - b) / pico * 100 if pico > 0 else 0
         if dd >= 10:
-            frenos.append("⛔ pico −10%")
+            frenos.append("bloqueo pico −10%")
     except Exception:
         dd = 0
     pd = est.get("paper_dia") or {}
     try:
         base = float(banco) if banco is not None else 10000.0
         if isinstance(pd, dict) and float(pd.get("pnl", 0)) <= -0.03 * base:
-            frenos.append("⛔ día −3%")
+            frenos.append("bloqueo día −3%")
     except Exception:
         pass
     if racha >= 3:
-        frenos.append("⚠️ racha: riesgo 0,5%")
-    freno_txt = " · ".join(frenos) if frenos else "frenos OK ✅"
+        frenos.append("aviso racha: riesgo 0,5%")
+    freno_txt = " · ".join(frenos) if frenos else "frenos OK"
     btxt = f"{miles(banco)} USDT ({tot_pnl:+.0f})" if banco is not None else "10.000 USDT (sin empezar)"
     stats = (
         f"<div class='stats'>"
@@ -550,9 +564,9 @@ def _ops_html(est, ahora):
             f"<span class='chip'><b>{o.get('dir', '?')}</b> {miles(o.get('entrada'))} "
             f"SL {miles(o.get('stop'))}</span>" for o in sims[-4:])
         w = sum(1 for x in simc if _num(x.get("r")) > 0)
-        jo += (f"<p class='mini'>🔬 Simuladas: {len(sims)} abiertas, {len(simc)} cerradas ({w} ganadas)</p>"
+        jo += (f"<p class='mini'><span class='simtag'>SIM</span>Simuladas: {len(sims)} abiertas, {len(simc)} cerradas ({w} ganadas)</p>"
                f"<div class='kv'>{ls}</div>" if ls else
-               f"<p class='mini'>🔬 Simuladas: {len(simc)} cerradas ({w} ganadas)</p>")
+               f"<p class='mini'><span class='simtag'>SIM</span>Simuladas: {len(simc)} cerradas ({w} ganadas)</p>")
     return (f"{stats}{ab}{ce}{pe}{jo}")
 
 
@@ -603,7 +617,7 @@ UI_JS = ("<script>(function(){"
           "return MEL;}"
           "catch(e){return null;}}"
           "function fst(e){var b=document.getElementById('sonido');if(!b)return;"
-          "b.textContent=e==='playing'?'\\u{1F3B5} Sonando':(on?'\\u{1F50A} Sonido':'\\u{1F507} Sonido');}"
+          "b.textContent=e==='playing'?'Sonando':(on?'Sonido on':'Sonido off');}"
           "function audioGraph(){try{if(!AC2)AC2=new (window.AudioContext||window.webkitAudioContext)();"
           "if(!AN){var src=AC2.createMediaElementSource(MEL);AN=AC2.createAnalyser();AN.fftSize=256;"
           "AN.smoothingTimeConstant=0.75;AD=new Uint8Array(AN.frequencyBinCount);"
@@ -665,7 +679,7 @@ UI_JS = ("<script>(function(){"
           "subirVol(tk2);if(!quietM){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}rafM=requestAnimationFrame(latir);}else{latir();}}"
           "var on=false;try{on=localStorage.getItem('vig_sound')==='1';}catch(e){}"
           "var snd=document.getElementById('sonido');"
-          "function paint(){if(snd)snd.textContent=on?'\\u{1F50A} Sonido':'\\u{1F507} Sonido';}"
+          "function paint(){if(snd)snd.textContent=on?'Sonido on':'Sonido off';}"
           "paint();if(on){try{suena(false);}catch(e){}}"
           "if(!quietM){try{rafM=requestAnimationFrame(latir);}catch(e){}}"
           "if(snd){snd.addEventListener('click',function(){on=!on;"
@@ -715,7 +729,7 @@ def _gauge_reloj_html(est, hist, ahora_dt):
     except Exception:
         fgh = []
     spark = svg_linea(fgh, color="#f59e0b") if len(fgh) >= 2 else ""
-    evs = [(2, "🌙 noche"), (7, "🌅 madrugada"), (8, "☀️ mañana"), (13, "🗽 pre-NY"), (20, "🏁 cierre NY")]
+    evs = [(2, "noche"), (7, "madrugada"), (8, "mañana"), (13, "pre-NY"), (20, "cierre NY")]
     hnow = ahora_dt.hour + ahora_dt.minute / 60
     ny_on = 13 <= ahora_dt.hour < 20
     nxt = None
@@ -893,7 +907,7 @@ def _alertas_html(est, hist, ahora_dt=None):
     except Exception:
         pass
     als = [h for h in (hist or []) if isinstance(h, dict) and h.get("tipo") == "alerta"]
-    sils = (f"<p class='mini'>🤫 Silenciados (ya avisados): {'; '.join(sil)}</p>" if sil else "")
+    sils = (f"<p class='mini'>Silenciados (ya avisados): {'; '.join(sil)}</p>" if sil else "")
     if not als:
         return (f"<p class='mini'>Sin alertas en ventana — el bot sólo avisa con cambio real, "
                 f"no cada pasada.</p>{sils}")
@@ -912,8 +926,8 @@ def _alertas_html(est, hist, ahora_dt=None):
                   f"<td title='{mot}'>{corto}</td></tr>")
     return (f"<div class='tscroll'><table class='ops'><thead><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr></thead>"
             f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>{sils}"
-            f"<p class='mini'>🧱 TECHO = estás debajo, puede devolver abajo · "
-            f"🛡 PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
+            f"<p class='mini'>TECHO = estás debajo, puede devolver abajo · "
+            f"PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
 
 
 def _porque_html(snap):
@@ -928,27 +942,27 @@ def _porque_html(snap):
                  if isinstance(tf.get(k), dict) and "baji" in str((tf[k] or {}).get("tend", "")).lower())
         det = " · ".join(f"{ {'h1': '1H', 'h4': '4H', 'd1': '1D', 'w1': '1S'}[k]} {((tf.get(k) or {}).get('tend', '?'))}"
                             for k in ("h1", "h4", "d1", "w1") if isinstance(tf.get(k), dict))
-        pts.append(f"📈 Tendencia: {al} TF alcistas / {bj} bajistas ({det})")
+        pts.append(f"Tendencia: {al} TF alcistas / {bj} bajistas ({det})")
     fg = snap.get("fg") or {}
     senti = snap.get("senti") or {}
     if isinstance(fg, dict) and fg.get("valor") is not None:
-        pts.append(f"😨🤑 Sentimiento: miedo {fg.get('valor')} ({fg.get('etiqueta', '')}) · "
+        pts.append(f"Sentimiento: miedo {fg.get('valor')} ({fg.get('etiqueta', '')}) · "
                    f"funding {senti.get('funding', 's/d')} · taker {senti.get('taker', 's/d')}")
     pres = snap.get("pres") or {}
     if isinstance(pres, dict) and pres.get("txt"):
-        pts.append(f"📰 Noticias: {pres.get('txt')}")
+        pts.append(f"Noticias: {pres.get('txt')}")
     niv = snap.get("niv") or {}
     try:
         px = float(snap.get("precio") or 0)
         sop = (niv.get("sop") or [{}])[0].get("precio")
         res = (niv.get("res") or [{}])[0].get("precio")
         if px and sop and res:
-            pts.append(f"🧲 Posición: a {abs(px - float(sop)) / px * 100:.2f}% del soporte "
+            pts.append(f"Posición: a {abs(px - float(sop)) / px * 100:.2f}% del soporte "
                        f"y {abs(float(res) - px) / px * 100:.2f}% de la resistencia")
     except Exception:
         pass
     if snap.get("regimen"):
-        pts.append(f"🏷️ Régimen: {snap.get('regimen')} · grado {snap.get('grade', '?')}")
+        pts.append(f"Régimen: {snap.get('regimen')} · grado {snap.get('grade', '?')}")
     if not pts:
         return ""
     return "<ul class='pq'>" + "".join(f"<li>{p}</li>" for p in pts) + "</ul>"
@@ -976,7 +990,7 @@ def _dom_html(snap):
         b = max(0, min(100, float(dom["btc"])))
         e = max(0, min(100, float(dom.get("eth") or 0)))
         col = "#f7931a" if b >= 55 else ("#a78bfa" if b < 48 else "#e2e8f0")
-        ver = ("temporada BTC 🟠" if b >= 55 else ("zona mixta ⚪" if b >= 48 else "aires de altseason 🟣"))
+        ver = ("temporada BTC" if b >= 55 else ("zona mixta" if b >= 48 else "aires de altseason"))
         return (f"<div class='big' style='font-size:24px'>{b:.1f}% <small style='font-size:12px;color:#94a3b8'>BTC</small></div>"
                 f"<div class='rsibar'><i style='width:{b:.0f}%;background:{col}'></i></div>"
                 f"<p class='mini'>{ver} · ETH {e:.1f}% · resto {100 - b - e:.1f}%</p>")
@@ -1005,12 +1019,12 @@ def _liqmap_html(snap):
     banner = ""
     try:
         if im.get("lado"):
-            banner = (f"<p class='mini'>🧲 Imán de stops: <b style='color:#e2e8f0'>{im['lado'].upper()}</b> "
+            banner = (f"<p class='mini'>Imán de stops: <b style='color:#e2e8f0'>{im['lado'].upper()}</b> "
                       f"({im.get('pct', '?')}%)</p>")
     except Exception:
         pass
-    return (f"{banner}<p class='mini'>Arriba 🔴</p>{lado(lm.get('arriba'), '#f87171')}"
-            f"<p class='mini'>Abajo 🟢</p>{lado(lm.get('abajo'), '#4ade80')}"
+    return (f"{banner}<p class='mini'>Arriba</p>{lado(lm.get('arriba'), '#f87171')}"
+            f"<p class='mini'>Abajo</p>{lado(lm.get('abajo'), '#4ade80')}"
             f"<p class='mini'>Estimado: stops tras máximos/mínimos y redondos.</p>")
 
 
@@ -1055,7 +1069,7 @@ def _macro_html(snap, ahora_dt):
         try:
             st = (snap.get("evstudy", {}) or {}).get(_fam(es[0].get("titulo", ""))) if snap else None
             if isinstance(st, dict) and st.get("n", 0) >= 3:
-                stu = f" 📊 suele ±{st['avg']}% (n={st['n']})"
+                stu = f" suele ±{st['avg']}% (n={st['n']})"
         except Exception:
             pass
         filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td title='{full}'>{tit}{stu}</td>"
@@ -1082,50 +1096,50 @@ def _duelo_html(snap):
     except Exception:
         pt = None
     if pw is None and pt is None:
-        dor = ("<div class='fighter dormido'><span class='femo'>{e}</span>"
-               "<div class='zzz'><span>z</span><span>z</span><span>Z</span></div>"
-               "<div class='fname'>{n} durmiendo</div></div>")
+        dor = ("<div class='fighter dormido'><span class='fmono {c}'>{l}</span>"
+               "<div class='zzz'><span>·</span><span>·</span><span>·</span></div>"
+               "<div class='fname'>{n} en espera</div></div>")
         return (
-            f"<div class='duel'>{dor.format(e='🐋', n='Ballena')}"
-            f"<div class='vs'>😴<br>VS</div>{dor.format(e='🐂', n='Toro')}</div>"
-            f"<div class='winbanner'>😴 Nadie en la arena todavía</div>"
+            f"<div class='duel'>{dor.format(c='b', l='B', n='Ballenas')}"
+            f"<div class='vs'>VS</div>{dor.format(c='t', l='T', n='Toros')}</div>"
+            f"<div class='winbanner'>Nadie en la arena todavía</div>"
             f"<p class='mini'>La cinta de ballenas y el taker aparecen en la próxima pasada.</p>")
-    plz = ("<div class='fighter dormido'><span class='femo'>{e}</span>"
-           "<div class='zzz'><span>z</span><span>z</span><span>Z</span></div>"
-           "<div class='fname'>{n} durmiendo</div><div class='fpow'>s/d</div></div>")
+    plz = ("<div class='fighter dormido'><span class='fmono {c}'>{l}</span>"
+           "<div class='zzz'><span>·</span><span>·</span><span>·</span></div>"
+           "<div class='fname'>{n} en espera</div><div class='fpow'>s/d</div></div>")
     if pw is None or pt is None:
         dw = ""
         if bal and (int(bal.get("nb", 0)) + int(bal.get("ns", 0))) > 0:
-            dw = (f"<div class='tmeta'>🟢 {bal.get('buys', 0)} BTC en {bal.get('nb', 0)} prints · "
-                  f"🔴 {bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</div>")
-        fw = (f"<div class='fighter'><span class='femo'>🐋</span><div class='fname'>Ballenas</div>"
+            dw = (f"<div class='tmeta'><span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span> · "
+                  f"<span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span></div>")
+        fw = (f"<div class='fighter'><span class='fmono b'>B</span><div class='fname'>Ballenas</div>"
               f"<div class='fpow'>{pw:.0f}</div>"
               f"<div class='rsibar'><i style='width:{pw:.0f}%;background:#38bdf8'></i></div>{dw}</div>"
-              if pw is not None else plz.format(e='🐋', n='Ballena'))
+              if pw is not None else plz.format(c='b', l='B', n='Ballenas'))
         tk = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
         dt = f"<div class='tmeta'>taker buy/sell {tk if tk is not None else 's/d'}</div>"
-        ft = (f"<div class='fighter'><span class='femo'>🐂</span><div class='fname'>Toros</div>"
+        ft = (f"<div class='fighter'><span class='fmono t'>T</span><div class='fname'>Toros</div>"
               f"<div class='fpow'>{pt:.0f}</div>"
               f"<div class='rsibar'><i style='width:{pt:.0f}%;background:#4ade80'></i></div>{dt}</div>"
-              if pt is not None else plz.format(e='🐂', n='Toro'))
-        return (f"<div class='duel'>{fw}<div class='vs'>⚔️<br>VS</div>{ft}</div>"
-                f"<div class='winbanner'>⏳ Esperando al rival…</div>"
-                f"<p class='mini'>🐋 = compras/(compras+ventas) en prints ≥5 BTC · "
-                f"🐂 = taker buy/sell (misma fórmula del bot).</p>")
+              if pt is not None else plz.format(c='t', l='T', n='Toros'))
+        return (f"<div class='duel'>{fw}<div class='vs'>VS</div>{ft}</div>"
+                f"<div class='winbanner'>Esperando al rival</div>"
+                f"<p class='mini'>Ballenas = compras/(compras+ventas) en prints de 5+ BTC · "
+                f"Toros = taker buy/sell (misma fórmula del bot).</p>")
     pw_d = pw if pw is not None else 50
     pt_d = pt if pt is not None else 50
     diff = pw_d - pt_d
     if abs(diff) >= 15:
         wwin = diff > 0
-        banner = ("🐋 ¡VICTORIA DE LAS BALLENAS! " + str((bal or {}).get("txt", "")) if wwin
-                  else "🐂 ¡VICTORIA DE LOS TOROS! la compra agresiva manda")
+        banner = ("VICTORIA DE LAS BALLENAS — " + str((bal or {}).get("txt", "")) if wwin
+                  else "VICTORIA DE LOS TOROS — la compra agresiva manda")
         cw, cl = ("winner", "loser") if wwin else ("loser", "winner")
     else:
-        banner, cw, cl = "⚖️ Pelea pareja — nadie domina", "", ""
+        banner, cw, cl = "Pelea pareja — nadie domina", "", ""
     det_w = ""
     if bal and (int(bal.get("nb", 0)) + int(bal.get("ns", 0))) > 0:
-        det_w = (f"<div class='tmeta'>🟢 {bal.get('buys', 0)} BTC en {bal.get('nb', 0)} prints · "
-                 f"🔴 {bal.get('sells', 0)} BTC en {bal.get('ns', 0)} · max {bal.get('big', 0)}</div>")
+        det_w = (f"<div class='tmeta'><span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span> · "
+                 f"<span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span> · max {bal.get('big', 0)}</div>")
     elif bal:
         det_w = "<div class='tmeta'>sin prints ≥5 BTC en la cinta</div>"
     else:
@@ -1133,16 +1147,16 @@ def _duelo_html(snap):
     det_t = f"<div class='tmeta'>taker buy/sell {taker if taker is not None else 's/d'}</div>"
     return (
         f"<div class='duel'>"
-        f"<div class='fighter {cw}'><span class='femo'>🐋</span><div class='fname'>Ballenas</div>"
+        f"<div class='fighter {cw}'><span class='fmono b'>B</span><div class='fname'>Ballenas</div>"
         f"<div class='fpow'>{pw_d:.0f}</div>"
         f"<div class='rsibar'><i style='width:{pw_d:.0f}%;background:#38bdf8'></i></div>{det_w}</div>"
-        f"<div class='vs'>⚔️<br>VS</div>"
-        f"<div class='fighter {cl}'><span class='femo'>🐂</span><div class='fname'>Toros</div>"
+        f"<div class='vs'>VS</div>"
+        f"<div class='fighter {cl}'><span class='fmono t'>T</span><div class='fname'>Toros</div>"
         f"<div class='fpow'>{pt_d:.0f}</div>"
         f"<div class='rsibar'><i style='width:{pt_d:.0f}%;background:#4ade80'></i></div>{det_t}</div>"
         f"</div><div class='winbanner'>{banner}</div>"
-        f"<p class='mini'>🐋 = compras/(compras+ventas) en prints ≥5 BTC · "
-        f"🐂 = taker buy/sell (misma fórmula del bot). Gana por ≥15.</p>")
+        f"<p class='mini'>Ballenas = compras/(compras+ventas) en prints de 5+ BTC · "
+        f"Toros = taker buy/sell (misma fórmula del bot). Gana por 15+.</p>")
 
 
 def _saludo(ahora_dt):
@@ -1151,12 +1165,12 @@ def _saludo(ahora_dt):
     except Exception:
         return ""
     if 5 <= hb < 12:
-        return "☀️ Buenos días"
+        return "Buenos días"
     if 12 <= hb < 19:
-        return "🌤️ Buenas tardes"
+        return "Buenas tardes"
     if 19 <= hb or hb < 0:
-        return "🌙 Buenas noches"
-    return "🌌 De madrugada"
+        return "Buenas noches"
+    return "De madrugada"
 
 
 def _banner_html(est, hist, ahora_dt):
@@ -1183,7 +1197,7 @@ def _banner_html(est, hist, ahora_dt):
     b = str(ult.get("bias", "?")).upper()
     cls = "alza" if b == "ALZA" else ("baja" if b == "BAJA" else "lateral")
     return (f"<div class='card flash' id='c-ultima'><div class='cbody'><div class='cinner'>"
-            f"🚨 <b>Última alerta</b> · {hace} · "
+            f"<span class='atag'>ALERTA</span><b>Última alerta</b> · {hace} · "
             f"<span class='badge {cls}'>{b} {ult.get('conf', '?')}%</span> "
             f"{miles(ult.get('precio'))} — {ult.get('motivo', '')[:140]}"
             f"</div></div></div>")
@@ -1242,18 +1256,18 @@ def build_dashboard(est, hist):
         sops = [s for s in (niv.get("sop") or []) if isinstance(s, dict)][:2]
         ress = [r for r in (niv.get("res") or []) if isinstance(r, dict)][:2]
         for s in sops:
-            nvs.append({"precio": s.get("precio"), "etiqueta": f"🛡 {s.get('origen', 'soporte')}", "kind": "sop"})
+            nvs.append({"precio": s.get("precio"), "etiqueta": f"SOP · {s.get('origen', 'soporte')}", "kind": "sop"})
         for r in ress:
-            nvs.append({"precio": r.get("precio"), "etiqueta": f"🧲 {r.get('origen', 'resistencia')}", "kind": "res"})
+            nvs.append({"precio": r.get("precio"), "etiqueta": f"RES · {r.get('origen', 'resistencia')}", "kind": "res"})
         if precio and sops and ress:
             ds = (precio - float(sops[0].get("precio", precio))) / precio * 100
             dr = (float(ress[0].get("precio", precio)) - precio) / precio * 100
-            dist_txt = f" · 🛡 a −{abs(ds):.2f}% · 🧲 a +{abs(dr):.2f}%"
+            dist_txt = f" · SOP a −{abs(ds):.2f}% · RES a +{abs(dr):.2f}%"
     except Exception:
         nvs, dist_txt = [], ""
     hero = (f"<div class='big'>{miles(precio)}<span class='badge {_bias_class(bias)}'>{bias} {conf}%</span></div>"
             f"<div class='pill'><i style='--w:{conf_w}%'></i></div>"
-            f"<div class='sub'>{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana{dist_txt}{emp}</div>")
+            f"<div class='sub'>{delta_txt} · {rango_txt} · <span class='cdot'></span>{n_alertas} alertas en ventana{dist_txt}{emp}</div>")
     curva = (f"{svg_linea(px, marcas=marcas, niveles=nvs)}"
              f"<p><span style='color:#4ade80'>─ soporte</span> · "
              f"<span style='color:#fca5a5'>─ resistencia</span> (origen al pasar el mouse).</p>")
@@ -1270,43 +1284,40 @@ def build_dashboard(est, hist):
     tarjetas = []
     if ban:
         tarjetas.append(ban)
-    tarjetas.append(_sec("💰 Precio", "s-precio"))
+    tarjetas.append(_sec("Precio", "s-precio"))
     tarjetas.append(_card("hero", "Precio y sesgo", hero))
-    tarjetas.append(_card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva))
-    tarjetas.append(_sec("🚨 Señales", "s-senales"))
-    tarjetas.append(_card("alertas", "Alertas 🔔", _alertas_html(est, ult, ahora_dt)))
+    tarjetas.append(_card("curva", f"Precio · últimas {len(px)}", curva))
+    tarjetas.append(_sec("Señales", "s-senales"))
+    tarjetas.append(_card("alertas", "Alertas", _alertas_html(est, ult, ahora_dt)))
     tarjetas.append(_card("conf", "Confianza (escala 0–100)", confb))
     pq = _porque_html(est.get("snapshot"))
     if pq:
-        tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
-    tarjetas.append(_sec("🌍 Mercado", "s-mercado"))
+        tarjetas.append(_card("porque", "Por qué este sesgo", pq))
+    tarjetas.append(_sec("Mercado", "s-mercado"))
     tfs = _tfs_html(est.get("snapshot"))
     if tfs:
-        tarjetas.append(_card("tfs", "Temporalidades 📊", tfs))
+        tarjetas.append(_card("tfs", "Temporalidades", tfs))
     if reloj:
-        tarjetas.append(_card("reloj", "Miedo y sesión 🕰️", reloj))
+        tarjetas.append(_card("reloj", "Miedo y sesión", reloj))
     if ctx:
         tarjetas.append(_card("ctx", "Contexto", ctx))
     dh = _dom_html(est.get("snapshot"))
     if dh:
-        tarjetas.append(_card("dom", "Dominancia 👑", dh))
+        tarjetas.append(_card("dom", "Dominancia", dh))
     lq = _liqmap_html(est.get("snapshot"))
     if lq:
-        tarjetas.append(_card("liqmap", "Mapa liq 🌊", lq))
-    pq = _porque_html(est.get("snapshot"))
-    if pq:
-        tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
+        tarjetas.append(_card("liqmap", "Mapa de liquidez", lq))
     du = _duelo_html(est.get("snapshot"))
     if du:
-        tarjetas.append(_card("duelo", "Ballenas 🐋 vs Toros 🐂", du))
+        tarjetas.append(_card("duelo", "Ballenas vs Toros", du))
     mc = _macro_html(est.get("snapshot"), ahora_dt)
     if mc:
-        tarjetas.append(_card("macro", "Macro 📅", mc))
-    tarjetas.append(_sec("🤖 Dinero papel", "s-dinero"))
-    tarjetas.append(_card("ops", "Operaciones papel 🤖", ops))
+        tarjetas.append(_card("macro", "Macro · eventos", mc))
+    tarjetas.append(_sec("Dinero papel", "s-dinero"))
+    tarjetas.append(_card("ops", "Operaciones papel", ops))
     tarjetas.append(_card("banco", "Banco papel", banco_b))
     tarjetas.append(_card("prec", "Precisión", prec_b))
-    tarjetas.append(_sec("⚙️ Sistema", "s-sistema"))
+    tarjetas.append(_sec("Sistema", "s-sistema"))
     tarjetas.append(_card("act", "Actividad", act_b))
     grid = "".join(tarjetas)
     fpx = ",".join(str(int(v)) for v in px[-30:] if v) or ""
@@ -1327,15 +1338,15 @@ def build_dashboard(est, hist):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
-<header><h1>🤖 Vigilante BTC</h1>
+<header><h1><span class="logo">V</span>Vigilante BTC</h1>
 <span class="saludo">{_saludo(ahora_dt)}</span>
 <span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
 <span class="live"><span class="dot"></span>próxima pasada ~{prox_txt}</span>
 <span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{ahora_iso}">…</b></span>
 <span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
-<button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
-<div class="nav"><a href="#s-precio">💰 Precio</a><a href="#s-senales">🚨 Señales</a><a href="#s-mercado">🌍 Mercado</a><a href="#s-dinero">🤖 Dinero</a><a href="#s-sistema">⚙️ Sistema</a></div>
+<button class="tbtn" id="sonido">Sonido off</button><span id="motor"></span></header>
+<div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>
 <div class="grid">
 {grid}
 </div><footer>Análisis probabilístico. No es asesoramiento financiero. v30. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
