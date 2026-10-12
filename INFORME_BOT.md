@@ -48,10 +48,10 @@
 | Cambio de dirección | sesgo nuevo ALZA/BAJA, conf ≥40 | inherente (edge) |
 | Señal fuerte | conf ≥55 | 4 h por sesgo |
 | Movimiento brusco | ±1%/1h | 2 h por dirección |
-| Toma de liquidez | barrido máx/mín 24h con devolución | 4 h por lado |
+| Toma de liquidez | barrido máx/mín 24h con devolución, solo a favor del sesgo | 4 h por lado |
 | Día NY | mueve ≥2% | 1/día |
 | EYY PILAS 🧱🛡 | a ≤0.35% de zona mayor | 1/día por zona |
-| Toque nivel | ≤0.25% | 4 h por nivel |
+| Toque nivel | ≤0.25%, solo a favor del sesgo | 4 h por nivel |
 | Señales (precisión/paper) | conf ≥45 / papel ≥35 | dedup 4 h por sesgo |
 | Briefs | madrugada 07 · mañana 08 · pre-NY 13–13:30 · noche 2–3 UTC | 1/día c/u |
 | Anti-doble | pasada <90 s de la anterior | se omite el parte |
