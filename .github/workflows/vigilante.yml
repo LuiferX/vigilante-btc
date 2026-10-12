@@ -35,6 +35,7 @@ jobs:
 
       - name: Generar dashboard
         run: |
+          echo "PWD: $(pwd)" && ls -la | head -30
           ls -la dashboard.py
           python dashboard.py
           ls -la docs/
