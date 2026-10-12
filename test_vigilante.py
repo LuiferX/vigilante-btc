@@ -521,6 +521,18 @@ _ahc = {"cools": {"ritmo:baja": _ah.isoformat(),
 _sil = _db._alertas_html(_ahc, [], _ah)
 t("dash silencios", "ritmo baja" in _sil and "hasta" in _sil and "liq" not in _sil)
 t("dash barras cero", "empate total de marcos" in _db.svg_barras([0, 0, 0], ["0", "1", "2"]))
+import datetime as _dt
+t("prox ny", _db._prox_pasada(_dt.datetime(2026, 10, 12, 13, 2, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "13:05")
+t("prox resto", _db._prox_pasada(_dt.datetime(2026, 10, 12, 11, 16, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "11:30")
+t("prox borde", _db._prox_pasada(_dt.datetime(2026, 10, 12, 20, 58, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "21:00")
+t("liqmap card", "Imán de stops" in _db._liqmap_html(
+    {"liqmap": {"arriba": [{"precio": 84000, "dist": 0.5, "score": 80}],
+                           "abajo": [{"precio": 82000, "dist": -0.5, "score": 60}],
+                           "iman": {"lado": "arriba", "pct": 57}}}))
+t("liqmap vacio", _db._liqmap_html({}) == "")
+t("dash hora datos", "12/10 03:03" in _db.build_dashboard(
+    {"ultimo_bias": "LATERAL", "ultima_conf": 0, "runs": 1,
+     "ultimo_run": "2026-10-12T03:03:00+00:00"}, _ht))
 
 # ---------- PILAS claras ----------
 _zs = [{"precio": 83500, "razones": ["imán"]}, {"precio": 84000, "razones": ["psicológico", "imán"]}]
