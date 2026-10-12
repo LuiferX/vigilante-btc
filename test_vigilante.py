@@ -414,6 +414,10 @@ t("dash banner viejo", "Última alerta" not in _db.build_dashboard(
 t("dash saludo", any(s in _db.build_dashboard({"runs": 1}, []) for s in
     ["Buenos días", "Buenas tardes", "Buenas noches", "madrugada"]))
 t("dash pie hoy", " hoy " in _db.build_dashboard({"runs": 1}, _ht))
+t("dash empate", "empate total" in _db.build_dashboard(
+    {"ultimo_bias": "LATERAL", "ultima_conf": 0, "runs": 1}, _ht))
+t("dash no empate", "empate total" not in _db.build_dashboard(
+    {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1}, _ht))
 t("dash card", _db._card("x", "Título", "cuerpo").count("chead") == 1)
 _sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
               "h4": {"tend": "bajista", "rsi": 30, "macd": -1},
@@ -481,6 +485,12 @@ t("ritmo chico calla", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confian
     None, None, "tendencia", False, "", None, None, None, 90, 90, -0.4)[2] == "nada")
 t("ritmo blackout", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
     None, None, "tendencia", True, "CPI", None, None, None, 90, 90, -0.9)[2] == "nada")
+t("liq fade corto", "desvanecer hacia 81.000" in v.decidir_alerta(
+    82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
+    None, None, "tendencia", False, "", None, "barrido sobre máximos X", None)[1])
+t("liq fade largo", "desvanecer hacia 84.000" in v.decidir_alerta(
+    82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
+    None, None, "tendencia", False, "", None, "barrido bajo mínimos X", None)[1])
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
