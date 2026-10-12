@@ -421,6 +421,7 @@ v.preaviso(_ee2, _ev3, _ahora, "2026-10-12")
 t("preaviso unico", v.preaviso(_ee2, _ev3, _ahora, "2026-10-12") is None)
 t("preaviso lejos", v.preaviso({}, _ev3, datetime.datetime(2026, 10, 12, 10, 0, tzinfo=datetime.timezone.utc), "2026-10-12") is None)
 t("preaviso low", v.preaviso({}, [{"titulo": "X", "cuando": _ev3[0]["cuando"], "impact": "Low"}], _ahora, "2026-10-12") is None)
+t("preaviso sin hoy", (v.preaviso({}, _ev3, _ahora) or "").startswith("⚠️ Core CPI"))
 t("simula crea", v.responder_comando(
     {"chat": 111, "texto": "/simula", "full": "/simula LONG 83000", "nombre": "T"}, CSNAP)[0].startswith("🔬 Simulada"))
 t("simula estado", "Simulador:" in v.responder_comando(
