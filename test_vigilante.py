@@ -402,5 +402,39 @@ t("snap diario", "Diario" in scmd("/diario")[0])
 t("snap papel", "Papel" in scmd("/papel")[0])
 t("snap otro", "Comandos" in scmd("/otro")[0])
 
+# ---------- dashboard QA (constructores) ----------
+_ah = datetime.datetime.now(datetime.timezone.utc)
+_ea = {"ultima_alerta": {"t": _ah.isoformat(), "motivo": "Señal fuerte ALZA test", "precio": 83100,
+                          "bias": "ALZA", "conf": 60}, "runs": 1}
+_ht = [{"t": "2026-10-12T03:%02d:00+00:00" % i, "precio": 83000 + i, "conf": 30,
+        "bias": "ALZA", "tipo": "alerta" if i % 2 else "nada", "motivo": "M%d" % i} for i in range(6)]
+t("dash banner", "Última alerta" in _db.build_dashboard(_ea, _ht))
+t("dash banner viejo", "Última alerta" not in _db.build_dashboard(
+    {"ultima_alerta": {"t": "2020-01-01T00:00:00+00:00", "motivo": "X", "precio": 1}, "runs": 1}, []))
+t("dash saludo", any(s in _db.build_dashboard({"runs": 1}, []) for s in
+    ["Buenos días", "Buenas tardes", "Buenas noches", "madrugada"]))
+t("dash pie hoy", " hoy " in _db.build_dashboard({"runs": 1}, _ht))
+t("dash card", _db._card("x", "Título", "cuerpo").count("chead") == 1)
+_sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
+              "h4": {"tend": "bajista", "rsi": 30, "macd": -1},
+              "d1": {"tend": "lateral", "rsi": 50, "macd": 0},
+              "w1": {"tend": "alcista", "rsi": 60, "macd": 1}}}
+t("dash tfs 4", _db._tfs_html(_sn).count("data-tf=") == 4)
+t("dash tfs vacio", _db._tfs_html({}) == "")
+t("dash duelo gana", "VICTORIA BALLENA" in _db._duelo_html(
+    {"bal": {"nb": 8, "ns": 2, "buys": 60.0, "sells": 10.0, "big": 12.0, "txt": "ballenas acumulando"},
+     "senti": {"taker": 1.0}}))
+t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
+_ev = [{"titulo": "A", "cuando": "2026-10-14T08:30:00+00:00", "impact": "High"},
+       {"titulo": "B", "cuando": "2026-10-14T08:30:00+00:00", "impact": "High"},
+       {"titulo": "C", "cuando": "2026-10-15T08:30:00+00:00", "impact": "Low"}]
+t("dash macro grupo", "A +1" in _db._macro_html({"evs": _ev}, _ah))
+_gg = _db._gauge_reloj_html({"snapshot": {"fg": {"valor": 66, "etiqueta": "Codicia"}}}, [], _ah)
+t("dash gauge", "Codicia" in _gg and "66" in _gg and "Bogot" in _gg)
+t("dash gauge omit", _db._gauge_reloj_html({}, [], _ah) == "")
+t("dash porque", "Tendencia" in _db._porque_html(
+    {"tf": _sn["tf"], "regimen": "rango", "grade": "D"}))
+t("dash alertas tabla", "Últimas" in _db._alertas_html(_ht))
+
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
