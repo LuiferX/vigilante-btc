@@ -217,6 +217,10 @@ svg.spark .sline{fill:none;stroke-width:2;stroke-linejoin:round}
 .rsibar{height:5px;border-radius:99px;background:#17171a;overflow:hidden;margin-top:6px}
 .rsibar i{display:block;height:100%;border-radius:99px}
 .tf .tmeta{font-size:11px;color:var(--mut);margin-top:4px;font-variant-numeric:tabular-nums}
+ul.pq{list-style:none;margin:8px 0 0;padding:0}
+ul.pq li{font-size:12.5px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
+border-radius:10px;padding:7px 10px;margin-bottom:6px}
+ul.pq li:hover{border-color:#ffffff38}
 
 .stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
@@ -272,7 +276,8 @@ def _contexto_html(snap):
     fg = snap.get("fg") or {}
     senti = snap.get("senti") or {}
     chips.append(f"<span class='chip'>😨🤑 <b>{fg.get('valor', '?')}</b> {fg.get('etiqueta', '')}</span>")
-    chips.append(f"<span class='chip'>funding <b>{senti.get('funding', '?')}</b></span>")
+    fund = senti.get("funding", None)
+    chips.append(f"<span class='chip'>funding <b>{fund if fund is not None else 's/d'}</b></span>")
     pres = snap.get("pres") or {}
     if pres.get("txt"):
         chips.append(f"<span class='chip'>📰 {pres.get('txt')}</span>")
@@ -613,6 +618,99 @@ FONDO_JS = ("<script>(function(){"
           "frame(0);})();</script>")
 
 
+def _alertas_html(hist):
+    als = [h for h in (hist or []) if isinstance(h, dict) and h.get("tipo") == "alerta"]
+    if not als:
+        return ("<p class='mini'>Sin alertas en ventana — el bot sólo avisa con cambio real, "
+                "no cada pasada.</p>")
+    filas = ""
+    for h in reversed(als[-8:]):
+        try:
+            ft = str(h.get("t", ""))[5:16].replace("T", " ")
+        except Exception:
+            ft = "?"
+        b = str(h.get("bias", "?")).upper()
+        cls = "alza" if b == "ALZA" else ("baja" if b == "BAJA" else "lateral")
+        mot = str(h.get("motivo", ""))
+        corto = (mot[:110] + "…") if len(mot) > 110 else mot
+        filas += (f"<tr><td>{ft}</td><td><span class='badge {cls}'>{b}</span></td>"
+                  f"<td>{miles(h.get('precio'))}</td><td>{h.get('conf', '?')}%</td>"
+                  f"<td title='{mot}'>{corto}</td></tr>")
+    return (f"<table class='ops'><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr>"
+            f"{filas}</table><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>")
+
+
+def _porque_html(snap):
+    if not isinstance(snap, dict) or not snap:
+        return ""
+    pts = []
+    tf = snap.get("tf") or {}
+    if isinstance(tf, dict) and tf:
+        al = sum(1 for k in ("h1", "h4", "d1", "w1")
+                 if isinstance(tf.get(k), dict) and "alci" in str((tf[k] or {}).get("tend", "")).lower())
+        bj = sum(1 for k in ("h1", "h4", "d1", "w1")
+                 if isinstance(tf.get(k), dict) and "baji" in str((tf[k] or {}).get("tend", "")).lower())
+        det = " · ".join(f"{ {'h1': '1H', 'h4': '4H', 'd1': '1D', 'w1': '1S'}[k]} {((tf.get(k) or {}).get('tend', '?'))}"
+                            for k in ("h1", "h4", "d1", "w1") if isinstance(tf.get(k), dict))
+        pts.append(f"📈 Tendencia: {al} TF alcistas / {bj} bajistas ({det})")
+    fg = snap.get("fg") or {}
+    senti = snap.get("senti") or {}
+    if isinstance(fg, dict) and fg.get("valor") is not None:
+        pts.append(f"😨🤑 Sentimiento: miedo {fg.get('valor')} ({fg.get('etiqueta', '')}) · "
+                   f"funding {senti.get('funding', 's/d')} · taker {senti.get('taker', 's/d')}")
+    pres = snap.get("pres") or {}
+    if isinstance(pres, dict) and pres.get("txt"):
+        pts.append(f"📰 Noticias: {pres.get('txt')}")
+    niv = snap.get("niv") or {}
+    try:
+        px = float(snap.get("precio") or 0)
+        sop = (niv.get("sop") or [{}])[0].get("precio")
+        res = (niv.get("res") or [{}])[0].get("precio")
+        if px and sop and res:
+            pts.append(f"🧲 Posición: a {abs(px - float(sop)) / px * 100:.2f}% del soporte "
+                       f"y {abs(float(res) - px) / px * 100:.2f}% de la resistencia")
+    except Exception:
+        pass
+    if snap.get("regimen"):
+        pts.append(f"🏷️ Régimen: {snap.get('regimen')} · grado {snap.get('grade', '?')}")
+    if not pts:
+        return ""
+    return "<ul class='pq'>" + "".join(f"<li>{p}</li>" for p in pts) + "</ul>"
+
+
+def _macro_html(snap, ahora_dt):
+    if not isinstance(snap, dict):
+        return ""
+    evs = snap.get("evs") or []
+    if not isinstance(evs, list) or not evs:
+        return ""
+    fut = []
+    for e in evs:
+        if not isinstance(e, dict):
+            continue
+        try:
+            cu = datetime.datetime.fromisoformat(e.get("cuando", ""))
+            if cu.tzinfo is None:
+                cu = cu.replace(tzinfo=datetime.timezone.utc)
+            if cu >= ahora_dt:
+                fut.append((cu, e))
+        except Exception:
+            continue
+    if not fut:
+        return ""
+    fut.sort(key=lambda x: x[0])
+    filas = ""
+    for cu, e in fut[:5]:
+        dh = (cu - ahora_dt).total_seconds() / 3600
+        cuad = f"en {int(dh)}h {int((dh % 1) * 60)}min" if dh >= 1 else f"en {int(dh * 60)}min"
+        imp = str(e.get("impact", "?"))
+        cls = "baja" if imp == "High" else "lateral"
+        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td>{e.get('titulo', '?')}</td>"
+                  f"<td><span class='badge {cls}'>{imp}</span></td><td>{cuad}</td></tr>")
+    return (f"<table class='ops'><tr><th>Día/hora</th><th>Evento</th><th>Impacto</th><th>Falta</th></tr>"
+            f"{filas}</table><p class='mini'>±30 min de eventos High: sin señales (blackout).</p>")
+
+
 def build_dashboard(est, hist):
     if not isinstance(est, dict):
         est = {}
@@ -682,6 +780,7 @@ def build_dashboard(est, hist):
              f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>")
     tarjetas = [_card("hero", "Precio y sesgo", hero),
                 _card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva),
+                _card("alertas", "Alertas 🔔", _alertas_html(ult)),
                 _card("conf", "Confianza (escala 0–100)", confb)]
     tfs = _tfs_html(est.get("snapshot"))
     if tfs:
@@ -690,6 +789,12 @@ def build_dashboard(est, hist):
         tarjetas.append(_card("reloj", "Miedo y sesión 🕰️", reloj))
     if ctx:
         tarjetas.append(_card("ctx", "Contexto", ctx))
+    pq = _porque_html(est.get("snapshot"))
+    if pq:
+        tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
+    mc = _macro_html(est.get("snapshot"), ahora_dt)
+    if mc:
+        tarjetas.append(_card("macro", "Macro 📅", mc))
     tarjetas.append(_card("ops", "Operaciones papel 🤖", ops))
     tarjetas.append(_card("banco", "Banco papel", banco_b))
     tarjetas.append(_card("prec", "Precisión", prec_b))
@@ -707,7 +812,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v9.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v10.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 {CD_JS}
