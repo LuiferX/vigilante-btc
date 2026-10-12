@@ -422,6 +422,11 @@ t("preaviso unico", v.preaviso(_ee2, _ev3, _ahora, "2026-10-12") is None)
 t("preaviso lejos", v.preaviso({}, _ev3, datetime.datetime(2026, 10, 12, 10, 0, tzinfo=datetime.timezone.utc), "2026-10-12") is None)
 t("preaviso low", v.preaviso({}, [{"titulo": "X", "cuando": _ev3[0]["cuando"], "impact": "Low"}], _ahora, "2026-10-12") is None)
 t("preaviso sin hoy", (v.preaviso({}, _ev3, _ahora) or "").startswith("⚠️ Core CPI"))
+t("dom parse", v.dominancia({"data": {"market_cap_percentage": {"btc": 59.1, "eth": 10.9}}}) == {"btc": 59.1, "eth": 10.9})
+t("dom vacio", v.dominancia({"data": {}}) is None)
+t("dom veredicto", v.veredicto_dom(59.1) == "temporada BTC 🟠" and v.veredicto_dom(50, 51) == "zona mixta ⚪ ▼")
+t("dash dom", "59.1%" in _db._dom_html({"dom": {"btc": 59.1, "eth": 10.9}}))
+t("dash dom vacio", _db._dom_html({}) == "")
 t("simula crea", v.responder_comando(
     {"chat": 111, "texto": "/simula", "full": "/simula LONG 83000", "nombre": "T"}, CSNAP)[0].startswith("🔬 Simulada"))
 t("simula estado", "Simulador:" in v.responder_comando(
