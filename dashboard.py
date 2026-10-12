@@ -1154,7 +1154,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v26. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v27. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL=120;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
