@@ -342,7 +342,13 @@ def _contexto_html(snap):
         d = tf.get(k) or {}
         t = _txt(d.get("tend"), "?")
         r = d.get("rsi", "?")
-        chips.append(f"<span class='chip'><b>{lbl}</b> {t} · RSI {r}</span>")
+        erc = ""
+        try:
+            if d.get("er") is not None:
+                erc = f" · ER {float(d['er']):.2f}"
+        except Exception:
+            pass
+        chips.append(f"<span class='chip'><b>{lbl}</b> {t} · RSI {r}{erc}</span>")
     fg = snap.get("fg") or {}
     senti = snap.get("senti") or {}
     chips.append(f"<span class='chip'>😨🤑 <b>{fg.get('valor', '?')}</b> {fg.get('etiqueta', '')}</span>")
