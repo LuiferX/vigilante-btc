@@ -432,6 +432,13 @@ t("sharpe gana", (v.sharpe([1.5, 2.0, 1.0, 2.5, 1.0]) or 0) > 1)
 t("dash ev", "EV ALZA" in _db.build_dashboard(
     {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
      "alza": [1, 1, 1, 1, 0], "baja": []}, _ht))
+t("calib tabla", (lambda r: r is not None and r["n"] == 6 and r["brier"] == 0.0)(
+    v.tabla_calibracion([{"conf": 100, "r": 1}] * 3 + [{"conf": 0, "r": 0}] * 3)))
+t("calib poca", v.tabla_calibracion([{"conf": 60, "r": 1}]) is None)
+t("calib rota", v.tabla_calibracion("basura") is None)
+t("dash conciencia", "Brier" in _db.build_dashboard(
+    {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1, "alza": [], "baja": [],
+     "eval_log": [{"conf": 60, "r": 1}] * 3 + [{"conf": 40, "r": 0}] * 3}, _ht))
 t("dash card", _db._card("x", "Título", "cuerpo").count("chead") == 1)
 _sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
               "h4": {"tend": "bajista", "rsi": 30, "macd": -1},
