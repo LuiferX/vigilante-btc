@@ -470,6 +470,17 @@ v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, _eb3, _ah10,
                  None, None, "tendencia", False, "", None, None, None, 50, 40)
 t("fuerte no repite", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, _eb3, _ah10,
     None, None, "tendencia", False, "", None, None, None, 50, 40)[2] == "nada")
+t("ritmo avisa", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.75)[2] == "alerta")
+_eb4 = dict(eb)
+v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb4, _ah10,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.75)
+t("ritmo no repite", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb4, _ah10,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.75)[2] == "nada")
+t("ritmo chico calla", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.4)[2] == "nada")
+t("ritmo blackout", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
+    None, None, "tendencia", True, "CPI", None, None, None, 90, 90, -0.9)[2] == "nada")
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
