@@ -1023,8 +1023,8 @@ def _duelo_html(snap):
     diff = pw_d - pt_d
     if abs(diff) >= 15:
         wwin = diff > 0
-        banner = ("🐋 ¡VICTORIA BALLENA! " + str((bal or {}).get("txt", "")) if wwin
-                  else "🐂 ¡VICTORIA TORO! compradores agresivos mandan")
+        banner = ("🐋 ¡VICTORIA DE LAS BALLENAS! " + str((bal or {}).get("txt", "")) if wwin
+                  else "🐂 ¡VICTORIA DE LOS TOROS! la compra agresiva manda")
         cw, cl = ("winner", "loser") if wwin else ("loser", "winner")
     else:
         banner, cw, cl = "⚖️ Pelea pareja — nadie domina", "", ""
