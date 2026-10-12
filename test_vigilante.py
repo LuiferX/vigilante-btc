@@ -403,6 +403,16 @@ t("snap voy", "LONG" in scmd("/voy")[0])
 t("snap diario", "Diario" in scmd("/diario")[0])
 t("snap papel", "Papel" in scmd("/papel")[0])
 t("snap otro", "Comandos" in scmd("/otro")[0])
+t("ev fam", v.familia_evento("Core CPI m/m") == "CPI" and v.familia_evento("zzz") == "OTRO")
+t("ev linea fria", v.linea_estudio({}, "CPI m/m") == "")
+t("ev linea", v.linea_estudio({"ev_study": {"CPI": [0.5, 1.0, 1.5]}}, "Core CPI m/m") == "CPI suele mover ±1.00% (n=3)")
+_ee = {"ev_study": {"CPI": [0.5, 1.0, 1.5]}, "ev_study_keys": []}
+_hh = [{"t": "2026-10-12T10:00:00+00:00", "precio": 83000},
+       {"t": "2026-10-12T13:00:00+00:00", "precio": 83830}]
+_ev2 = [{"titulo": "Core CPI m/m", "cuando": datetime.datetime(2026, 10, 12, 11, 0, tzinfo=datetime.timezone.utc), "impact": "High"}]
+t("ev estudia", v.estudiar_eventos(_ee, _hh, _ev2, datetime.datetime(2026, 10, 12, 14, 0, tzinfo=datetime.timezone.utc)) == 1
+    and _ee["ev_study"]["CPI"] == [0.5, 1.0, 1.5, 1.0])
+t("ev no repite", v.estudiar_eventos(_ee, _hh, _ev2, datetime.datetime(2026, 10, 12, 15, 0, tzinfo=datetime.timezone.utc)) == 0)
 t("simula crea", v.responder_comando(
     {"chat": 111, "texto": "/simula", "full": "/simula LONG 83000", "nombre": "T"}, CSNAP)[0].startswith("🔬 Simulada"))
 t("simula estado", "Simulador:" in v.responder_comando(
