@@ -1791,12 +1791,15 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
             est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
-    if liq and enfriar(est, "liq:" + ("max" if "sobre" in liq else "min"), 4, ahora):
-        if "sobre" in liq:
-            ref = f"desvanecer hacia {fmt_miles(niv['soportes'][0]['precio'])} (referencia)"
-        else:
-            ref = f"desvanecer hacia {fmt_miles(niv['resistencias'][0]['precio'])} (referencia)"
-        return True, "Toma de liquidez: " + liq + f". Quien la persigue suele quedar atrapado → {ref}.", "alerta"
+    if liq:
+        contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
+        lado = "max" if "sobre" in liq else "min"
+        if not contra and enfriar(est, "liq:" + lado, 4, ahora):
+            if "sobre" in liq:
+                ref = f"desvanecer hacia {fmt_miles(niv['soportes'][0]['precio'])} (referencia)"
+            else:
+                ref = f"desvanecer hacia {fmt_miles(niv['resistencias'][0]['precio'])} (referencia)"
+            return True, "Toma de liquidez: " + liq + f". Quien la persigue suele quedar atrapado → {ref}.", "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
         return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
@@ -1804,7 +1807,8 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
-        if not (conf < 45 and (regimen or "tendencia") == "rango") and enfriar(
+        fade_ok = (bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA")
+        if not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
                 est, f"toque:{nivel}", 4, ahora):
             return True, f"Tocando {lado}", "alerta"
     hoy = ahora.strftime("%Y-%m-%d")
