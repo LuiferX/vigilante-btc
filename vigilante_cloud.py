@@ -818,8 +818,12 @@ def responder_comando(cmd, ctx):
             return ("Precio inválido.", False)
         if px <= 0:
             return ("Precio debe ser > 0.", False)
+        if not (1000 <= px <= 1000000):
+            return ("Precio fuera de rango sensato (1.000–1.000.000).", False)
         d = "sube" if px >= t["last"] else "baja"
         al = est.get("mis_alertas", [])
+        if len(al) >= 20:
+            return ("Tienes 20 alertas (máximo). Borra con /borrar.", False)
         al.append({"precio": px, "dir": d})
         est["mis_alertas"] = al
         verbo = "suba a" if d == "sube" else "baje a"
@@ -2182,7 +2186,18 @@ def send_telegram(text):
     return True
 
 
+def guardia_lectura():
+    """Protocolo de seguridad: el bot es SOLO lectura. Si alguien configura
+    claves de trading por error, se niega a arrancar (fail-closed)."""
+    for k in ("BINANCE_API_KEY", "BINANCE_API_SECRET", "TRADING_ENABLED", "BINGX_API_KEY"):
+        if os.environ.get(k, "").strip():
+            print(f"BLOQUEO DE SEGURIDAD: {k} configurada; este bot es solo-lectura. Saliendo.")
+            raise SystemExit(2)
+    return True
+
+
 def main():
+    guardia_lectura()
     ahora = datetime.datetime.now(datetime.timezone.utc)
     try:
         t = ticker24()
