@@ -923,6 +923,73 @@ def puede_papel(est, bias, conf, ahora):
         return True
 
 
+def punto_control(kl, n=168):
+    """POC + área de valor (microestructura sin dependencias):
+    nivel con más volumen negociado en las últimas n velas 1H y rango
+    que concentra el 70% del volumen. None si no hay datos."""
+    try:
+        velas = [c for c in (kl or [])[-n:] if c.get("v", 0) > 0 and c.get("h") and c.get("l")]
+        if len(velas) < 24:
+            return None
+        lo = min(c["l"] for c in velas)
+        hi = max(c["h"] for c in velas)
+        if hi <= lo:
+            return None
+        nb = 20
+        paso = (hi - lo) / nb
+        cubos = [0.0] * nb
+        for c in velas:
+            i = min(nb - 1, int((c["c"] - lo) / paso)) if paso > 0 else 0
+            cubos[i] += float(c["v"])
+        tot = sum(cubos)
+        if tot <= 0:
+            return None
+        ipoc = max(range(nb), key=lambda i: cubos[i])
+        poc = round(lo + (ipoc + 0.5) * paso)
+        orden = sorted(range(nb), key=lambda i: -cubos[i])
+        acum, eleg = 0.0, []
+        for i in orden:
+            acum += cubos[i]
+            eleg.append(i)
+            if acum >= 0.7 * tot:
+                break
+        vah = round(lo + (max(eleg) + 1) * paso)
+        val = round(lo + min(eleg) * paso)
+        return {"poc": poc, "vah": vah, "val": val}
+    except Exception:
+        return None
+
+
+def kelly_half(rs, r_mult=2.0):
+    """Half-Kelly dormido: sin 10+ cerradas devuelve None (riesgo base 1%).
+    Acotado [0.25%, 2%] para no volverse loco en rachas."""
+    try:
+        rs = [float(x) for x in (rs or [])]
+        if len(rs) < 10:
+            return None
+        pw = sum(1 for x in rs if x > 0) / len(rs)
+        k = (pw - (1 - pw) / r_mult) / 2
+        return max(0.0025, min(0.02, k))
+    except Exception:
+        return None
+
+
+def sharpe(rs):
+    """Sharpe por operacion (Rf=0): media / desviacion. None con <5 datos."""
+    try:
+        import math
+        rs = [float(x) for x in (rs or [])]
+        if len(rs) < 5:
+            return None
+        m = sum(rs) / len(rs)
+        var = sum((x - m) ** 2 for x in rs) / len(rs)
+        if var <= 0:
+            return None
+        return round(m / math.sqrt(var), 2)
+    except Exception:
+        return None
+
+
 def abrir_papel(est, dirb, niv, precio, ahora):
     """Abre papel virtual con frenos institucionales (devuelve la posicion o None):
     - drawdown -10% desde maximo: frena todo
@@ -944,7 +1011,11 @@ def abrir_papel(est, dirb, niv, precio, ahora):
         est["paper_dia"] = pd
     if pd.get("pnl", 0) <= -0.03 * banco:
         return None
-    riesgo_pct = 0.005 if racha_perdidas(est) >= 3 else 0.01
+    if racha_perdidas(est) >= 3:
+        riesgo_pct = 0.005
+    else:
+        k = kelly_half([c.get("r", 0) for c in est.get("paper_cerradas", [])])
+        riesgo_pct = k if k is not None else 0.01
     if dirb["bias"] == "ALZA":
         stop = niv["soportes"][0]["precio"]
         tp = niv["resistencias"][0]["precio"]
@@ -2004,6 +2075,15 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         abaj = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("abajo", []))
         L.append(f"🌊 LIQUIDEZ: arriba {arrib or '—'} / abajo {abaj or '—'}")
         hubo = True
+    pc = extras.get("poc")
+    if isinstance(pc, dict) and cambio(est, "poc", pc.get("poc", 0), 50):
+        try:
+            cerca = abs(t["last"] - pc["poc"]) / t["last"] * 100
+            tag = "pegado al " if cerca <= 0.3 else ""
+            L.append(f"🎯 POC {tag}{fmt_miles(pc['poc'])} (área {fmt_miles(pc['val'])}–{fmt_miles(pc['vah'])})")
+            hubo = True
+        except Exception:
+            pass
     pr = extras.get("pres")
     if pr and cambio(est, "pres", pr["valor"], 10):
         L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
@@ -2186,6 +2266,7 @@ def main():
                 mov_ny = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
                 break
         liq = liquidez(kl_h1, t["last"])
+        poc = punto_control(kl_h1)
         pila = None
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
@@ -2355,6 +2436,7 @@ def main():
             "bal": ({"nb": bal.get("nb", 0), "ns": bal.get("ns", 0), "buys": bal.get("buys", 0),
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
+            "poc": poc if isinstance(poc, dict) else None,
         }
         guardar_estado(est, hist)
         forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
@@ -2464,6 +2546,7 @@ def main():
                   "lsr": lsr,
                   "aut": aut,
                   "liqmap": liqmap,
+                  "poc": poc,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
