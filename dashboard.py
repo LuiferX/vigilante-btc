@@ -200,7 +200,11 @@ ul.pq li{border-left:3px solid #38bdf8}
 border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;align-items:start;align-content:start}
+.grid{display:block;columns:3 320px;column-gap:12px;align-items:start;align-content:start}
+.card{break-inside:avoid;margin-bottom:12px}
+.sec{column-span:all}
+@media(max-width:1100px){.grid{columns:2 300px}}
+@media(max-width:700px){.grid{columns:1}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;
 box-shadow:0 10px 30px #0006;backdrop-filter:blur(6px);animation:up .55s both}
 .card:nth-child(2){animation-delay:.06s}.card:nth-child(3){animation-delay:.12s}
@@ -1349,7 +1353,7 @@ def build_dashboard(est, hist):
 <div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v30. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v32. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL={seg};setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
