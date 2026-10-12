@@ -521,6 +521,14 @@ _ahc = {"cools": {"ritmo:baja": _ah.isoformat(),
 _sil = _db._alertas_html(_ahc, [], _ah)
 t("dash silencios", "ritmo baja" in _sil and "hasta" in _sil and "liq" not in _sil)
 t("dash barras cero", "empate total de marcos" in _db.svg_barras([0, 0, 0], ["0", "1", "2"]))
+_xsec = _db.build_dashboard({"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
+                             "snapshot": {"tf": {"h1": {"tend": "t", "rsi": 1}, "h4": {"tend": "t", "rsi": 1},
+                                                  "d1": {"tend": "t", "rsi": 1}, "w1": {"tend": "t", "rsi": 1}},
+                                          "fg": {"valor": 50, "etiqueta": "x"}, "senti": {}, "pres": {},
+                                          "niv": {}, "evs": []}}, _ht)
+t("dash secciones", all(s in _xsec for s in ["s-precio", "s-senales", "s-mercado", "s-dinero", "s-sistema"]))
+t("dash nav", _xsec.count('class="nav"') == 1 and "#s-mercado" in _xsec)
+t("dash orden", _xsec.index("s-precio") < _xsec.index("s-senales") < _xsec.index("s-mercado") < _xsec.index("s-dinero") < _xsec.index("s-sistema"))
 import datetime as _dt
 t("prox ny", _db._prox_pasada(_dt.datetime(2026, 10, 12, 13, 2, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "13:05")
 t("prox resto", _db._prox_pasada(_dt.datetime(2026, 10, 12, 11, 16, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "11:30")
