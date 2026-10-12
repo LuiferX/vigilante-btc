@@ -190,6 +190,17 @@ table.ops td{padding:4px 6px;border-bottom:1px solid #1e293b;font-variant-numeri
 .win{color:#4ade80;font-weight:700}.loss{color:#fca5a5;font-weight:700}
 .tagLONG{color:#4ade80;font-weight:700}.tagSHORT{color:#fca5a5;font-weight:700}
 .mini{font-size:12px;color:var(--mut)}
+.chead{all:unset;display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer;
+box-sizing:border-box;padding:2px 0 10px}
+.ctit{font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#93c5fd}
+.chev{color:#93c5fd;font-size:14px;transition:transform .35s ease;display:inline-block}
+.card.closed .chev{transform:rotate(-90deg)}
+.cbody{display:grid;grid-template-rows:1fr;opacity:1;transition:grid-template-rows .45s ease,opacity .3s ease}
+.card.closed .cbody{grid-template-rows:0fr;opacity:0}
+.cinner{overflow:hidden;min-height:0}
+.tbtn{font-size:12px;color:#cbd5e1;background:#0f172a;border:1px solid var(--line);border-radius:999px;
+padding:4px 12px;cursor:pointer}
+.tbtn:hover{border-color:#38bdf8;color:#fff}
 .gwrap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .gauge{width:150px;flex:none}
 .gauge .track{stroke:#1e293b}
@@ -201,6 +212,13 @@ table.ops td{padding:4px 6px;border-bottom:1px solid #1e293b;font-variant-numeri
 .nyon.on{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
 .nyon.off{background:#1e293b;color:#cbd5e1;border:1px solid var(--line)}
 """
+
+
+def _card(cid, titulo, cuerpo):
+    return (f"<div class='card' id='c-{cid}'>"
+            f"<button class='chead' data-c='{cid}' aria-expanded='true'>"
+            f"<span class='ctit'>{titulo}</span><span class='chev'>▾</span></button>"
+            f"<div class='cbody'><div class='cinner'>{cuerpo}</div></div></div>")
 
 
 def _contexto_html(snap):
@@ -233,9 +251,8 @@ def _contexto_html(snap):
     if evs:
         e0 = evs[0]
         chips.append(f"<span class='chip'>📅 {e0.get('titulo', '?')}</span>")
-    return (f"<div class='card'><h2>Contexto</h2>"
-            f"<p>Régimen <b style='color:#e2e8f0'>{reg}</b> · grado <b style='color:#e2e8f0'>{grade}</b></p>"
-            f"<div class='kv'>{''.join(chips)}</div></div>")
+    return (f"<p>Régimen <b style='color:#e2e8f0'>{reg}</b> · grado <b style='color:#e2e8f0'>{grade}</b></p>"
+            f"<div class='kv'>{''.join(chips)}</div>")
 
 
 def _hace(tiso, ahora):
@@ -338,7 +355,7 @@ def _ops_html(est, ahora):
         jo = f"<p class='mini'>Mi diario ({len(journal)})</p><div class='kv'>{lj}</div>"
     else:
         jo = "<p class='mini'>Mi diario: vacío — registra con /opere en Telegram.</p>"
-    return (f"<div class='card'><h2>Operaciones papel 🤖</h2>{stats}{ab}{ce}{pe}{jo}</div>")
+    return (f"{stats}{ab}{ce}{pe}{jo}")
 
 
 CD_JS = ("<script>(function(){var el=document.getElementById('cd');"
@@ -348,6 +365,43 @@ CD_JS = ("<script>(function(){var el=document.getElementById('cd');"
           "var h=Math.floor(d/36e5),m=Math.floor(d%36e5/6e4),s=Math.floor(d%6e4/1e3);"
           "el.textContent=h+'h '+m+'m '+s+'s';}"
           "tk();setInterval(tk,1000);})();</script>")
+
+UI_JS = ("<script>(function(){"
+          "var KEY='vig_cards_v1';"
+          "function load(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return{};}}"
+          "function save(s){try{localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}}"
+          "document.querySelectorAll('.card').forEach(function(c){"
+          "var id=c.id.replace('c-','');if(load()[id]==='0'){c.classList.add('closed');"
+          "var b=c.querySelector('.chead');if(b)b.setAttribute('aria-expanded','false');}});"
+          "document.querySelectorAll('.chead').forEach(function(b){"
+          "b.addEventListener('click',function(){var c=b.closest('.card');c.classList.toggle('closed');"
+          "var sh=c.classList.contains('closed');b.setAttribute('aria-expanded',String(!sh));"
+          "var s=load();s[b.dataset.c]=sh?'0':'1';save(s);});});"
+          "var tgl=document.getElementById('plegar');"
+          "if(tgl){tgl.addEventListener('click',function(){"
+          "var cards=document.querySelectorAll('.card');"
+          "var anyOpen=Array.prototype.some.call(cards,function(c){return !c.classList.contains('closed');});"
+          "var s={};cards.forEach(function(c){var id=c.id.replace('c-','');"
+          "if(anyOpen){c.classList.add('closed');s[id]='0';}else{c.classList.remove('closed');s[id]='1';}"
+          "var b=c.querySelector('.chead');if(b)b.setAttribute('aria-expanded',String(!anyOpen));});"
+          "save(s);tgl.textContent=anyOpen?'Desplegar todo':'Plegar todo';});}"
+          "var AC=null;"
+          "function tono(f,t0,dd){try{var o=AC.createOscillator(),g=AC.createGain();o.type='sine';"
+          "o.frequency.value=f;o.connect(g);g.connect(AC.destination);var t=AC.currentTime+t0;"
+          "g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.16,t+0.04);"
+          "g.gain.exponentialRampToValueAtTime(0.0001,t+dd);o.start(t);o.stop(t+dd+0.05);}catch(e){}}"
+          "function motif(){var b=document.body.dataset.bias||'LATERAL';"
+          "var seq=b==='ALZA'?[523,659,784]:(b==='BAJA'?[392,330,262]:[440,440]);"
+          "try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}"
+          "if(AC.state==='suspended'){AC.resume();}"
+          "seq.forEach(function(f,i){tono(f,i*0.14,0.4);});}"
+          "var on=false;try{on=localStorage.getItem('vig_sound')==='1';}catch(e){}"
+          "var snd=document.getElementById('sonido');"
+          "function paint(){if(snd)snd.textContent=on?'\\U0001F50A Sonido':'\\U0001F507 Sonido';}"
+          "paint();if(on){try{motif();}catch(e){}}"
+          "if(snd){snd.addEventListener('click',function(){on=!on;"
+          "try{localStorage.setItem('vig_sound',on?'1':'0');}catch(e){}paint();if(on)motif();});}"
+          "})();</script>")
 
 
 def _gauge_reloj_html(est, hist, ahora_dt):
@@ -410,12 +464,12 @@ def _gauge_reloj_html(est, hist, ahora_dt):
     estado_ny = ("<span class='nyon on'><span class='dot'></span>NY ACTIVA</span>" if ny_on
                  else "<span class='nyon off'>NY cerrada</span>")
     return (
-        f"<div class='card'><h2>Miedo y sesión 🕰️</h2><div class='gwrap'>{gauge}"
+        f"<div class='gwrap'>{gauge}"
         f"<div><div class='clock'>{bog.strftime('%H:%M')} <small style='font-size:12px;color:#94a3b8'>Bogotá</small></div>"
         f"<div class='sub'>UTC {ahora_dt.strftime('%H:%M')} · {estado_ny}</div>"
         f"<p class='mini'>Siguiente: <b style='color:#e2e8f0'>{nlbl}</b> en "
         f"<b id='cd' data-next='{tnext.isoformat()}'>~{int(dh)}h {int((dh % 1) * 60)}min</b></p></div></div>"
-        f"{spark}</div>")
+        f"{spark}")
 
 
 def build_dashboard(est, hist):
@@ -472,34 +526,47 @@ def build_dashboard(est, hist):
             dist_txt = f" · 🛡 a −{abs(ds):.2f}% · 🧲 a +{abs(dr):.2f}%"
     except Exception:
         nvs, dist_txt = [], ""
+    hero = (f"<div class='big'>{miles(precio)}<span class='badge {_bias_class(bias)}'>{bias} {conf}%</span></div>"
+            f"<div class='pill'><i style='--w:{conf_w}%'></i></div>"
+            f"<div class='sub'>{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana{dist_txt}</div>")
+    curva = (f"{svg_linea(px, marcas=marcas, niveles=nvs)}"
+             f"<p><span style='color:#4ade80'>─ soporte</span> · "
+             f"<span style='color:#fca5a5'>─ resistencia</span> (origen al pasar el mouse).</p>")
+    confb = (f"{svg_barras(cf, [str(i) for i in range(len(cf))])}"
+             f"<p>Verde ≥55 (fuerte) · ámbar ≥40 · gris debajo. Líneas: 45 registra / 55 fuerte.</p>")
+    banco_b = f"<div class='big' style='font-size:22px'>{eq_txt}</div>{svg_linea(eq, color='#22c55e')}"
+    prec_b = (f"<p>ALZA {pa} · BAJA {pb}</p>"
+              f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>")
+    act_b = (f"<p>{len(hist)} pasadas guardadas · run {est.get('runs', '?')}</p>"
+             f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>")
+    tarjetas = [_card("hero", "Precio y sesgo", hero),
+                _card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva),
+                _card("conf", "Confianza (escala 0–100)", confb)]
+    if reloj:
+        tarjetas.append(_card("reloj", "Miedo y sesión 🕰️", reloj))
+    if ctx:
+        tarjetas.append(_card("ctx", "Contexto", ctx))
+    tarjetas.append(_card("ops", "Operaciones papel 🤖", ops))
+    tarjetas.append(_card("banco", "Banco papel", banco_b))
+    tarjetas.append(_card("prec", "Precisión", prec_b))
+    tarjetas.append(_card("act", "Actividad", act_b))
+    grid = "".join(tarjetas)
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body><div class="wrap">
+<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}"><div class="wrap">
 <header><h1>🤖 Vigilante BTC</h1>
-<span class="live"><span class="dot"></span>actualizado {ahora} · se refresca solo</span></header>
+<span class="live"><span class="dot"></span>actualizado {ahora} · se refresca solo</span>
+<button class="tbtn" id="plegar">Plegar todo</button>
+<button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
-<div class="card"><h2>Precio y sesgo</h2>
-<div class="big">{miles(precio)}<span class="badge {_bias_class(bias)}">{bias} {conf}%</span></div>
-<div class="pill"><i style="--w:{conf_w}%"></i></div>
-<div class="sub">{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana{dist_txt}</div></div>
-<div class="card"><h2>Precio (últimas {len(px)}) + alertas 🔴</h2>{svg_linea(px, marcas=marcas, niveles=nvs)}
-<p><span style="color:#4ade80">─ soporte</span> · <span style="color:#fca5a5">─ resistencia</span> (origen al pasar el mouse).</p></div>
-<div class="card"><h2>Confianza (escala 0–100)</h2>{svg_barras(cf, [str(i) for i in range(len(cf))])}
-<p>Verde ≥55 (fuerte) · ámbar ≥40 · gris debajo. Líneas: 45 registra / 55 fuerte.</p></div>
-{reloj}
-{ctx}
-{ops}
-<div class="card"><h2>Banco papel</h2><div class="big" style="font-size:22px">{eq_txt}</div>{svg_linea(eq, color="#22c55e")}</div>
-<div class="card"><h2>Precisión</h2><p>ALZA {pa} · BAJA {pb}</p>
-<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p></div>
-<div class="card"><h2>Actividad</h2><p>{len(hist)} pasadas guardadas · run {est.get("runs", "?")}</p>
-<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p></div>
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v6.</footer>
+{grid}
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v7.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 {CD_JS}
+{UI_JS}
 </body></html>"""
 
 
