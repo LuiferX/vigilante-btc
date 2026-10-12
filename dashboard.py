@@ -535,7 +535,10 @@ UI_JS = ("<script>(function(){"
           "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.06).toFixed(2)+')';"
           "var D=document.getElementById('destello');"
           "if(D){D.style.background='radial-gradient(circle at 50% 45%,rgba('+c+','+(0.05+beat*0.20+fl*0.55).toFixed(3)+'),transparent 70%)';"
-          "D.style.opacity=(beat>0.02||fl>0.02||!MEL||MEL.paused)?'1':'0';}"
+          "D.style.opacity='1';"
+          "D.style.boxShadow='inset 0 0 '+(40+fl*150+beat*60).toFixed(0)+'px rgba('+c+','+(0.10+fl*0.45).toFixed(3)+')';}"
+          "var H=document.getElementById('c-hero');"
+          "if(H){H.style.boxShadow=fl>0.04?('0 0 26px rgba('+c+',0.65),0 10px 30px #0006'):'';}"
           "window.__fr=(window.__fr||0)+1;"
           "if(window.__fr%30===0){var M=document.getElementById('motor');"
           "if(M){var st='ambiente';"
@@ -1029,7 +1032,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v18.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v19.</footer>
 </div>
 <script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
