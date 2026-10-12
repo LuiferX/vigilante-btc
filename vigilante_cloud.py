@@ -242,6 +242,7 @@ UMBRAL_RITMO = 0.6       # +/-0.6% en 30min = ritmo acelerado (pesca desplomes q
 UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
+SEMILLA_SESION = {"NY": 0.9, "Londres": 0.9, "noche": 0.9, "Asia": 1.0}  # medida replay 8m
 
 
 def fetch(url, timeout=20, tries=3):
@@ -1555,10 +1556,13 @@ def linea_escenario(e):
 def calibrar(est):
     """Auto-calibracion honesta: factor por sesion segun acierto medido.
     >=60% -> 0.9 (mas sensible), <=40% -> 1.15 (mas exigente), si no 1.0.
-    Requiere 10+ evaluadas en la sesion. Acotado [0.7, 1.4] (nunca loco)."""
+    Requiere 10+ evaluadas en la sesion. Acotado [0.7, 1.4] (nunca loco).
+    Semilla medida en replay 8 meses (reaccion PILAS por sesion, n~110-124):
+    NY 65% / Londres 63% / noche 61% / Asia 51%. Los datos vivos la pisan."""
+    fac = dict(SEMILLA_SESION)
     log = est.get("eval_log", [])
     if len(log) < 10:
-        return {}
+        return fac
     buckets = {}
     for e in log[-60:]:
         try:
