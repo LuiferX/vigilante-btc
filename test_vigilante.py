@@ -530,6 +530,7 @@ t("dash secciones", all(s in _xsec for s in ["s-precio", "s-senales", "s-mercado
 t("dash nav", _xsec.count('class="nav"') == 1 and "#s-mercado" in _xsec)
 t("dash orden", _xsec.index("s-precio") < _xsec.index("s-senales") < _xsec.index("s-mercado") < _xsec.index("s-dinero") < _xsec.index("s-sistema"))
 t("dash layout", "align-items:start" in _db.CSS)
+t("dash masonry", "columns:" in _db.CSS and "break-inside:avoid" in _db.CSS and "column-span:all" in _db.CSS)
 import datetime as _dt
 t("prox ny", _db._prox_pasada(_dt.datetime(2026, 10, 12, 13, 2, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "13:05")
 t("prox resto", _db._prox_pasada(_dt.datetime(2026, 10, 12, 11, 16, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "11:30")
