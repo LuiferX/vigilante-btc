@@ -479,7 +479,7 @@ def analyze(candles, mins, label):
         "winH": round(wh), "winL": round(wl), "atr": round(at), "atrPct": atpct,
         "compresion": comp, "precio": round(last), "cierreEnMin": round(rem),
         "macd": macd_pos, "estructura": s_label, "regPct": reg_pct, "regLabel": reg_label,
-        "adx": adx(candles),
+        "adx": adx(candles), "er": eficiencia(closes), "z": zscore(closes),
     }
 
 
@@ -541,6 +541,39 @@ def direccion(h1, h4, d1, w1):
 
 def clamp(x, a, b):
     return max(a, min(b, x))
+
+
+def eficiencia(closes, n=30):
+    """Efficiency Ratio de Kaufman (sin dependencias): |cambio neto| / camino.
+    >0.5 el precio va a alguna parte (tendencia), <0.25 puro ruido (chop).
+    None si no hay datos suficientes."""
+    try:
+        xs = list(closes[-n - 1:])
+        if len(xs) < n + 1:
+            return None
+        den = sum(abs(xs[i + 1] - xs[i]) for i in range(len(xs) - 1))
+        if den <= 0:
+            return 1.0
+        return round(abs(xs[-1] - xs[0]) / den, 3)
+    except Exception:
+        return None
+
+
+def zscore(closes, n=20):
+    """Distancia a la media de n en sigmas: |z|>=2 = estirado (no perseguir).
+    None si no hay datos suficientes."""
+    try:
+        import math
+        xs = list(closes[-n:])
+        if len(xs) < n:
+            return None
+        m = sum(xs) / len(xs)
+        var = sum((x - m) ** 2 for x in xs) / len(xs)
+        if var <= 0:
+            return 0.0
+        return round((xs[-1] - m) / math.sqrt(var), 2)
+    except Exception:
+        return None
 
 
 def fear_greed(d1, senti, chg24):
@@ -2305,7 +2338,8 @@ def main():
             "t": ahora.isoformat(),
             "precio": t["last"], "chg": t["chg"], "hi": t["hi"], "lo": t["lo"],
             "bias": dirb["bias"], "conf": dirb["confianza"], "grade": grade, "regimen": regimen,
-            "tf": {k: {"tend": x["tend"], "rsi": x["rsi"], "macd": x["macd"], "score": x["score"]}
+            "tf": {k: {"tend": x["tend"], "rsi": x["rsi"], "macd": x["macd"], "score": x["score"],
+                         "er": x.get("er"), "z": x.get("z")}
                    for k, x in (("h1", h1), ("h4", h4), ("d1", d1), ("w1", w1))},
             "niv": {"sop": niv["soportes"], "res": niv["resistencias"]},
             "fg": {"valor": fg["valor"], "etiqueta": fg["etiqueta"]},
@@ -2350,6 +2384,14 @@ def main():
         va = vs_ayer(hist, t["last"], ahora)
         if va is not None:
             memoria.append(f"vs ayer a esta hora: {va:+.2f}%")
+        er1 = h1.get("er")
+        if er1 is not None and er1 >= 0.5:
+            memoria.append(f"eficiencia {er1}: el 1H va a alguna parte (tendencia real)")
+        elif er1 is not None and er1 <= 0.15:
+            memoria.append(f"eficiencia {er1}: puro ruido en 1H (chop, no persigas)")
+        z1 = h1.get("z")
+        if z1 is not None and abs(z1) >= 2:
+            memoria.append(f"estirado {z1:+}σ sobre media 20H: no persigas la vela")
         pu, pdn = psico(t["last"])
         memoria.append(f"psicológicos: {fmt_miles(pu)} (+{round((pu - t['last']) / t['last'] * 100, 2)}%) / {fmt_miles(pdn)} ({round((pdn - t['last']) / t['last'] * 100, 2)}%)")
         rt = retest(kl_h1, res, sup, t["last"])
