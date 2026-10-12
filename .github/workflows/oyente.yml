@@ -43,6 +43,6 @@ jobs:
           git add estado.json
           [ -f historial.jsonl ] && git add historial.jsonl || true
           git commit -m "oyente $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
-          git push --force origin estado_tmp:estado
+          ok=0; for i in 1 2 3; do git push --force origin estado_tmp:estado && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
           git checkout -f ${GITHUB_REF_NAME}
           git branch -D estado_tmp
