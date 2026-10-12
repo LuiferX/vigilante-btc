@@ -2006,7 +2006,7 @@ def main():
         try:
             if est.get("ultimo_run"):
                 dt_run = (ahora - datetime.datetime.fromisoformat(est["ultimo_run"])).total_seconds()
-                es_dup = 0 <= dt_run < 240
+                es_dup = 0 <= dt_run < 90
         except Exception:
             pass
         umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
@@ -2265,7 +2265,7 @@ def main():
             print(f"Sin alerta ({motivo}). Estado e historial guardados.")
             return
         if es_dup and not forzar:
-            print("Duplicado (<4 min desde la ultima pasada). Comandos respondidos, parte omitido.")
+            print("Duplicado (<90 seg desde la ultima pasada). Comandos respondidos, parte omitido.")
             return
         runs = est["runs"]
         if tipo == "alerta":
