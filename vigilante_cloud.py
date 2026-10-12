@@ -970,6 +970,33 @@ def puede_papel(est, bias, conf, ahora):
         return True
 
 
+def dominancia(data=None):
+    """Dominancia BTC/ETH (CoinGecko global, gratis). Acepta data inyectada (tests)."""
+    try:
+        if data is None:
+            data = fetch("https://api.coingecko.com/api/v3/global", timeout=15, tries=1)
+        pct = (data.get("data") or {}).get("market_cap_percentage") or {}
+        btc, eth = pct.get("btc"), pct.get("eth")
+        if btc is None:
+            return None
+        return {"btc": round(float(btc), 1), "eth": round(float(eth or 0), 1)}
+    except Exception:
+        return None
+
+
+def veredicto_dom(btc, prev=None):
+    try:
+        b = float(btc)
+        base = "temporada BTC 🟠" if b >= 55 else ("zona mixta ⚪" if b >= 48 else "aires de altseason 🟣")
+        if prev is None:
+            return base
+        d = b - float(prev)
+        fle = "▲" if d > 0.2 else ("▼" if d < -0.2 else "＝")
+        return f"{base} {fle}"
+    except Exception:
+        return "s/d"
+
+
 def punto_control(kl, n=168):
     """POC + área de valor (microestructura sin dependencias):
     nivel con más volumen negociado en las últimas n velas 1H y rango
@@ -2263,6 +2290,16 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
             hubo = True
         except Exception:
             pass
+    dm = extras.get("dom")
+    if isinstance(dm, dict) and dm.get("btc") is not None:
+        prevd = None
+        try:
+            prevd = (est.get("deltas") or {}).get("dom_btc")
+        except Exception:
+            pass
+        if cambio(est, "dom_btc", dm["btc"], 0.3):
+            L.append(f"👑 DOMINANCIA BTC {dm['btc']}% (ETH {dm.get('eth', '?')}%) → {veredicto_dom(dm['btc'], prevd)}")
+            hubo = True
     pr = extras.get("pres")
     if pr and cambio(est, "pres", pr["valor"], 10):
         L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
@@ -2389,6 +2426,7 @@ def main():
         ima = imanes(t["last"])
         oro = oro_vs_btc(t["chg"])
         lsr = ls_global()
+        dom = dominancia()
         pres = presion_noticias(notis)
         dcvd = div_cvd()
         liqmap = mapa_liq(kl_h1, t["last"], senti["funding"])
@@ -2639,6 +2677,7 @@ def main():
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
+            "dom": dom if isinstance(dom, dict) else None,
             "evstudy": {f: {"avg": round(sum(a) / len(a), 2), "n": len(a)}
                         for f, a in ((est.get("ev_study", {}) or {}).items()) if a},
         }
@@ -2758,6 +2797,7 @@ def main():
                   "ima": ima,
                   "oro": oro,
                   "lsr": lsr,
+                  "dom": dom,
                   "aut": aut,
                   "liqmap": liqmap,
                   "poc": poc,
