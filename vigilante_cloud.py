@@ -903,10 +903,47 @@ def responder_comando(cmd, ctx):
         est["ops"] = []
         est["journal"] = j[-50:]
         return ("\n".join(outs), True)
+    if c == "/simula":
+        parts = cmd.get("full", "").split()
+        sims = est.get("sim_abiertas", [])
+        if len(parts) == 1:
+            cerr = est.get("sim_cerradas", [])
+            w = sum(1 for x in cerr if x.get("r", 0) > 0)
+            base = f"Simulador: {len(sims)} abiertas · {len(cerr)} cerradas ({w} ganadas)."
+            if sims:
+                base += "\n" + "\n".join(
+                    f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])})" for o in sims[-5:])
+            base += "\nUso: /simula LONG|SHORT entrada [stop tp] (sin dinero, solo aprendizaje)."
+            return (base, False)
+        if len(parts) not in (3, 5) or parts[1].upper() not in ("LONG", "SHORT"):
+            return ("Uso: /simula LONG 83000 o /simula SHORT 83000 82500 84000.", False)
+        if len(sims) >= 5:
+            return ("Tienes 5 simuladas abiertas (máximo). Espera cierres.", False)
+        d = parts[1].upper()
+        try:
+            e = float(parts[2])
+            if len(parts) == 5:
+                s, tp = float(parts[3]), float(parts[4])
+            elif d == "LONG":
+                s = niv["soportes"][0]["precio"]
+                tp = e + 2 * (e - s)
+            else:
+                s = niv["resistencias"][0]["precio"]
+                tp = e - 2 * (s - e)
+        except Exception:
+            return ("Números inválidos.", False)
+        if not (e > 0 and s > 0 and tp > 0 and e != s):
+            return ("Revisa los precios (stop distinto de entrada).", False)
+        riesgo = abs(e - s) or 1
+        rr = abs(tp - e) / riesgo
+        sims.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
+        est["sim_abiertas"] = sims
+        return ((f"🔬 Simulada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}, {rr:.1f}R). "
+                 "Sin dinero, solo aprendizaje. Te aviso al cerrar."), True)
     hola = f" Hola {cmd['nombre']}." if cmd['nombre'] else " Hola."
     return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
              "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /manos "
-             "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel"), False)
+             "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel /simula"), False)
 
 
 def racha_perdidas(est):
@@ -2338,6 +2375,15 @@ def main():
             for cc in cierres:
                 journal.append({"dir": cc["dir"], "res": cc["res"], "r": cc["r"], "t": ahora.isoformat()})
             est["journal"] = journal[-50:]
+        sims_ab, sims_ci = journal_check(est.get("sim_abiertas", []), kl_h1, t["last"])
+        est["sim_abiertas"] = sims_ab
+        if sims_ci:
+            sc = est.get("sim_cerradas", [])
+            for cc in sims_ci:
+                sc.append({"dir": cc["dir"], "res": cc["res"], "r": cc["r"], "t": ahora.isoformat()})
+                send_telegram(f"🔬 Simulada cerrada: {cc['dir']} {cc['res']} ({cc['r']:+.1f}R). Sin dinero, solo aprendizaje.")
+                print(f"  simulada cerrada {cc['dir']} {cc['res']}")
+            est["sim_cerradas"] = sc[-20:]
         # PAPEL: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
         abiertas_p = []
         for o in est.get("paper_abiertas", []):
