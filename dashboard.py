@@ -528,14 +528,14 @@ UI_JS = ("<script>(function(){"
           "if(window.__cal>90&&s>slow*1.3&&s>0.08&&(t-ultimo)>220){fl=1;window.__bum=t;}"
           "else{fl=Math.max(0,fl-0.09);}window.__flash=fl;}"
           "}catch(e){}}"
-          "if((modoReloj||!AN)&&L){var ph=((t/1000)*142/60)%1;"
+          "if(MEL&&!MEL.paused&&(modoReloj||!AN)&&L){var ph=((t/1000)*142/60)%1;"
           "beat=Math.max(0,1-ph*2.5);"
           "if(ph<0.12){fl=1;}else{fl=Math.max(0,fl-0.12);}window.__flash=fl;}"
           "if(L){var br=0.5+0.5*Math.sin(t/1400);"
           "var b=document.body.dataset.bias||'';"
           "var c=b==='ALZA'?'34,197,94':(b==='BAJA'?'239,68,68':'226,232,240');"
-          "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.06+beat*0.25+fl*0.40+br*0.03).toFixed(3)+'),transparent 62%)';"
-          "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.06).toFixed(2)+')';"
+          "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.05+beat*0.25+fl*0.40+br*0.015).toFixed(3)+'),transparent 62%)';"
+          "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.03).toFixed(2)+')';"
           "var D=document.getElementById('destello');"
           "if(D){D.style.background='radial-gradient(circle at 50% 45%,rgba('+c+','+(0.05+beat*0.28+fl*0.50).toFixed(3)+'),transparent 70%)';"
           "D.style.opacity='1';"
@@ -1037,7 +1037,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v21.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v22.</footer>
 </div>
 <script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
