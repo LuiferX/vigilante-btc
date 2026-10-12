@@ -29,6 +29,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+      - name: Refrescar dashboard (datos cada 1 min)
+        run: |
+          python dashboard.py || echo "dashboard fallo"
+          cp docs/index.html /tmp/dash_index.html 2>/dev/null || echo "sin dashboard"
+          cp assets/melodia.mp4 /tmp/dash_melodia.mp4 2>/dev/null || true
+
       - name: Guardar estado (rama estado, se reescribe limpio)
         run: |
           git config user.name "vigilante-bot"
@@ -46,3 +52,18 @@ jobs:
           ok=0; for i in 1 2 3; do git push --force origin estado_tmp:estado && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
           git checkout -f ${GITHUB_REF_NAME}
           git branch -D estado_tmp
+
+      - name: Publicar dashboard (rama dashboard)
+        run: |
+          if [ ! -f /tmp/dash_index.html ]; then echo "sin dashboard"; exit 0; fi
+          git fetch origin dashboard 2>/dev/null || true
+          if git show origin/dashboard:index.html 2>/dev/null | cmp -s /tmp/dash_index.html -; then echo "dashboard sin cambios"; exit 0; fi
+          git checkout --orphan dash_tmp
+          git rm -rf . > /dev/null 2>&1 || true
+          cp /tmp/dash_index.html ./index.html
+          cp /tmp/dash_melodia.mp4 ./melodia.mp4 2>/dev/null || true
+          git add index.html melodia.mp4 2>/dev/null || git add index.html
+          git commit -m "dashboard $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
+          ok=0; for i in 1 2 3; do git push --force origin dash_tmp:dashboard && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
+          git checkout -f ${GITHUB_REF_NAME}
+          git branch -D dash_tmp
