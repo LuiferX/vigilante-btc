@@ -438,7 +438,12 @@ t("dash gauge", "Codicia" in _gg and "66" in _gg and "Bogot" in _gg)
 t("dash gauge omit", _db._gauge_reloj_html({}, [], _ah) == "")
 t("dash porque", "Tendencia" in _db._porque_html(
     {"tf": _sn["tf"], "regimen": "rango", "grade": "D"}))
-t("dash alertas tabla", "Últimas" in _db._alertas_html(_ht))
+t("dash alertas tabla", "Últimas" in _db._alertas_html({}, _ht, _ah))
+_ahc = {"cools": {"ritmo:baja": _ah.isoformat(),
+                  "liq:max": "2020-01-01T00:00:00+00:00"}}
+_sil = _db._alertas_html(_ahc, [], _ah)
+t("dash silencios", "ritmo baja" in _sil and "hasta" in _sil and "liq" not in _sil)
+t("dash barras cero", "empate total de marcos" in _db.svg_barras([0, 0, 0], ["0", "1", "2"]))
 
 # ---------- PILAS claras ----------
 _zs = [{"precio": 83500, "razones": ["imán"]}, {"precio": 84000, "razones": ["psicológico", "imán"]}]
