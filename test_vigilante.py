@@ -436,6 +436,16 @@ t("dash porque", "Tendencia" in _db._porque_html(
     {"tf": _sn["tf"], "regimen": "rango", "grade": "D"}))
 t("dash alertas tabla", "Últimas" in _db._alertas_html(_ht))
 
+# ---------- PILAS claras ----------
+_zs = [{"precio": 83500, "razones": ["imán"]}, {"precio": 84000, "razones": ["psicológico", "imán"]}]
+_mp, _mk = v.mensaje_pila(_zs, 83730, [{"precio": 82992}], [{"precio": 84199}])
+t("pila piso", _mp is not None and "PISO" in _mp and "83.500" in _mp and "bajo 82.992" in _mp)
+t("pila encajon", "entre 🛡 83.500 y 🧲 84.000" in _mp)
+_mt, _ = v.mensaje_pila(_zs, 83752, [{"precio": 82992}], [{"precio": 84199}])
+t("pila techo", _mt is not None and "TECHO" in _mt and "sobre 84.199" in _mt)
+t("pila lejos", v.mensaje_pila(_zs, 80000, [], []) == (None, None))
+t("pila vacia", v.mensaje_pila([], 83000, [], []) == (None, None))
+
 # ---------- anti-spam (solo lo importante) ----------
 _e2 = {}
 t("enfriar 1ro", v.enfriar(_e2, "x", 4, ah) is True)
