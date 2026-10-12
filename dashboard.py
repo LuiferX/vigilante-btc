@@ -385,6 +385,30 @@ def _hace(tiso, ahora):
         return ""
 
 
+def _sh(x):
+    try:
+        import math
+        x = [float(v) for v in (x or [])]
+        if len(x) < 5:
+            return None
+        m = sum(x) / len(x)
+        var = sum((v - m) ** 2 for v in x) / len(x)
+        return round(m / math.sqrt(var), 2) if var > 0 else None
+    except Exception:
+        return None
+
+
+def _ev_txt(l):
+    try:
+        l = list(l or [])
+        if len(l) < 5:
+            return "s/d"
+        p = sum(l) / len(l)
+        return f"{2 * p - (1 - p):+.2f}R"
+    except Exception:
+        return "s/d"
+
+
 def _ops_html(est, ahora):
     abiertas = [o for o in (est.get("paper_abiertas") or []) if isinstance(o, dict)]
     cerradas = [c for c in (est.get("paper_cerradas") or []) if isinstance(c, dict)]
@@ -396,6 +420,8 @@ def _ops_html(est, ahora):
     tot_r = sum(_num(c.get("r")) for c in cerradas)
     tot_pnl = sum(_num(c.get("pnl")) for c in cerradas)
     wr = f"{round(w / n * 100)}% ({w}/{n})" if n else "s/d"
+    shp = _sh([c.get("r", 0) for c in cerradas])
+    shp_txt = f" · Sharpe {shp:+}" if shp is not None else ""
     racha = 0
     for c in reversed(cerradas):
         if _num(c.get("pnl")) < 0:
@@ -426,7 +452,7 @@ def _ops_html(est, ahora):
         f"<div class='stats'>"
         f"<div class='stat'><small>Banco</small><b>{btxt}</b></div>"
         f"<div class='stat'><small>Ganadas</small><b>{wr}</b></div>"
-        f"<div class='stat'><small>Total</small><b>{tot_r:+.1f}R</b></div>"
+        f"<div class='stat'><small>Total</small><b>{tot_r:+.1f}R{shp_txt}</b></div>"
         f"<div class='stat'><small>Racha pérdida</small><b>{racha}</b></div>"
         f"</div><p class='mini'>{freno_txt} · papel opera señales 35%+ (invisible, sin avisos)</p>")
     if abiertas:
@@ -1107,6 +1133,7 @@ def build_dashboard(est, hist):
              f"<p>Verde ≥55 (fuerte) · ámbar ≥40 · gris debajo. Líneas: 45 registra / 55 fuerte.</p>")
     banco_b = f"<div class='big' style='font-size:22px'>{eq_txt}</div>{svg_linea(eq, color='#22c55e')}"
     prec_b = (f"<p>ALZA {pa} · BAJA {pb}</p>"
+              f"<p>EV ALZA {_ev_txt(alza)} · BAJA {_ev_txt(baja)} (plan 2R, rentable sobre 33%)</p>"
               f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>")
     act_b = (f"<p>{len(hist)} pasadas guardadas · run {est.get('runs', '?')}</p>"
              f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>")
