@@ -2422,7 +2422,7 @@ def main():
         if veto and grade in ("A", "B"):
             grade = chr(ord(grade) + 2)
         bloqueo, motivo_bloq = blackout(evs, ahora)
-        aviso_previo = preaviso(est, evs, ahora, hoy)
+        aviso_previo = preaviso(est, evs, ahora)
         try:
             edad_h = (ahora - kl_h1[-1]["t"]).total_seconds() / 3600
         except Exception:
