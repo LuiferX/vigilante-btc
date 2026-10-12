@@ -662,7 +662,9 @@ def _alertas_html(hist):
                   f"<td>{miles(h.get('precio'))}</td><td>{h.get('conf', '?')}%</td>"
                   f"<td title='{mot}'>{corto}</td></tr>")
     return (f"<table class='ops'><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr>"
-            f"{filas}</table><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>")
+            f"{filas}</table><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>"
+            f"<p class='mini'>🧱 TECHO = estás debajo, puede devolver abajo · "
+            f"🛡 PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
 
 
 def _porque_html(snap):
