@@ -15,6 +15,10 @@ import vigilante_cloud as vc
 
 
 def main():
+    try:
+        vc.guardia_lectura()
+    except SystemExit:
+        return
     ahora = datetime.datetime.now(datetime.timezone.utc)
     est, hist = vc.cargar_estado()
     if not est.get("snapshot"):
