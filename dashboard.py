@@ -265,6 +265,15 @@ ul.pq{list-style:none;margin:8px 0 0;padding:0}
 ul.pq li{font-size:12.5px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
 border-radius:10px;padding:7px 10px;margin-bottom:6px}
 ul.pq li:hover{border-color:#ffffff38}
+.sec{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+color:#64748b;margin:6px 2px -2px}
+.nav{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;margin-bottom:4px;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{flex:none;font-size:12px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
+border-radius:999px;padding:5px 13px;text-decoration:none;transition:border-color .2s ease,color .2s ease}
+.nav a:hover{border-color:#38bdf8;color:#fff}
+html{scroll-behavior:smooth}
+.card{scroll-margin-top:10px}
 .duel{display:flex;align-items:stretch;gap:8px;margin-top:8px}
 .fighter{flex:1;background:#0c0c0e;border:1px solid var(--line);border-radius:12px;padding:10px;
 text-align:center;transition:all .3s ease}
@@ -336,6 +345,10 @@ def _prox_pasada(ahora_dt):
         return base + datetime.timedelta(minutes=nm - m) if nm < 60 else base.replace(hour=(h + 1) % 24, minute=0)
     except Exception:
         return None
+
+
+def _sec(titulo, sid=None):
+    return f"<div class='sec'{(' id=' + sid) if sid else ''}>{titulo}</div>"
 
 
 def _card(cid, titulo, cuerpo):
@@ -1257,10 +1270,16 @@ def build_dashboard(est, hist):
     tarjetas = []
     if ban:
         tarjetas.append(ban)
+    tarjetas.append(_sec("💰 Precio", "s-precio"))
     tarjetas.append(_card("hero", "Precio y sesgo", hero))
     tarjetas.append(_card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva))
+    tarjetas.append(_sec("🚨 Señales", "s-senales"))
     tarjetas.append(_card("alertas", "Alertas 🔔", _alertas_html(est, ult, ahora_dt)))
     tarjetas.append(_card("conf", "Confianza (escala 0–100)", confb))
+    pq = _porque_html(est.get("snapshot"))
+    if pq:
+        tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
+    tarjetas.append(_sec("🌍 Mercado", "s-mercado"))
     tfs = _tfs_html(est.get("snapshot"))
     if tfs:
         tarjetas.append(_card("tfs", "Temporalidades 📊", tfs))
@@ -1283,9 +1302,11 @@ def build_dashboard(est, hist):
     mc = _macro_html(est.get("snapshot"), ahora_dt)
     if mc:
         tarjetas.append(_card("macro", "Macro 📅", mc))
+    tarjetas.append(_sec("🤖 Dinero papel", "s-dinero"))
     tarjetas.append(_card("ops", "Operaciones papel 🤖", ops))
     tarjetas.append(_card("banco", "Banco papel", banco_b))
     tarjetas.append(_card("prec", "Precisión", prec_b))
+    tarjetas.append(_sec("⚙️ Sistema", "s-sistema"))
     tarjetas.append(_card("act", "Actividad", act_b))
     grid = "".join(tarjetas)
     fpx = ",".join(str(int(v)) for v in px[-30:] if v) or ""
@@ -1314,9 +1335,10 @@ def build_dashboard(est, hist):
 <span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
+<div class="nav"><a href="#s-precio">💰 Precio</a><a href="#s-senales">🚨 Señales</a><a href="#s-mercado">🌍 Mercado</a><a href="#s-dinero">🤖 Dinero</a><a href="#s-sistema">⚙️ Sistema</a></div>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v27. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v29. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL={seg};setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
