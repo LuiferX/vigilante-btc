@@ -56,6 +56,7 @@
 | EYY PILAS 🧱🛡 | a ≤0.35% de zona mayor | 1/día por zona |
 | Toque nivel | ≤0.25%, solo a favor del sesgo | 4 h por nivel |
 | Ruptura confirmada | cierre 1H más allá de soporte/resistencia | 12 h por nivel |
+| Pre-evento | aviso único 15–60 min antes de High (con historial medido) | 1/día por evento |
 | Señales (precisión/paper) | conf ≥45 / papel ≥35 | dedup 4 h por sesgo |
 | Briefs | madrugada 07 · mañana 08 · pre-NY 13–13:30 · noche 2–3 UTC | 1/día c/u |
 | Anti-doble | pasada <90 s de la anterior | se omite el parte |
