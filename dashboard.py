@@ -724,13 +724,23 @@ def _macro_html(snap, ahora_dt):
     if not fut:
         return ""
     fut.sort(key=lambda x: x[0])
+    grupos = []
+    for cu, e in fut:
+        if grupos and grupos[-1][0] == cu:
+            grupos[-1][1].append(e)
+        else:
+            grupos.append((cu, [e]))
     filas = ""
-    for cu, e in fut[:5]:
+    for cu, es in grupos[:5]:
         dh = (cu - ahora_dt).total_seconds() / 3600
         cuad = f"en {int(dh)}h {int((dh % 1) * 60)}min" if dh >= 1 else f"en {int(dh * 60)}min"
-        imp = str(e.get("impact", "?"))
+        imp = "High" if any(str(x.get("impact", "")) == "High" for x in es) else str(es[0].get("impact", "?"))
         cls = "baja" if imp == "High" else "lateral"
-        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td>{e.get('titulo', '?')}</td>"
+        tit = es[0].get("titulo", "?")
+        if len(es) > 1:
+            tit += f" +{len(es) - 1}"
+        full = " · ".join(str(x.get("titulo", "?")) for x in es)
+        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td title='{full}'>{tit}</td>"
                   f"<td><span class='badge {cls}'>{imp}</span></td><td>{cuad}</td></tr>")
     return (f"<table class='ops'><tr><th>Día/hora</th><th>Evento</th><th>Impacto</th><th>Falta</th></tr>"
             f"{filas}</table><p class='mini'>±30 min de eventos High: sin señales (blackout).</p>")
