@@ -323,6 +323,21 @@ padding:4px 12px;cursor:pointer}
 """
 
 
+def _prox_pasada(ahora_dt):
+    """Próxima pasada del bot (espejo de cron-job): NY 13–20 c/5, resto c/15."""
+    try:
+        h, m = ahora_dt.hour, ahora_dt.minute
+        if 13 <= h <= 20:
+            nm = ((m // 5) + 1) * 5
+            base = ahora_dt.replace(second=0, microsecond=0)
+            return base + datetime.timedelta(minutes=nm - m) if nm < 60 else base.replace(hour=h + 1, minute=0)
+        nm = ((m // 15) + 1) * 15
+        base = ahora_dt.replace(second=0, microsecond=0)
+        return base + datetime.timedelta(minutes=nm - m) if nm < 60 else base.replace(hour=(h + 1) % 24, minute=0)
+    except Exception:
+        return None
+
+
 def _card(cid, titulo, cuerpo):
     return (f"<div class='card' id='c-{cid}'>"
             f"<button class='chead' data-c='{cid}' aria-expanded='true'>"
@@ -956,6 +971,36 @@ def _dom_html(snap):
         return ""
 
 
+def _liqmap_html(snap):
+    lm = (snap or {}).get("liqmap") if isinstance(snap, dict) else None
+    if not isinstance(lm, dict):
+        return ""
+
+    def lado(lst, color):
+        out = []
+        for x in (lst or [])[:5]:
+            try:
+                sc = max(0, min(100, float(x.get("score", 50))))
+                out.append(
+                    f"<div class='tmeta'>{miles(x.get('precio'))} ({float(x.get('dist', 0)):+.2f}%)</div>"
+                    f"<div class='rsibar'><i style='width:{sc:.0f}%;background:{color}'></i></div>")
+            except Exception:
+                continue
+        return "".join(out) or "<p class='mini'>—</p>"
+
+    im = lm.get("iman") or {}
+    banner = ""
+    try:
+        if im.get("lado"):
+            banner = (f"<p class='mini'>🧲 Imán de stops: <b style='color:#e2e8f0'>{im['lado'].upper()}</b> "
+                      f"({im.get('pct', '?')}%)</p>")
+    except Exception:
+        pass
+    return (f"{banner}<p class='mini'>Arriba 🔴</p>{lado(lm.get('arriba'), '#f87171')}"
+            f"<p class='mini'>Abajo 🟢</p>{lado(lm.get('abajo'), '#4ade80')}"
+            f"<p class='mini'>Estimado: stops tras máximos/mínimos y redondos.</p>")
+
+
 def _macro_html(snap, ahora_dt):
     if not isinstance(snap, dict):
         return ""
@@ -1137,8 +1182,14 @@ def build_dashboard(est, hist):
     if not isinstance(hist, list):
         hist = []
     ahora_dt = datetime.datetime.now(datetime.timezone.utc)
-    ahora = ahora_dt.strftime("%d/%m %H:%M UTC")
-    ahora_iso = ahora_dt.isoformat()
+    try:
+        dt_data = datetime.datetime.fromisoformat(est.get("ultimo_run", ""))
+        if dt_data.tzinfo is None:
+            dt_data = dt_data.replace(tzinfo=datetime.timezone.utc)
+    except Exception:
+        dt_data = ahora_dt
+    ahora = dt_data.strftime("%d/%m %H:%M UTC")
+    ahora_iso = dt_data.isoformat()
     ult = [h for h in hist[-30:] if isinstance(h, dict)]
     px = [_num(h.get("precio")) for h in ult]
     cf = [h.get("conf", 0) for h in ult]
@@ -1220,6 +1271,9 @@ def build_dashboard(est, hist):
     dh = _dom_html(est.get("snapshot"))
     if dh:
         tarjetas.append(_card("dom", "Dominancia 👑", dh))
+    lq = _liqmap_html(est.get("snapshot"))
+    if lq:
+        tarjetas.append(_card("liqmap", "Mapa liq 🌊", lq))
     pq = _porque_html(est.get("snapshot"))
     if pq:
         tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
@@ -1241,6 +1295,12 @@ def build_dashboard(est, hist):
     hoy = ahora_dt.strftime("%Y-%m-%d")
     runs_hoy = sum(1 for h in hist if isinstance(h, dict) and str(h.get("t", ""))[:10] == hoy)
     al_hoy = sum(1 for h in hist if isinstance(h, dict) and h.get("tipo") == "alerta" and str(h.get("t", ""))[:10] == hoy)
+    prox = _prox_pasada(ahora_dt)
+    try:
+        seg = min(120, max(20, int((prox - ahora_dt).total_seconds()) + 45)) if prox else 120
+        prox_txt = prox.strftime("%H:%M") if prox else "?"
+    except Exception:
+        seg, prox_txt = 120, "?"
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="120">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1248,7 +1308,8 @@ def build_dashboard(est, hist):
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
 <span class="saludo">{_saludo(ahora_dt)}</span>
-<span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">2:00</b></span>
+<span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
+<span class="live"><span class="dot"></span>próxima pasada ~{prox_txt}</span>
 <span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{ahora_iso}">…</b></span>
 <span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
@@ -1257,7 +1318,7 @@ def build_dashboard(est, hist):
 {grid}
 </div><footer>Análisis probabilístico. No es asesoramiento financiero. v27. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
-<script>var RL=120;setInterval(function(){{var el=document.getElementById('recarga');
+<script>var RL={seg};setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
 else{{var m=Math.floor(RL/60),s=RL%60;
 if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}}}},1000);</script>
