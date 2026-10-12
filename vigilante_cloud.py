@@ -1792,7 +1792,11 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
             est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
     if liq and enfriar(est, "liq:" + ("max" if "sobre" in liq else "min"), 4, ahora):
-        return True, "Toma de liquidez: " + liq + ". Quien la persigue suele quedar atrapado.", "alerta"
+        if "sobre" in liq:
+            ref = f"desvanecer hacia {fmt_miles(niv['soportes'][0]['precio'])} (referencia)"
+        else:
+            ref = f"desvanecer hacia {fmt_miles(niv['resistencias'][0]['precio'])} (referencia)"
+        return True, "Toma de liquidez: " + liq + f". Quien la persigue suele quedar atrapado → {ref}.", "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
         return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
