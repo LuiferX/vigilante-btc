@@ -55,6 +55,8 @@ jobs:
       - name: Publicar dashboard (rama dashboard, se reescribe limpio)
         run: |
           if [ ! -f /tmp/dash_index.html ]; then echo "sin dashboard"; exit 0; fi
+          git fetch origin dashboard 2>/dev/null || true
+          if git show origin/dashboard:index.html 2>/dev/null | cmp -s /tmp/dash_index.html -; then echo "dashboard sin cambios"; exit 0; fi
           git checkout --orphan dash_tmp
           git rm -rf . > /dev/null 2>&1 || true
           cp /tmp/dash_index.html ./index.html
