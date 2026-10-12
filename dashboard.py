@@ -940,6 +940,22 @@ def _fam(titulo):
         return "OTRO"
 
 
+def _dom_html(snap):
+    dom = (snap or {}).get("dom") if isinstance(snap, dict) else None
+    if not isinstance(dom, dict) or dom.get("btc") is None:
+        return ""
+    try:
+        b = max(0, min(100, float(dom["btc"])))
+        e = max(0, min(100, float(dom.get("eth") or 0)))
+        col = "#f7931a" if b >= 55 else ("#a78bfa" if b < 48 else "#e2e8f0")
+        ver = ("temporada BTC 🟠" if b >= 55 else ("zona mixta ⚪" if b >= 48 else "aires de altseason 🟣"))
+        return (f"<div class='big' style='font-size:24px'>{b:.1f}% <small style='font-size:12px;color:#94a3b8'>BTC</small></div>"
+                f"<div class='rsibar'><i style='width:{b:.0f}%;background:{col}'></i></div>"
+                f"<p class='mini'>{ver} · ETH {e:.1f}% · resto {100 - b - e:.1f}%</p>")
+    except Exception:
+        return ""
+
+
 def _macro_html(snap, ahora_dt):
     if not isinstance(snap, dict):
         return ""
@@ -1201,6 +1217,9 @@ def build_dashboard(est, hist):
         tarjetas.append(_card("reloj", "Miedo y sesión 🕰️", reloj))
     if ctx:
         tarjetas.append(_card("ctx", "Contexto", ctx))
+    dh = _dom_html(est.get("snapshot"))
+    if dh:
+        tarjetas.append(_card("dom", "Dominancia 👑", dh))
     pq = _porque_html(est.get("snapshot"))
     if pq:
         tarjetas.append(_card("porque", "Por qué este sesgo 🧠", pq))
