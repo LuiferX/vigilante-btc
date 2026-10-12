@@ -780,7 +780,9 @@ def responder_comando(cmd, ctx):
         if not evs:
             return ("Sin eventos fuertes esta semana.", False)
         return ("Próximos eventos:\n" + "\n".join(
-            f"• {e['titulo']} ({e['cuando'].strftime('%a %d %H:%M')} UTC)" for e in evs), False)
+            f"• {e['titulo']} ({e['cuando'].strftime('%a %d %H:%M')} UTC)" + (
+                f"\n  📊 {linea_estudio(est, e['titulo'])}" if linea_estudio(est, e['titulo']) else "")
+            for e in evs), False)
     if c == "/precision":
         base = (f"Precisión: ALZA {prec_str(est.get('alza', []))} · "
                 f"BAJA {prec_str(est.get('baja', []))}.")
@@ -1742,6 +1744,69 @@ def score_senal(dirb, h1, h4, regimen):
     return g
 
 
+def familia_evento(titulo):
+    """Agrupa eventos por familia para el estudio (CPI, FOMC...)."""
+    try:
+        tl = str(titulo or "")
+        for fam, pats in (("CPI", ("CPI", "IPC")), ("PPI", ("PPI",)),
+                          ("FOMC", ("FOMC", "FED ", "POWELL", "TASA", "RATE DECISION")),
+                          ("NFP", ("NFP", "NON-FARM", "NOMINAS", "PAYROLL", "EMPLEO")),
+                          ("PIB", ("PIB", "GDP")), ("VENTAS", ("VENTAS", "RETAIL"))):
+            if any(p in tl.upper() for p in pats):
+                return fam
+        return "OTRO"
+    except Exception:
+        return "OTRO"
+
+
+def estudiar_eventos(est, hist, evs, ahora):
+    """Aprende de eventos pasados: mide |movimiento| 2h post-evento con el
+    propio historial. Sin historia no inventa (arranca frío, lo dice)."""
+    try:
+        evs = evs or []
+        hechas = est.get("ev_study_keys", [])
+        nuevas = 0
+        for e in evs:
+            try:
+                cu = e.get("cuando")
+                if getattr(cu, "tzinfo", None) is None:
+                    continue
+                if (ahora - cu).total_seconds() / 3600 < 2:
+                    continue
+                key = str(getattr(cu, "isoformat", lambda: str(cu))()) + "|" + str(e.get("titulo", ""))
+                if key in hechas:
+                    continue
+                pre = [h for h in hist if isinstance(h, dict) and h.get("t", "") <= cu.isoformat() and h.get("precio")]
+                post = [h for h in hist if isinstance(h, dict) and cu.isoformat() < h.get("t", "") <= (cu + datetime.timedelta(hours=2)).isoformat() and h.get("precio")]
+                if not pre or not post:
+                    continue
+                mv = abs(post[-1]["precio"] - pre[-1]["precio"]) / pre[-1]["precio"] * 100
+                fam = familia_evento(e.get("titulo", ""))
+                stu = est.get("ev_study", {})
+                stu.setdefault(fam, []).append(round(mv, 2))
+                est["ev_study"] = {k: v[-30:] for k, v in stu.items()}
+                hechas.append(key)
+                nuevas += 1
+            except Exception:
+                continue
+        if nuevas:
+            est["ev_study_keys"] = hechas[-100:]
+        return nuevas
+    except Exception:
+        return 0
+
+
+def linea_estudio(est, titulo):
+    """'CPI suele mover ±0.8% (n=5)'. '' si hay menos de 3 casos."""
+    try:
+        arr = (est.get("ev_study", {}) or {}).get(familia_evento(titulo), [])
+        if len(arr) < 3:
+            return ""
+        return f"{familia_evento(titulo)} suele mover ±{sum(arr) / len(arr):.2f}% (n={len(arr)})"
+    except Exception:
+        return ""
+
+
 def blackout(evs, ahora):
     """Bloqueo institucional: sin senales nuevas cerca de evento High."""
     for e in evs:
@@ -2288,6 +2353,7 @@ def main():
             pass
         umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
         evaluar_mfe(est, ahora)
+        estudiar_eventos(est, hist, evs, ahora)
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
@@ -2544,6 +2610,8 @@ def main():
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
+            "evstudy": {f: {"avg": round(sum(a) / len(a), 2), "n": len(a)}
+                        for f, a in ((est.get("ev_study", {}) or {}).items()) if a},
         }
         guardar_estado(est, hist)
         forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
