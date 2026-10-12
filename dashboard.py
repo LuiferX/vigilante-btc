@@ -76,13 +76,25 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
         f'<circle class="last" cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="4.5">'
         f"<title>cierre · {vals[-1]:,.0f}</title></circle>")
     lvls = []
+    y_of = lambda p: h - 14 - (p - lo) / rg * (h - 34)
+    last = vals[-1]
+    deb = [p for p, _, _ in nvs if p < last]
+    enc = [p for p, _, _ in nvs if p > last]
+    if deb and enc:
+        lvls.append(f"<rect x='10' y='{y_of(min(enc)):.1f}' width='{w - 72}' "
+                    f"height='{y_of(max(deb)) - y_of(min(enc)):.1f}' class='canal'/>")
     for p, txt, kind in nvs:
-        y = h - 14 - (p - lo) / rg * (h - 34)
+        y = y_of(p)
         cls = "nres" if kind == "res" else "nsop"
         lvls.append(
             f"<line x1='10' y1='{y:.1f}' x2='{w - 62}' y2='{y:.1f}' class='lvl {cls}'>"
             f"<title>{txt} · {p:,.0f}</title></line>"
-            f"<text x='{w - 60}' y='{y - 3:.1f}' class='tag lvl-{cls}'>{p:,.0f}</text>")
+            f"<circle cx='{w - 62}' cy='{y:.1f}' r='2.6' fill='{'#f87171' if cls == 'nres' else '#4ade80'}'/>"
+            f"<text x='{w - 60}' y='{y - 5:.1f}' class='lvlTxt'>{p:,.0f}</text>")
+    yl = y_of(last)
+    lvls.append(f"<line x1='10' y1='{yl:.1f}' x2='{w - 62}' y2='{yl:.1f}' class='lvlpx'>"
+                f"<title>precio actual · {last:,.0f}</title></line>"
+                f"<text x='{w - 60}' y='{yl - 5:.1f}' class='lvlTxt'>{last:,.0f}</text>")
     return (
         f'<svg class="resp draw" viewBox="0 0 {w} {h}" preserveAspectRatio="none">'
         f"<defs><linearGradient id=\"{gid}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">"
@@ -190,10 +202,14 @@ svg circle.alert{fill:var(--red);animation:blink 1.6s infinite;transition:filter
 svg circle.alert:hover{fill:#fecaca;filter:drop-shadow(0 0 7px #ffffffaa)}
 svg circle.last{fill:var(--grn);filter:drop-shadow(0 0 4px #22c55e);transition:filter .2s ease;cursor:pointer}
 svg circle.last:hover{fill:#f8fafc;filter:drop-shadow(0 0 8px #ffffffbb)}
-svg .lvl{stroke-width:1.2;stroke-dasharray:6 4;opacity:.85;transition:opacity .2s ease,stroke .2s ease}
+svg .lvl{stroke-width:2;opacity:1;transition:stroke .2s ease}
+svg .lvl:hover{stroke:#f8fafc}
+svg .lvl.nsop{stroke:#4ade80;filter:drop-shadow(0 0 4px #22c55e99)}
+svg .lvl.nres{stroke:#f87171;filter:drop-shadow(0 0 4px #ef444499)}
 svg .lvl:hover{opacity:1;stroke:#f8fafc}
-svg .lvl.nsop{stroke:#22c55e}svg .lvl.nres{stroke:#ef4444}
-svg .tag.lvl-nsop{fill:#4ade80}svg .tag.lvl-nres{fill:#fca5a5}
+svg text.lvlTxt{fill:#fff;font-size:12px;font-weight:700;paint-order:stroke;stroke:#000;stroke-width:3px}
+svg .canal{fill:rgba(255,255,255,.045)}
+svg .lvlpx{stroke:#fff;stroke-width:1.4;stroke-dasharray:3 3;opacity:.9;filter:drop-shadow(0 0 4px #ffffff99)}
 .kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:#cbd5e1;background:#0c0c0e;
 transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;cursor:default}
@@ -943,7 +959,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v12.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v13.</footer>
 </div>
 <script>var RL=300;setInterval(function(){{var m=Math.floor(RL/60),s=RL%60;
 var el=document.getElementById('recarga');
