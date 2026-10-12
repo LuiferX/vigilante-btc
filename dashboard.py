@@ -223,10 +223,9 @@ svg circle.alert:hover{fill:#fecaca;filter:drop-shadow(0 0 7px #ffffffaa)}
 svg circle.last{fill:var(--grn);filter:drop-shadow(0 0 4px #22c55e);transition:filter .2s ease;cursor:pointer}
 svg circle.last:hover{fill:#f8fafc;filter:drop-shadow(0 0 8px #ffffffbb)}
 svg .lvl{stroke-width:2;opacity:1;transition:stroke .2s ease}
-svg .lvl:hover{stroke:#f8fafc}
+svg .lvl:hover{stroke:#f8fafc;opacity:1}
 svg .lvl.nsop{stroke:#4ade80;filter:drop-shadow(0 0 4px #22c55e99)}
 svg .lvl.nres{stroke:#f87171;filter:drop-shadow(0 0 4px #ef444499)}
-svg .lvl:hover{opacity:1;stroke:#f8fafc}
 svg text.lvlTxt{fill:#fff;font-size:12px;font-weight:700;paint-order:stroke;stroke:#000;stroke-width:3px}
 svg .canal{fill:rgba(255,255,255,.045)}
 svg .lvlpx{stroke:#fff;stroke-width:1.4;stroke-dasharray:3 3;opacity:.9;filter:drop-shadow(0 0 4px #ffffff99)}
