@@ -844,7 +844,7 @@ FONDO_JS = ("<script>(function(){"
 
 
 def _alertas_html(est, hist, ahora_dt=None):
-    COOL_H = {"fuerte": 4, "brusco": 2, "liq": 4, "ritmo": 2, "toque": 4, "diadc": 24}
+    COOL_H = {"fuerte": 4, "brusco": 2, "liq": 4, "ritmo": 2, "toque": 4, "diadc": 24, "ruptura": 12}
     sil = []
     try:
         cools = (est or {}).get("cools") or {}
