@@ -92,3 +92,8 @@ El trading con apalancamiento conlleva riesgo de pérdida del capital.
 
 ---
 *Proyecto educativo construido paso a paso. 🎓*
+
+## Licencia y uso
+
+(C) 2026 LuiferX - **uso personal y privado unicamente** (ver \LICENSE\).
+Prohibida la copia, redistribucion o uso comercial. Ver el codigo no otorga derecho de uso.
