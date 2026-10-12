@@ -43,13 +43,23 @@ def _bias_class(bias):
     return "lateral"
 
 
-def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None):
+def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
     vals = [v for v in vals if isinstance(v, (int, float))]
     if len(vals) < 2:
         return "<p>sin datos aún</p>"
     _uid[0] += 1
     gid = f"g{_uid[0]}"
     lo, hi = min(vals), max(vals)
+    nvs = []
+    for nv in (niveles or []):
+        try:
+            p = float((nv or {}).get("precio"))
+            nvs.append((p, str((nv or {}).get("etiqueta", "")), str((nv or {}).get("kind", ""))))
+        except Exception:
+            continue
+    if nvs:
+        lo = min(lo, min(p for p, _, _ in nvs))
+        hi = max(hi, max(p for p, _, _ in nvs))
     rg = (hi - lo) or 1
     n = len(vals)
     xs = [10 + i * (w - 20) / (n - 1) for i in range(n)]
@@ -65,6 +75,14 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None):
     dots.append(
         f'<circle class="last" cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="4.5">'
         f"<title>cierre · {vals[-1]:,.0f}</title></circle>")
+    lvls = []
+    for p, txt, kind in nvs:
+        y = h - 14 - (p - lo) / rg * (h - 34)
+        cls = "nres" if kind == "res" else "nsop"
+        lvls.append(
+            f"<line x1='10' y1='{y:.1f}' x2='{w - 62}' y2='{y:.1f}' class='lvl {cls}'>"
+            f"<title>{txt} · {p:,.0f}</title></line>"
+            f"<text x='{w - 60}' y='{y - 3:.1f}' class='tag lvl-{cls}'>{p:,.0f}</text>")
     return (
         f'<svg class="resp draw" viewBox="0 0 {w} {h}" preserveAspectRatio="none">'
         f"<defs><linearGradient id=\"{gid}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">"
@@ -72,7 +90,7 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None):
         f"<stop offset=\"1\" stop-color=\"{color}\" stop-opacity=\"0\"/></linearGradient></defs>"
         f"<path d=\"{area}\" fill=\"url(#{gid})\"/>"
         f"<polyline class=\"linea\" points=\"{pts}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/>"
-        + "".join(dots) +
+        + "".join(lvls) + "".join(dots) +
         f"<text x=\"12\" y=\"18\" class=\"tag\">máx {hi:,.0f}</text>"
         f"<text x=\"12\" y=\"{h - 4}\" class=\"tag\">mín {lo:,.0f}</text></svg>")
 
@@ -153,6 +171,9 @@ svg .linea{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.4s .1s 
 @keyframes draw{to{stroke-dashoffset:0}}
 svg circle.alert{fill:var(--red);animation:blink 1.6s infinite}
 svg circle.last{fill:var(--grn);filter:drop-shadow(0 0 4px #22c55e)}
+svg .lvl{stroke-width:1.2;stroke-dasharray:6 4;opacity:.85}
+svg .lvl.nsop{stroke:#22c55e}svg .lvl.nres{stroke:#ef4444}
+svg .tag.lvl-nsop{fill:#4ade80}svg .tag.lvl-nres{fill:#fca5a5}
 .kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:#cbd5e1;background:#0f172a}
 .chip b{color:#fff}
@@ -436,6 +457,21 @@ def build_dashboard(est, hist):
     ctx = _contexto_html(est.get("snapshot"))
     ops = _ops_html(est, ahora_dt)
     reloj = _gauge_reloj_html(est, ult, ahora_dt)
+    nvs, dist_txt = [], ""
+    try:
+        niv = (est.get("snapshot") or {}).get("niv") or {}
+        sops = [s for s in (niv.get("sop") or []) if isinstance(s, dict)][:2]
+        ress = [r for r in (niv.get("res") or []) if isinstance(r, dict)][:2]
+        for s in sops:
+            nvs.append({"precio": s.get("precio"), "etiqueta": f"🛡 {s.get('origen', 'soporte')}", "kind": "sop"})
+        for r in ress:
+            nvs.append({"precio": r.get("precio"), "etiqueta": f"🧲 {r.get('origen', 'resistencia')}", "kind": "res"})
+        if precio and sops and ress:
+            ds = (precio - float(sops[0].get("precio", precio))) / precio * 100
+            dr = (float(ress[0].get("precio", precio)) - precio) / precio * 100
+            dist_txt = f" · 🛡 a −{abs(ds):.2f}% · 🧲 a +{abs(dr):.2f}%"
+    except Exception:
+        nvs, dist_txt = [], ""
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -447,8 +483,9 @@ def build_dashboard(est, hist):
 <div class="card"><h2>Precio y sesgo</h2>
 <div class="big">{miles(precio)}<span class="badge {_bias_class(bias)}">{bias} {conf}%</span></div>
 <div class="pill"><i style="--w:{conf_w}%"></i></div>
-<div class="sub">{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana</div></div>
-<div class="card"><h2>Precio (últimas {len(px)}) + alertas 🔴</h2>{svg_linea(px, marcas=marcas)}</div>
+<div class="sub">{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana{dist_txt}</div></div>
+<div class="card"><h2>Precio (últimas {len(px)}) + alertas 🔴</h2>{svg_linea(px, marcas=marcas, niveles=nvs)}
+<p><span style="color:#4ade80">─ soporte</span> · <span style="color:#fca5a5">─ resistencia</span> (origen al pasar el mouse).</p></div>
 <div class="card"><h2>Confianza (escala 0–100)</h2>{svg_barras(cf, [str(i) for i in range(len(cf))])}
 <p>Verde ≥55 (fuerte) · ámbar ≥40 · gris debajo. Líneas: 45 registra / 55 fuerte.</p></div>
 {reloj}
@@ -459,7 +496,7 @@ def build_dashboard(est, hist):
 <p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p></div>
 <div class="card"><h2>Actividad</h2><p>{len(hist)} pasadas guardadas · run {est.get("runs", "?")}</p>
 <p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p></div>
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v5.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v6.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 {CD_JS}
