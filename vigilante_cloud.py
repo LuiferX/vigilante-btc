@@ -1608,6 +1608,24 @@ def cambio(est, clave, valor, eps):
         return valor != prev
 
 
+def enfriar(est, clave, horas, ahora=None):
+    """Anti-spam: True solo si la categoria no aviso en las ultimas `horas`
+    (y deja marca). Lo importante pasa; lo repetido se calla."""
+    try:
+        t0 = (est.get("cools") or {}).get(clave)
+        ref = ahora or datetime.datetime.now(datetime.timezone.utc)
+        if t0 and (ref - datetime.datetime.fromisoformat(t0)).total_seconds() / 3600 < horas:
+            return False
+    except Exception:
+        pass
+    try:
+        ref = ahora or datetime.datetime.now(datetime.timezone.utc)
+        est.setdefault("cools", {})[clave] = ref.isoformat()
+    except Exception:
+        pass
+    return True
+
+
 def cargar_estado():
     est = {"ultimo_bias": "?", "ultima_conf": 0, "ultimo_precio": 0,
            "ultimo_run": "", "ultimo_resumen": "", "ultimo_resumen_noche": "",
@@ -1734,19 +1752,23 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return False, f"blackout ({motivo_bloq})", "nada"
     if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= umbral_cambio:
         return True, f"Cambio de dirección: {prev} → {bias}", "alerta"
-    if bias in ("ALZA", "BAJA") and conf >= umbral_fuerte:
+    if bias in ("ALZA", "BAJA") and conf >= umbral_fuerte and (
+            prev != bias or enfriar(est, "fuerte:" + bias, 4, ahora)):
         return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
-    if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO:
+    if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
+            est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 2, ahora):
         return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
-    if liq:
+    if liq and enfriar(est, "liq:" + liq, 4, ahora):
         return True, "Toma de liquidez: " + liq, "alerta"
-    if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY:
+    if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
         return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
         return True, pila, "alerta"
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
-        if not (conf < 45 and (regimen or "tendencia") == "rango"):
+        nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
+        if not (conf < 45 and (regimen or "tendencia") == "rango") and enfriar(
+                est, f"toque:{nivel}", 4, ahora):
             return True, f"Tocando {lado}", "alerta"
     hoy = ahora.strftime("%Y-%m-%d")
     hh = ahora.hour + ahora.minute / 60
