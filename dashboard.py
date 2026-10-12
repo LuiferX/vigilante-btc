@@ -156,6 +156,8 @@ body[data-bias="ALZA"]::before{background:radial-gradient(circle,#052e16 0%,tran
 body[data-bias="ALZA"]::after{background:radial-gradient(circle,#0a2e1a 0%,transparent 70%)}
 body[data-bias="BAJA"]::before{background:radial-gradient(circle,#3d0d0d 0%,transparent 70%)}
 body[data-bias="BAJA"]::after{background:radial-gradient(circle,#2b0808 0%,transparent 70%)}
+body[data-bias="LATERAL"]::before{background:radial-gradient(circle,#1c1e24 0%,transparent 70%)}
+body[data-bias="LATERAL"]::after{background:radial-gradient(circle,#141519 0%,transparent 70%)}
 @keyframes temblor{0%,88%,100%{transform:translate(0,0)}90%{transform:translate(-3px,2px)}
 92%{transform:translate(3px,-2px)}94%{transform:translate(-2px,-1px)}96%{transform:translate(2px,1px)}}
 .wrap.alerta-max{animation:temblor 3.5s infinite}
@@ -184,7 +186,7 @@ p{color:var(--mut);font-size:13px;margin:6px 0}
 vertical-align:middle;margin-left:6px}
 .badge.alza{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
 .badge.baja{background:#450a0a;color:#fca5a5;border:1px solid #ef444455}
-.badge.lateral{background:#1e293b;color:#cbd5e1;border:1px solid var(--line)}
+.badge.lateral{background:#0a0a0a;color:#fff;border:1px solid #ffffff55}
 .pill{height:8px;border-radius:99px;background:#0c0c0e;overflow:hidden;margin-top:8px}
 .pill i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--amb),var(--grn));
 width:0;animation:fill 1.1s .2s forwards}
@@ -530,7 +532,7 @@ UI_JS = ("<script>(function(){"
           "if(ph<0.12){fl=1;}else{fl=Math.max(0,fl-0.12);}window.__flash=fl;}"
           "if(L){var br=0.5+0.5*Math.sin(t/1400);"
           "var b=document.body.dataset.bias||'';"
-          "var c=b==='ALZA'?'34,197,94':(b==='BAJA'?'239,68,68':'56,189,248');"
+          "var c=b==='ALZA'?'34,197,94':(b==='BAJA'?'239,68,68':'226,232,240');"
           "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.06+beat*0.25+fl*0.40+br*0.03).toFixed(3)+'),transparent 62%)';"
           "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.06).toFixed(2)+')';"
           "var D=document.getElementById('destello');"
@@ -671,7 +673,7 @@ def _tfs_html(snap):
 
 TF_JS = ("<script>(function(){"          "var boxes=document.querySelectorAll('svg.spark[data-tf]');"
           "if(!boxes.length)return;"
-          "function col(t){var b=document.body.dataset.bias||'';return b==='ALZA'?'#4ade80':(b==='BAJA'?'#fca5a5':'#38bdf8');}"
+          "function col(t){var b=document.body.dataset.bias||'';return b==='ALZA'?'#4ade80':(b==='BAJA'?'#fca5a5':'#f1f5f9');}"
           "boxes.forEach(function(svg){"
           "var iv=svg.dataset.tf;"
           "fetch('https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval='+iv+'&limit=30')"
@@ -710,8 +712,10 @@ FONDO_JS = ("<script>(function(){"
           "for(var y=0;y<H();y+=56){ctx.moveTo(0,y+.5);ctx.lineTo(W(),y+.5);}"
           "ctx.stroke();}"
           "function linea(){if(px.length<2)return;"
+          "var bb=document.body.dataset.bias||'';"
+          "ctx.strokeStyle=bb==='ALZA'?'rgba(74,222,128,0.12)':(bb==='BAJA'?'rgba(248,113,113,0.12)':'rgba(226,232,240,0.12)');"
           "var lo=Math.min.apply(null,px),hi=Math.max.apply(null,px),rg=(hi-lo)||1;"
-          "ctx.strokeStyle='rgba(56,189,248,0.10)';ctx.lineWidth=1.2;ctx.beginPath();"
+          "ctx.lineWidth=1.2;ctx.beginPath();"
           "px.forEach(function(v,i){"
           "var x=20+i*((W()-40)/(px.length-1)),y=H()*0.32+(1-(v-lo)/rg)*H()*0.30;"
           "if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});"
@@ -1032,7 +1036,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v19.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v20.</footer>
 </div>
 <script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
