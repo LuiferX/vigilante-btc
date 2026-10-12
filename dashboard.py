@@ -159,6 +159,16 @@ svg circle.last{fill:var(--grn);filter:drop-shadow(0 0 4px #22c55e)}
 footer{color:#64748b;font-size:12px;margin:14px 2px}
 @media(max-width:480px){.big{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
+.stats{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.stat{flex:1 1 100px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:6px 9px}
+.stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+.stat b{font-size:15px;font-variant-numeric:tabular-nums}
+table.ops{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+table.ops th{text-align:left;color:var(--mut);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
+table.ops td{padding:4px 6px;border-bottom:1px solid #1e293b;font-variant-numeric:tabular-nums}
+.win{color:#4ade80;font-weight:700}.loss{color:#fca5a5;font-weight:700}
+.tagLONG{color:#4ade80;font-weight:700}.tagSHORT{color:#fca5a5;font-weight:700}
+.mini{font-size:12px;color:var(--mut)}
 """
 
 
@@ -197,12 +207,116 @@ def _contexto_html(snap):
             f"<div class='kv'>{''.join(chips)}</div></div>")
 
 
+def _hace(tiso, ahora):
+    try:
+        t0 = datetime.datetime.fromisoformat(tiso)
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=datetime.timezone.utc)
+        h = (ahora - t0).total_seconds() / 3600
+        if h < 1:
+            return f"hace {int(h * 60)}min"
+        return f"hace {h:.1f}h"
+    except Exception:
+        return ""
+
+
+def _ops_html(est, ahora):
+    abiertas = [o for o in (est.get("paper_abiertas") or []) if isinstance(o, dict)]
+    cerradas = [c for c in (est.get("paper_cerradas") or []) if isinstance(c, dict)]
+    pend = [p for p in (est.get("pendientes") or []) if isinstance(p, dict)]
+    journal = [j for j in (est.get("journal") or []) if isinstance(j, dict)]
+    banco = est.get("banco")
+    n = len(cerradas)
+    w = sum(1 for c in cerradas if _num(c.get("pnl")) > 0)
+    tot_r = sum(_num(c.get("r")) for c in cerradas)
+    tot_pnl = sum(_num(c.get("pnl")) for c in cerradas)
+    wr = f"{round(w / n * 100)}% ({w}/{n})" if n else "s/d"
+    racha = 0
+    for c in reversed(cerradas):
+        if _num(c.get("pnl")) < 0:
+            racha += 1
+        else:
+            break
+    frenos = []
+    try:
+        b = float(banco) if banco is not None else 10000.0
+        pico = float(est.get("banco_pico", b))
+        dd = (pico - b) / pico * 100 if pico > 0 else 0
+        if dd >= 10:
+            frenos.append("⛔ pico −10%")
+    except Exception:
+        dd = 0
+    pd = est.get("paper_dia") or {}
+    try:
+        base = float(banco) if banco is not None else 10000.0
+        if isinstance(pd, dict) and float(pd.get("pnl", 0)) <= -0.03 * base:
+            frenos.append("⛔ día −3%")
+    except Exception:
+        pass
+    if racha >= 3:
+        frenos.append("⚠️ racha: riesgo 0,5%")
+    freno_txt = " · ".join(frenos) if frenos else "frenos OK ✅"
+    btxt = f"{miles(banco)} USDT ({tot_pnl:+.0f})" if banco is not None else "10.000 USDT (sin empezar)"
+    stats = (
+        f"<div class='stats'>"
+        f"<div class='stat'><small>Banco</small><b>{btxt}</b></div>"
+        f"<div class='stat'><small>Ganadas</small><b>{wr}</b></div>"
+        f"<div class='stat'><small>Total</small><b>{tot_r:+.1f}R</b></div>"
+        f"<div class='stat'><small>Racha pérdida</small><b>{racha}</b></div>"
+        f"</div><p class='mini'>{freno_txt} · papel opera señales 35%+ (invisible, sin avisos)</p>")
+    if abiertas:
+        filas = "".join(
+            f"<tr><td class='tag{o.get('dir', '')}'>{o.get('dir', '?')}</td>"
+            f"<td>{miles(o.get('entrada'))}</td><td>{miles(o.get('stop'))}</td>"
+            f"<td>{miles(o.get('tp'))}</td><td>{miles(o.get('riesgo'))}</td></tr>"
+            for o in abiertas[-6:])
+        ab = (f"<p class='mini'>Abiertas ({len(abiertas)})</p>"
+              f"<table class='ops'><tr><th>Dir</th><th>Ent</th><th>SL</th><th>TP</th><th>Riesgo</th></tr>{filas}</table>")
+    else:
+        ab = "<p class='mini'>Sin abiertas ahora mismo.</p>"
+    if cerradas:
+        filas = ""
+        for c in reversed(cerradas[-8:]):
+            pnl = _num(c.get("pnl"))
+            cls = "win" if pnl > 0 else "loss"
+            res = c.get("res", "?")
+            ft = ""
+            try:
+                ft = str(c.get("t", ""))[5:16].replace("T", " ")
+            except Exception:
+                pass
+            filas += (f"<tr><td class='tag{c.get('dir', '')}'>{c.get('dir', '?')}</td>"
+                      f"<td>{res}</td><td class='{cls}'>{pnl:+.0f}</td>"
+                      f"<td class='{cls}'>{_num(c.get('r')):+.2f}R</td><td>{ft}</td></tr>")
+        ce = (f"<p class='mini'>Últimas cerradas ({n})</p>"
+              f"<table class='ops'><tr><th>Dir</th><th>Fin</th><th>PnL</th><th>R</th><th>Fecha</th></tr>{filas}</table>")
+    else:
+        ce = ("<p class='mini'>Sin cerradas aún — el papel sólo abre con ALZA/BAJA de 35%+ "
+              "y el mercado viene lateral. Cuando opere, aquí verás cada cierre.</p>")
+    if pend:
+        lp = "".join(
+            f"<span class='chip'><b>{p.get('bias', '?')}</b> {p.get('conf', '?')}% @ {miles(p.get('precio'))} "
+            f"{_hace(p.get('t', ''), ahora)}</span>" for p in pend[-6:])
+        pe = f"<p class='mini'>En seguimiento ({len(pend)} — se evalúan a 8h)</p><div class='kv'>{lp}</div>"
+    else:
+        pe = "<p class='mini'>En seguimiento: 0 — no hay señales esperando evaluación.</p>"
+    if journal:
+        lj = "".join(
+            f"<span class='chip'><b>{j.get('dir', '?')}</b> {j.get('res', '?')} "
+            f"{_num(j.get('r')):+.2f}R</span>" for j in journal[-5:])
+        jo = f"<p class='mini'>Mi diario ({len(journal)})</p><div class='kv'>{lj}</div>"
+    else:
+        jo = "<p class='mini'>Mi diario: vacío — registra con /opere en Telegram.</p>"
+    return (f"<div class='card'><h2>Operaciones papel 🤖</h2>{stats}{ab}{ce}{pe}{jo}</div>")
+
+
 def build_dashboard(est, hist):
     if not isinstance(est, dict):
         est = {}
     if not isinstance(hist, list):
         hist = []
-    ahora = datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m %H:%M UTC")
+    ahora_dt = datetime.datetime.now(datetime.timezone.utc)
+    ahora = ahora_dt.strftime("%d/%m %H:%M UTC")
     ult = [h for h in hist[-30:] if isinstance(h, dict)]
     px = [_num(h.get("precio")) for h in ult]
     cf = [h.get("conf", 0) for h in ult]
@@ -233,6 +347,7 @@ def build_dashboard(est, hist):
         delta_txt, rango_txt = "sin ventana aún", ""
     n_alertas = len(marcas)
     ctx = _contexto_html(est.get("snapshot"))
+    ops = _ops_html(est, ahora_dt)
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -249,12 +364,13 @@ def build_dashboard(est, hist):
 <div class="card"><h2>Confianza (escala 0–100)</h2>{svg_barras(cf, [str(i) for i in range(len(cf))])}
 <p>Verde ≥55 (fuerte) · ámbar ≥40 · gris debajo. Líneas: 45 registra / 55 fuerte.</p></div>
 {ctx}
+{ops}
 <div class="card"><h2>Banco papel</h2><div class="big" style="font-size:22px">{eq_txt}</div>{svg_linea(eq, color="#22c55e")}</div>
 <div class="card"><h2>Precisión</h2><p>ALZA {pa} · BAJA {pb}</p>
 <p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p></div>
 <div class="card"><h2>Actividad</h2><p>{len(hist)} pasadas guardadas · run {est.get("runs", "?")}</p>
 <p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p></div>
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v3.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v4.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 </body></html>"""
