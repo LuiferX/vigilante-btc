@@ -171,19 +171,29 @@ svg .bar:hover{fill:#f8fafc;filter:drop-shadow(0 0 6px #ffffff99)}
 .b-green{fill:#22c55e}.b-amber{fill:#f59e0b}.b-slate{fill:#475569}
 svg .linea{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.4s .1s forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
-svg circle.alert{fill:var(--red);animation:blink 1.6s infinite}
-svg circle.last{fill:var(--grn);filter:drop-shadow(0 0 4px #22c55e)}
-svg .lvl{stroke-width:1.2;stroke-dasharray:6 4;opacity:.85}
+svg circle.alert{fill:var(--red);animation:blink 1.6s infinite;transition:filter .2s ease;cursor:pointer}
+svg circle.alert:hover{fill:#fecaca;filter:drop-shadow(0 0 7px #ffffffaa)}
+svg circle.last{fill:var(--grn);filter:drop-shadow(0 0 4px #22c55e);transition:filter .2s ease;cursor:pointer}
+svg circle.last:hover{fill:#f8fafc;filter:drop-shadow(0 0 8px #ffffffbb)}
+svg .lvl{stroke-width:1.2;stroke-dasharray:6 4;opacity:.85;transition:opacity .2s ease,stroke .2s ease}
+svg .lvl:hover{opacity:1;stroke:#f8fafc}
 svg .lvl.nsop{stroke:#22c55e}svg .lvl.nres{stroke:#ef4444}
 svg .tag.lvl-nsop{fill:#4ade80}svg .tag.lvl-nres{fill:#fca5a5}
 .kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:#cbd5e1;background:#0f172a}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:#cbd5e1;background:#0f172a;
+transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;cursor:default}
 .chip b{color:#fff}
+.chip:hover{border-color:#e2e8f0;color:#fff;box-shadow:0 0 10px #ffffff22;transform:translateY(-1px)}
+.chead:hover .ctit{color:#fff}
+.chead:hover .chev{color:#fff;transform:scale(1.25)}
+table.ops tr:hover td{background:#ffffff0d}
 footer{color:#64748b;font-size:12px;margin:14px 2px}
 @media(max-width:480px){.big{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 .stats{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.stat{flex:1 1 100px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:6px 9px}
+.stat{flex:1 1 100px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:6px 9px;
+transition:border-color .2s ease,box-shadow .2s ease}
+.stat:hover{border-color:#ffffff38;box-shadow:0 0 10px #ffffff14}
 .stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
 table.ops{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
