@@ -409,6 +409,24 @@ def _ev_txt(l):
         return "s/d"
 
 
+def _calib_txt(log):
+    try:
+        log = [e for e in (log or []) if isinstance(e, dict)]
+        if len(log) < 5:
+            return ""
+        br = sum(((float(e.get("conf", 50)) / 100) - float(e.get("r", 0))) ** 2 for e in log) / len(log)
+        cubs = {}
+        for e in log:
+            c = float(e.get("conf", 50))
+            k = "40s" if c < 50 else ("50s" if c < 60 else "60+")
+            a, b = cubs.get(k, [0, 0])
+            cubs[k] = [a + 1, b + float(e.get("r", 0))]
+        det = ", ".join(f"{k}:{round(100 * w / n)}%({n})" for k, (n, w) in sorted(cubs.items()))
+        return f"<p>Conciencia: {det} · Brier {round(br, 3)}</p>"
+    except Exception:
+        return ""
+
+
 def _ops_html(est, ahora):
     abiertas = [o for o in (est.get("paper_abiertas") or []) if isinstance(o, dict)]
     cerradas = [c for c in (est.get("paper_cerradas") or []) if isinstance(c, dict)]
@@ -1134,6 +1152,7 @@ def build_dashboard(est, hist):
     banco_b = f"<div class='big' style='font-size:22px'>{eq_txt}</div>{svg_linea(eq, color='#22c55e')}"
     prec_b = (f"<p>ALZA {pa} · BAJA {pb}</p>"
               f"<p>EV ALZA {_ev_txt(alza)} · BAJA {_ev_txt(baja)} (plan 2R, rentable sobre 33%)</p>"
+              f"{_calib_txt(est.get('eval_log'))}"
               f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>")
     act_b = (f"<p>{len(hist)} pasadas guardadas · run {est.get('runs', '?')}</p>"
              f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>")
