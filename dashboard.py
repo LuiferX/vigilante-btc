@@ -194,6 +194,22 @@ footer{color:#64748b;font-size:12px;margin:14px 2px}
 .stat{flex:1 1 100px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:6px 9px;
 transition:border-color .2s ease,box-shadow .2s ease}
 .stat:hover{border-color:#ffffff38;box-shadow:0 0 10px #ffffff14}
+.tfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:6px}
+.tf{background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:8px;
+transition:border-color .2s ease,box-shadow .2s ease}
+.tf:hover{border-color:#ffffff38;box-shadow:0 0 10px #ffffff14}
+.tf .thead{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.tf .tfn{font-weight:800;font-size:13px}
+.tf .tend{font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;text-transform:uppercase}
+.tend.alcista{background:#052e16;color:#4ade80}
+.tend.bajista{background:#450a0a;color:#fca5a5}
+.tend.lateral{background:#1e293b;color:#cbd5e1}
+svg.spark{width:100%;height:56px;display:block}
+svg.spark .sline{fill:none;stroke-width:2;stroke-linejoin:round}
+.rsibar{height:5px;border-radius:99px;background:#1e293b;overflow:hidden;margin-top:6px}
+.rsibar i{display:block;height:100%;border-radius:99px}
+.tf .tmeta{font-size:11px;color:var(--mut);margin-top:4px;font-variant-numeric:tabular-nums}
+
 .stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
 table.ops{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
@@ -484,6 +500,64 @@ def _gauge_reloj_html(est, hist, ahora_dt):
         f"{spark}")
 
 
+def _tfs_html(snap):
+    tf = (snap or {}).get("tf") or {}
+    if not isinstance(tf, dict) or not tf:
+        return ""
+    bloques = []
+    for k, lbl, iv in (("h1", "1H", "1h"), ("h4", "4H", "4h"), ("d1", "1D", "1d"), ("w1", "1S", "1w")):
+        d = tf.get(k) or {}
+        if not isinstance(d, dict):
+            continue
+        tend = str(d.get("tend", "?")).lower()
+        cls = "alcista" if "alci" in tend else ("bajista" if "baji" in tend else "lateral")
+        rsi = d.get("rsi", "?")
+        try:
+            rv = max(0, min(100, float(rsi)))
+            rcol = "#4ade80" if rv >= 55 else ("#f59e0b" if rv >= 45 else "#64748b")
+            rbar = f"<div class='rsibar'><i style='width:{rv:.0f}%;background:{rcol}'></i></div>"
+        except Exception:
+            rbar = ""
+        try:
+            macd = float(d.get("macd", 0))
+            mar = "▲" if macd > 0 else ("▼" if macd < 0 else "●")
+        except Exception:
+            mar = "●"
+        bloques.append(
+            f"<div class='tf'><div class='thead'><span class='tfn'>{lbl}</span>"
+            f"<span class='tend {cls}'>{tend}</span></div>"
+            f"<svg class='spark' data-tf='{iv}' viewBox='0 0 200 56' preserveAspectRatio='none'>"
+            f"<text x='6' y='32' class='tag'>cargando…</text></svg>"
+            f"{rbar}<div class='tmeta'>RSI {rsi} · MACD {mar}</div></div>")
+    if not bloques:
+        return ""
+    return (f"<div class='tfgrid'>{''.join(bloques)}</div>"
+            f"<p class='mini'>Curvas en vivo (Binance) · RSI/MACD del último parte.</p>")
+
+
+TF_JS = ("<script>(function(){"
+          "var boxes=document.querySelectorAll('svg.spark[data-tf]');"
+          "if(!boxes.length)return;"
+          "function col(t){var b=document.body.dataset.bias||'';return b==='ALZA'?'#4ade80':(b==='BAJA'?'#fca5a5':'#38bdf8');}"
+          "boxes.forEach(function(svg){"
+          "var iv=svg.dataset.tf;"
+          "fetch('https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval='+iv+'&limit=30')"
+          ".then(function(r){if(!r.ok)throw 0;return r.json();})"
+          ".then(function(kl){"
+          "var cs=kl.map(function(k){return parseFloat(k[4]);}).filter(function(x){return x>0;});"
+          "if(cs.length<2)throw 0;"
+          "var lo=Math.min.apply(null,cs),hi=Math.max.apply(null,cs),rg=(hi-lo)||1;"
+          "var pts=cs.map(function(v,i){"
+          "return (6+i*(188/(cs.length-1))).toFixed(1)+','+(50-((v-lo)/rg)*44).toFixed(1);}).join(' ');"
+          "var c=col();"
+          "svg.innerHTML='<polyline class=\"sline\" points=\"'+pts+'\" stroke=\"'+c+'\"/>';"
+          "var last=cs[cs.length-1];"
+          "var lx=194,ly=50-((last-lo)/rg)*44;"
+          "svg.innerHTML+='<circle cx=\"'+lx.toFixed(1)+'\" cy=\"'+ly.toFixed(1)+'\" r=\"3\" fill=\"'+c+'\"/>';"
+          "}).catch(function(){svg.style.display='none';});"
+          "});})();</script>")
+
+
 def build_dashboard(est, hist):
     if not isinstance(est, dict):
         est = {}
@@ -554,6 +628,9 @@ def build_dashboard(est, hist):
     tarjetas = [_card("hero", "Precio y sesgo", hero),
                 _card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva),
                 _card("conf", "Confianza (escala 0–100)", confb)]
+    tfs = _tfs_html(est.get("snapshot"))
+    if tfs:
+        tarjetas.append(_card("tfs", "Temporalidades 📊", tfs))
     if reloj:
         tarjetas.append(_card("reloj", "Miedo y sesión 🕰️", reloj))
     if ctx:
@@ -574,11 +651,12 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v7.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v8.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
 {CD_JS}
 {UI_JS}
+{TF_JS}
 </body></html>"""
 
 
