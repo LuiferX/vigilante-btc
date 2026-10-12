@@ -161,6 +161,8 @@ body[data-bias="BAJA"]::after{background:radial-gradient(circle,#2b0808 0%,trans
 .wrap.alerta-max{animation:temblor 3.5s infinite}
 #fondo{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
 #latido{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent}
+#destello{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0}
+#motor{font-size:11px;color:#64748b}
 .wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 header h1{font-size:21px;margin:0}
@@ -530,7 +532,15 @@ UI_JS = ("<script>(function(){"
           "var b=document.body.dataset.bias||'';"
           "var c=b==='ALZA'?'34,197,94':(b==='BAJA'?'239,68,68':'56,189,248');"
           "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.06+beat*0.25+fl*0.40+br*0.03).toFixed(3)+'),transparent 62%)';"
-          "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.06).toFixed(2)+')';}"
+          "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.06).toFixed(2)+')';"
+          "var D=document.getElementById('destello');"
+          "if(D){D.style.background='radial-gradient(circle at 50% 45%,rgba('+c+','+(0.05+beat*0.20+fl*0.55).toFixed(3)+'),transparent 70%)';"
+          "D.style.opacity=(beat>0.02||fl>0.02||!MEL||MEL.paused)?'1':'0';}"
+          "window.__fr=(window.__fr||0)+1;"
+          "if(window.__fr%30===0){var M=document.getElementById('motor');"
+          "if(M){var st='ambiente';"
+          "if(MEL&&!MEL.paused){st=modoReloj?'reloj 142':('audio '+beat.toFixed(2));}"
+          "M.textContent='motor: '+st;}}}"
           "if(!quietM){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}rafM=requestAnimationFrame(latir);}}"
           "function suena(parar){if(parar){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}"
           "volTok++;var tk=volTok;"
@@ -1012,14 +1022,14 @@ def build_dashboard(est, hist):
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div class="wrap{max_cls}">
+<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
 <span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">5:00</b></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
-<button class="tbtn" id="sonido">🔇 Sonido</button></header>
+<button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v17.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v18.</footer>
 </div>
 <script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
