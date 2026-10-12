@@ -175,7 +175,8 @@ t("dec brusco", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "co
 t("dec liq", "iquidez" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", None, "x", None)[1])
 t("dec dia", "NY mueve" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", 2.5, None, None)[1])
 t("dec toque chop", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "rango", False, "", None, None, None)[2] == "nada")
-t("dec toque trend", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "alerta")
+t("dec toque trend", v.decidir_alerta(83900, niv, {"bias": "BAJA", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "alerta")
+t("dec toque contra", v.decidir_alerta(83900, niv, {"bias": "ALZA", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "nada")
 t("dec blackout", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, None, None, "tendencia", True, "FOMC", None, None, None)[2] == "nada")
 t("dec pila", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=3, minute=5), None, None, "tendencia", False, "", None, None, "EYY PILAS test")[1] == "EYY PILAS test")
 t("dec manana", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=8, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "manana")
@@ -496,6 +497,9 @@ t("liq fade corto", "desvanecer hacia 81.000" in v.decidir_alerta(
 t("liq fade largo", "desvanecer hacia 84.000" in v.decidir_alerta(
     82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
     None, None, "tendencia", False, "", None, "barrido bajo mínimos X", None)[1])
+t("liq contra calla", v.decidir_alerta(
+    82500, niv, {"bias": "ALZA", "confianza": 10}, dict(eb), _ah10,
+    None, None, "tendencia", False, "", None, "barrido sobre máximos X", None)[2] == "nada")
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
