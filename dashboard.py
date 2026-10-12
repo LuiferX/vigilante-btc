@@ -926,6 +926,20 @@ def _porque_html(snap):
     return "<ul class='pq'>" + "".join(f"<li>{p}</li>" for p in pts) + "</ul>"
 
 
+def _fam(titulo):
+    try:
+        tl = str(titulo or "").upper()
+        for fam, pats in (("CPI", ("CPI", "IPC")), ("PPI", ("PPI",)),
+                          ("FOMC", ("FOMC", "POWELL", "TASA", "RATE DECISION")),
+                          ("NFP", ("NFP", "NON-FARM", "NOMINAS", "PAYROLL", "EMPLEO")),
+                          ("PIB", ("PIB", "GDP")), ("VENTAS", ("VENTAS", "RETAIL"))):
+            if any(p in tl for p in pats):
+                return fam
+        return "OTRO"
+    except Exception:
+        return "OTRO"
+
+
 def _macro_html(snap, ahora_dt):
     if not isinstance(snap, dict):
         return ""
@@ -963,7 +977,14 @@ def _macro_html(snap, ahora_dt):
         if len(es) > 1:
             tit += f" +{len(es) - 1}"
         full = " · ".join(str(x.get("titulo", "?")) for x in es)
-        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td title='{full}'>{tit}</td>"
+        stu = ""
+        try:
+            st = (snap.get("evstudy", {}) or {}).get(_fam(es[0].get("titulo", ""))) if snap else None
+            if isinstance(st, dict) and st.get("n", 0) >= 3:
+                stu = f" 📊 suele ±{st['avg']}% (n={st['n']})"
+        except Exception:
+            pass
+        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td title='{full}'>{tit}{stu}</td>"
                   f"<td><span class='badge {cls}'>{imp}</span></td><td>{cuad}</td></tr>")
     return (f"<table class='ops'><tr><th>Día/hora</th><th>Evento</th><th>Impacto</th><th>Falta</th></tr>"
             f"{filas}</table><p class='mini'>±30 min de eventos High: sin señales (blackout).</p>")
