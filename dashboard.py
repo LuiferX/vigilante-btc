@@ -160,6 +160,7 @@ body[data-bias="BAJA"]::after{background:radial-gradient(circle,#2b0808 0%,trans
 92%{transform:translate(3px,-2px)}94%{transform:translate(-2px,-1px)}96%{transform:translate(2px,1px)}}
 .wrap.alerta-max{animation:temblor 3.5s infinite}
 #fondo{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
+#latido{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent}
 .wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 header h1{font-size:21px;margin:0}
@@ -484,12 +485,42 @@ UI_JS = ("<script>(function(){"
           "try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}"
           "if(AC.state==='suspended'){AC.resume();}"
           "seq.forEach(function(f,i){tono(f,i*0.14,0.4);});}"
+          "var MEL=null,AC2=null,AN=null,AD=null,beat=0,rafM=0;"
+          "var quietM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;"
+          "function melodia(){if(MEL)return MEL;"
+          "try{var a=new Audio('melodia.mp4');a.loop=true;a.preload='auto';a.volume=0;MEL=a;"
+          "MEL.addEventListener('playing',function(){window.__musica=true;});"
+          "MEL.addEventListener('pause',function(){window.__musica=false;});"
+          "MEL.addEventListener('error',function(){window.__musica=false;motif();});"
+          "return MEL;}"
+          "catch(e){return null;}}"
+          "function audioGraph(){try{if(!AC2)AC2=new (window.AudioContext||window.webkitAudioContext)();"
+          "if(!AN){var src=AC2.createMediaElementSource(MEL);AN=AC2.createAnalyser();AN.fftSize=256;"
+          "AN.smoothingTimeConstant=0.75;AD=new Uint8Array(AN.frequencyBinCount);"
+          "src.connect(AN);AN.connect(AC2.destination);}"
+          "if(AC2.state==='suspended'){AC2.resume();}}catch(e){}}"
+          "function subirVol(){try{if(MEL&&MEL.volume<0.35){MEL.volume=Math.min(0.35,MEL.volume+0.05);"
+          "setTimeout(subirVol,150);}}catch(e){}}"
+          "function latir(){var L=document.getElementById('latido');"
+          "if(AN&&AD&&L){try{AN.getByteFrequencyData(AD);var s=0;for(var i=1;i<10;i++)s+=AD[i];"
+          "s=s/9/255;beat=Math.max(s,beat*0.9);}catch(e){}"
+          "var b=document.body.dataset.bias||'';"
+          "var c=b==='ALZA'?'34,197,94':(b==='BAJA'?'239,68,68':'56,189,248');"
+          "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.05+beat*0.22).toFixed(3)+'),transparent 62%)';}"
+          "if(on&&!quietM){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}rafM=requestAnimationFrame(latir);}}"
+          "function suena(parar){if(parar){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}beat=0;"
+          "var L=document.getElementById('latido');if(L)L.style.background='transparent';"
+          "try{if(MEL)MEL.pause();}catch(e){}return;}"
+          "var m=melodia();if(!m){motif();return;}"
+          "audioGraph();"
+          "try{m.currentTime=0;m.volume=0;var p=m.play();if(p&&p.catch)p.catch(function(){});}catch(e){}"
+          "subirVol();if(!quietM){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}rafM=requestAnimationFrame(latir);}else{latir();}}"
           "var on=false;try{on=localStorage.getItem('vig_sound')==='1';}catch(e){}"
           "var snd=document.getElementById('sonido');"
           "function paint(){if(snd)snd.textContent=on?'\\u{1F50A} Sonido':'\\u{1F507} Sonido';}"
-          "paint();if(on){try{motif();}catch(e){}}"
+          "paint();if(on){try{suena(false);}catch(e){}}"
           "if(snd){snd.addEventListener('click',function(){on=!on;"
-          "try{localStorage.setItem('vig_sound',on?'1':'0');}catch(e){}paint();if(on)motif();});}"
+          "try{localStorage.setItem('vig_sound',on?'1':'0');}catch(e){}paint();suena(!on);});}"
           "})();</script>")
 
 
@@ -952,18 +983,19 @@ def build_dashboard(est, hist):
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div class="wrap{max_cls}">
+<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
 <span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">5:00</b></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v13.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v14.</footer>
 </div>
-<script>var RL=300;setInterval(function(){{var m=Math.floor(RL/60),s=RL%60;
-var el=document.getElementById('recarga');
-if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}},1000);</script>
+<script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
+if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
+else{{var m=Math.floor(RL/60),s=RL%60;
+if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}}}},1000);</script>
 {CD_JS}
 {UI_JS}
 {TF_JS}
