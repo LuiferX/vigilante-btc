@@ -2248,6 +2248,9 @@ def main():
             "evs": [{"titulo": e["titulo"], "cuando": e["cuando"].isoformat(), "impact": e["impact"]} for e in evs[:5]],
             "pres": pres,
             "smart": ({"inst": sm["inst"], "ret": sm["ret"], "veredicto": sm["veredicto"]} if sm else None),
+            "bal": ({"nb": bal.get("nb", 0), "ns": bal.get("ns", 0), "buys": bal.get("buys", 0),
+                     "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
+                    if isinstance(bal, dict) else None),
         }
         guardar_estado(est, hist)
         forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
