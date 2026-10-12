@@ -36,6 +36,9 @@
 ## 4. Qué evalúa en cada pasada (orden real)
 
 1. Velas 1H/4H/1D/1S → tendencia, RSI, MACD, ADX/régimen, ATR, compresión.
+   Modelos: Efficiency Ratio (>0.5 tendencia real, <0.25 chop — medido p90 0.44 en 1000 velas),
+   z-score ±2σ (estiramiento: consejo, no señal — revierte 30% vs continúa 22%), ritmo 30 min,
+   Hurst descartado en ventana corta (sesgo probado, no se publica humo).
 2. Niveles (soportes/resistencias: mínimos/máximos 14v + pivotes) y zonas PILAS (semanales, diarias, psicológicos, imanes).
 3. Dirección + confianza, score A/B/C, veto premium/DXY, blackout ±30 min de eventos High.
 4. Sentimiento: funding, taker, miedo/codicia 0–100, smart money (instituciones vs minoristas), ballenas, CVD/divergencias, long/short, mapa de liquidez.
