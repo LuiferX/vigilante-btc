@@ -403,6 +403,15 @@ t("snap voy", "LONG" in scmd("/voy")[0])
 t("snap diario", "Diario" in scmd("/diario")[0])
 t("snap papel", "Papel" in scmd("/papel")[0])
 t("snap otro", "Comandos" in scmd("/otro")[0])
+t("simula crea", v.responder_comando(
+    {"chat": 111, "texto": "/simula", "full": "/simula LONG 83000", "nombre": "T"}, CSNAP)[0].startswith("🔬 Simulada"))
+t("simula estado", "Simulador:" in v.responder_comando(
+    {"chat": 111, "texto": "/simula", "full": "/simula", "nombre": "T"}, CSNAP)[0])
+t("simula mala", v.responder_comando(
+    {"chat": 111, "texto": "/simula", "full": "/simula ARRIBA 1", "nombre": "T"}, CSNAP)[0].startswith("Uso:"))
+t("simula tope", v.responder_comando(
+    {"chat": 111, "texto": "/simula", "full": "/simula LONG 83000", "nombre": "T"},
+    dict(CSNAP, est=dict(CSNAP["est"], sim_abiertas=[{"dir": "LONG", "entrada": 1, "stop": 2, "tp": 3}] * 5)))[0].startswith("Tienes 5"))
 
 # ---------- dashboard QA (constructores) ----------
 _ah = datetime.datetime.now(datetime.timezone.utc)
