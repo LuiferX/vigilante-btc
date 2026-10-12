@@ -2109,7 +2109,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
             est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
-    if rup and enfriar(est, "ruptura:" + rup, 12, ahora):
+    if rup and enfriar(est, "ruptura:" + rup.replace("BAJISTA", "").replace("ALCISTA", "").replace("bajo ", "").replace("sobre ", ""), 12, ahora):
         return True, rup, "alerta"
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
