@@ -37,3 +37,9 @@
 - ADX4H: 52% tendencia / 36% chop
 - Compresión NO adelanta expansión en 8h (0.61% vs 1.40% normal) → se reporta como "quieto"
 - Veredicto: parámetros se mantienen; recalibración por datos en vivo (auto-calibración)
+
+## 🏋️ Entrenamiento 2 (12/10, replay 8 meses, 832 pasos, funciones propias)
+- Ritmo sweep: 0.4%→32.6% / 0.5%→29.5% / 0.6%→26.6% / 0.8%→28.0% → se queda 0.6 (menos ruido, igual filo)
+- PILAS reacciona ≥0.3%/4h: psicológico 60% · S1 54% · R1 52% · NY 65% > Londres 63% > noche 61% > Asia 51%
+- Castigo aplicado: LIQ/TOQUE solo a favor del sesgo (28→39% y 30→41%, sobre break-even 33%)
+- Semilla de calibración medida en `SEMILLA_SESION` (los datos vivos la pisan al llegar)
