@@ -515,17 +515,21 @@ UI_JS = ("<script>(function(){"
           "if(AN&&AD&&L){try{AN.getByteFrequencyData(AD);var s=0;for(var i=0;i<8;i++)s+=AD[i];"
           "s=s/8/255;"
           "if(s<0.004){relojes++;if(relojes>90)modoReloj=true;}else{relojes=0;modoReloj=false;}"
-          "var sub=s-beat;beat=Math.max(s,beat*0.9);"
-          "if(!modoReloj){if(sub>0.05&&beat>0.15){fl=1;}else{fl=Math.max(0,fl-0.07);}window.__flash=fl;}"
+          "beat=Math.max(s,beat*0.9);"
+          "var slow=window.__slow||0;slow+=(s-slow)*0.06;window.__slow=slow;"
+          "if(!modoReloj){var ultimo=window.__bum||-99999;"
+          "if(s>slow*1.3&&s>0.08&&(t-ultimo)>220){fl=1;window.__bum=t;}"
+          "else{fl=Math.max(0,fl-0.10);}window.__flash=fl;}"
           "}catch(e){}}"
           "if((modoReloj||!AN)&&L){var ph=((t/1000)*142/60)%1;"
           "beat=Math.max(0,1-ph*2.5);"
           "if(ph<0.12){fl=1;}else{fl=Math.max(0,fl-0.12);}window.__flash=fl;}"
-          "if(L){var b=document.body.dataset.bias||'';"
+          "if(L){var br=0.5+0.5*Math.sin(t/1400);"
+          "var b=document.body.dataset.bias||'';"
           "var c=b==='ALZA'?'34,197,94':(b==='BAJA'?'239,68,68':'56,189,248');"
-          "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.06+beat*0.25+fl*0.40).toFixed(3)+'),transparent 62%)';"
-          "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4).toFixed(2)+')';}"
-          "if(on&&!quietM){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}rafM=requestAnimationFrame(latir);}}"
+          "L.style.background='radial-gradient(circle at 50% 42%,rgba('+c+','+(0.06+beat*0.25+fl*0.40+br*0.03).toFixed(3)+'),transparent 62%)';"
+          "if(cv)cv.style.filter='brightness('+(1+beat*0.8+fl*1.4+br*0.06).toFixed(2)+')';}"
+          "if(!quietM){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}rafM=requestAnimationFrame(latir);}}"
           "function suena(parar){if(parar){try{if(rafM)cancelAnimationFrame(rafM);}catch(e){}"
           "volTok++;var tk=volTok;"
           "bajarVol(tk,function(){beat=0;window.__flash=0;"
@@ -541,6 +545,7 @@ UI_JS = ("<script>(function(){"
           "var snd=document.getElementById('sonido');"
           "function paint(){if(snd)snd.textContent=on?'\\u{1F50A} Sonido':'\\u{1F507} Sonido';}"
           "paint();if(on){try{suena(false);}catch(e){}}"
+          "if(!quietM){try{rafM=requestAnimationFrame(latir);}catch(e){}}"
           "if(snd){snd.addEventListener('click',function(){on=!on;"
           "try{localStorage.setItem('vig_sound',on?'1':'0');}catch(e){}paint();suena(!on);});}"
           "})();</script>")
@@ -1012,7 +1017,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v16.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v17.</footer>
 </div>
 <script>var RL=300;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=300;}}
