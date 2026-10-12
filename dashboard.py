@@ -169,6 +169,16 @@ table.ops td{padding:4px 6px;border-bottom:1px solid #1e293b;font-variant-numeri
 .win{color:#4ade80;font-weight:700}.loss{color:#fca5a5;font-weight:700}
 .tagLONG{color:#4ade80;font-weight:700}.tagSHORT{color:#fca5a5;font-weight:700}
 .mini{font-size:12px;color:var(--mut)}
+.gwrap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.gauge{width:150px;flex:none}
+.gauge .track{stroke:#1e293b}
+.gauge .fill{stroke-linecap:round;transition:stroke-dashoffset 1.2s ease}
+.gnum{font-size:26px;font-weight:800;fill:#fff}
+.glab{font-size:10px;fill:var(--mut)}
+.clock{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.nyon{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}
+.nyon.on{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
+.nyon.off{background:#1e293b;color:#cbd5e1;border:1px solid var(--line)}
 """
 
 
@@ -310,6 +320,83 @@ def _ops_html(est, ahora):
     return (f"<div class='card'><h2>Operaciones papel 🤖</h2>{stats}{ab}{ce}{pe}{jo}</div>")
 
 
+CD_JS = ("<script>(function(){var el=document.getElementById('cd');"
+          "if(!el||!el.dataset||!el.dataset.next)return;"
+          "var t=new Date(el.dataset.next).getTime();"
+          "function tk(){var d=t-Date.now();if(d<0){el.textContent='¡ahora!';return;}"
+          "var h=Math.floor(d/36e5),m=Math.floor(d%36e5/6e4),s=Math.floor(d%6e4/1e3);"
+          "el.textContent=h+'h '+m+'m '+s+'s';}"
+          "tk();setInterval(tk,1000);})();</script>")
+
+
+def _gauge_reloj_html(est, hist, ahora_dt):
+    try:
+        snap = est.get("snapshot") or {}
+        fg = snap.get("fg") or {}
+        v = _num(fg.get("valor"), None) if fg.get("valor") is not None else None
+    except Exception:
+        v, fg = None, {}
+    if not isinstance(v, (int, float)):
+        # respaldo: ultimo fg del historial
+        v = None
+        for h in reversed(hist or []):
+            try:
+                fv = float((h or {}).get("fg"))
+                v = fv
+                break
+            except Exception:
+                continue
+    if not isinstance(v, (int, float)):
+        return ""
+    v = max(0, min(100, v))
+    et = (fg or {}).get("etiqueta", "")
+    col = "#ef4444" if v < 25 else ("#f59e0b" if v < 45 else ("#facc15" if v < 55 else ("#4ade80" if v < 75 else "#22c55e")))
+    L = 188.5
+    off = L * (1 - v / 100)
+    gauge = (
+        f"<svg class='gauge' viewBox='0 0 150 95'>"
+        f"<path d='M15 80 A60 60 0 0 1 135 80' fill='none' class='track' stroke-width='12'/>"
+        f"<path d='M15 80 A60 60 0 0 1 135 80' fill='none' stroke='{col}' stroke-width='12' "
+        f"stroke-dasharray='{L:.1f}' stroke-dashoffset='{L:.1f}' class='fill'>"
+        f"<animate attributeName='stroke-dashoffset' from='{L:.1f}' to='{off:.1f}' dur='1.2s' fill='freeze'/>"
+        f"<title>{v:g} — {et}</title></path>"
+        f"<text x='75' y='68' text-anchor='middle' class='gnum'>{v:g}</text>"
+        f"<text x='75' y='84' text-anchor='middle' class='glab'>{et}</text></svg>")
+    fgh = []
+    try:
+        for h in (hist or [])[-30:]:
+            fv = (h or {}).get("fg")
+            if isinstance(fv, (int, float)):
+                fgh.append(fv)
+    except Exception:
+        fgh = []
+    spark = svg_linea(fgh, color="#f59e0b") if len(fgh) >= 2 else ""
+    evs = [(2, "🌙 noche"), (7, "🌅 madrugada"), (8, "☀️ mañana"), (13, "🗽 pre-NY"), (20, "🏁 cierre NY")]
+    hnow = ahora_dt.hour + ahora_dt.minute / 60
+    ny_on = 13 <= ahora_dt.hour < 20
+    nxt = None
+    for hh, lbl in evs:
+        if hnow < hh:
+            nxt = (hh, lbl)
+            break
+    if nxt is None:
+        nxt = (evs[0][0] + 24, evs[0][1])
+    nh, nlbl = nxt
+    base = ahora_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    tnext = base + datetime.timedelta(hours=nh)
+    dh = (tnext - ahora_dt).total_seconds() / 3600
+    bog = ahora_dt - datetime.timedelta(hours=5)
+    estado_ny = ("<span class='nyon on'><span class='dot'></span>NY ACTIVA</span>" if ny_on
+                 else "<span class='nyon off'>NY cerrada</span>")
+    return (
+        f"<div class='card'><h2>Miedo y sesión 🕰️</h2><div class='gwrap'>{gauge}"
+        f"<div><div class='clock'>{bog.strftime('%H:%M')} <small style='font-size:12px;color:#94a3b8'>Bogotá</small></div>"
+        f"<div class='sub'>UTC {ahora_dt.strftime('%H:%M')} · {estado_ny}</div>"
+        f"<p class='mini'>Siguiente: <b style='color:#e2e8f0'>{nlbl}</b> en "
+        f"<b id='cd' data-next='{tnext.isoformat()}'>~{int(dh)}h {int((dh % 1) * 60)}min</b></p></div></div>"
+        f"{spark}</div>")
+
+
 def build_dashboard(est, hist):
     if not isinstance(est, dict):
         est = {}
@@ -348,6 +435,7 @@ def build_dashboard(est, hist):
     n_alertas = len(marcas)
     ctx = _contexto_html(est.get("snapshot"))
     ops = _ops_html(est, ahora_dt)
+    reloj = _gauge_reloj_html(est, ult, ahora_dt)
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -363,6 +451,7 @@ def build_dashboard(est, hist):
 <div class="card"><h2>Precio (últimas {len(px)}) + alertas 🔴</h2>{svg_linea(px, marcas=marcas)}</div>
 <div class="card"><h2>Confianza (escala 0–100)</h2>{svg_barras(cf, [str(i) for i in range(len(cf))])}
 <p>Verde ≥55 (fuerte) · ámbar ≥40 · gris debajo. Líneas: 45 registra / 55 fuerte.</p></div>
+{reloj}
 {ctx}
 {ops}
 <div class="card"><h2>Banco papel</h2><div class="big" style="font-size:22px">{eq_txt}</div>{svg_linea(eq, color="#22c55e")}</div>
@@ -370,9 +459,10 @@ def build_dashboard(est, hist):
 <p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p></div>
 <div class="card"><h2>Actividad</h2><p>{len(hist)} pasadas guardadas · run {est.get("runs", "?")}</p>
 <p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p></div>
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v4.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v5.</footer>
 </div>
 <script>setTimeout(function(){{location.reload()}},300000);</script>
+{CD_JS}
 </body></html>"""
 
 
