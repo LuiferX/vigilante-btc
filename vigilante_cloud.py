@@ -791,6 +791,10 @@ def responder_comando(cmd, ctx):
         cal = calibrar(est)
         if cal:
             base += "\nCalib: " + ", ".join(f"{s}x{f}" for s, f in sorted(cal.items())) + "."
+        tc = tabla_calibracion(est.get("eval_log", []))
+        if tc:
+            cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
+            base += f"\nConciencia: cuando digo 40s/50s/60+ acierto {cub} · Brier {tc['brier']} (0 perfecto) · n={tc['n']}."
         return (base, False)
     if c == "/manos":
         sm = ctx.get("smart")
@@ -1803,6 +1807,27 @@ def prec_str(lista):
     return f"{round(ok / len(lista) * 100)}% ({ok}/{len(lista)})"
 
 
+def tabla_calibracion(eval_log):
+    """Mini-conciencia: por cubeta de confianza, ¿cuánto acierto?
+    + Brier (0 perfecto, 0.25 inútil). None si <5 evaluadas."""
+    try:
+        log = [e for e in (eval_log or []) if isinstance(e, dict)]
+        if len(log) < 5:
+            return None
+        brier = sum(((float(e.get("conf", 50)) / 100) - float(e.get("r", 0))) ** 2
+                    for e in log) / len(log)
+        cubs = {}
+        for e in log:
+            c = float(e.get("conf", 50))
+            k = "40s" if c < 50 else ("50s" if c < 60 else "60+")
+            a, b = cubs.get(k, [0, 0])
+            cubs[k] = [a + 1, b + float(e.get("r", 0))]
+        return {"n": len(log), "brier": round(brier, 3),
+                "cubetas": {k: (n, round(100 * w / n)) for k, (n, w) in sorted(cubs.items())}}
+    except Exception:
+        return None
+
+
 def evaluar_mfe(est, ahora, velas=None):
     """Evalua pendientes vencidas (>=8h) por MFE/MAE sobre velas 1H:
     exito si el objetivo 2R se toca antes que el stop 1R.
@@ -1873,7 +1898,7 @@ def evaluar_mfe(est, ahora, velas=None):
             est["baja"] = (est.get("baja", []) + [hit])[-50:]
         log = est.get("eval_log", [])
         log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
-                    "mfe": round(mfe, 4), "mae": round(mae, 4)})
+                    "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4)})
         est["eval_log"] = log[-200:]
     est["pendientes"] = nuevas[-100:]
 
@@ -2494,6 +2519,16 @@ def main():
         if dcvd and dcvd != est.get("divcvd"):
             memoria.append("divergencia CVD " + dcvd)
         est["divcvd"] = dcvd
+        if tipo == "noche":
+            hy = [h for h in hist if isinstance(h, dict) and str(h.get("t", ""))[:10] == hoy]
+            na = sum(1 for h in hy if h.get("tipo") == "alerta")
+            pdh = est.get("paper_dia") or {}
+            tc0 = tabla_calibracion(est.get("eval_log", []))
+            cal0 = (f"mi tino: {tc0['n']} evaluadas, Brier {tc0['brier']}" if tc0
+                    else "aún sin evaluadas: aprendo en silencio")
+            memoria.append(f"auto-revisión: hoy {len(hy)} pasadas y {na} alertas; "
+                           f"papel del día {pdh.get('pnl', 0):+.0f} USDT; {cal0}; "
+                           f"{len(est.get('pendientes', []))} señales en seguimiento")
         lf = None
         for h in reversed(hist[:-1]):
             if h.get("fund") is not None:
