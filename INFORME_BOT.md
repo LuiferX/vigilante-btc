@@ -72,7 +72,7 @@ próximos eventos con escenarios) + `PLAN` (gatillo = cierre 1H, stop, objetivo 
 
 **Comandos (2 vías, responde el oyente):**
 `/precio /direccion /niveles /miedo /noticias /eventos /precision /manos /alerta /alertas /borrar`
-`/opere /voy /diario /cerrar /calidad /detalle /papel` (+ `/pausa` según hoja de ruta).
+`/opere /voy /diario /cerrar /calidad /detalle /papel /simula` (+ `/pausa` según hoja de ruta).
 
 **Lo que NUNCA hace:** operar, pedir claves, prometer ganancias, avisar sin cambio real.
 
