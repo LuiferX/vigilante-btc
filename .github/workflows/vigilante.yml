@@ -38,6 +38,7 @@ jobs:
           python dashboard.py || echo "dashboard.py fallo, se publica aviso"
           ls -la docs/ || echo "sin docs"
           cp docs/index.html /tmp/dash_index.html 2>/dev/null || echo "sin dashboard para publicar"
+          cp assets/melodia.mp4 /tmp/dash_melodia.mp4 2>/dev/null || echo "sin melodia"
 
       - name: Guardar estado e historial (rama estado, se reescribe limpio)
         run: |
@@ -59,7 +60,8 @@ jobs:
           git checkout --orphan dash_tmp
           git rm -rf . > /dev/null 2>&1 || true
           cp /tmp/dash_index.html ./index.html
-          git add index.html
+          cp /tmp/dash_melodia.mp4 ./melodia.mp4 2>/dev/null || true
+          git add index.html melodia.mp4 2>/dev/null || git add index.html
           git commit -m "dashboard $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
           git push --force origin dash_tmp:dashboard
           git checkout -f ${GITHUB_REF_NAME}
