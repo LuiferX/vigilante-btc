@@ -516,6 +516,16 @@ def _ops_html(est, ahora):
         jo = f"<p class='mini'>Mi diario ({len(journal)})</p><div class='kv'>{lj}</div>"
     else:
         jo = "<p class='mini'>Mi diario: vacío — registra con /opere en Telegram.</p>"
+    sims = [o for o in (est.get("sim_abiertas", []) or []) if isinstance(o, dict)]
+    simc = [o for o in (est.get("sim_cerradas", []) or []) if isinstance(o, dict)]
+    if sims or simc:
+        ls = "".join(
+            f"<span class='chip'><b>{o.get('dir', '?')}</b> {miles(o.get('entrada'))} "
+            f"SL {miles(o.get('stop'))}</span>" for o in sims[-4:])
+        w = sum(1 for x in simc if _num(x.get("r")) > 0)
+        jo += (f"<p class='mini'>🔬 Simuladas: {len(sims)} abiertas, {len(simc)} cerradas ({w} ganadas)</p>"
+               f"<div class='kv'>{ls}</div>" if ls else
+               f"<p class='mini'>🔬 Simuladas: {len(simc)} cerradas ({w} ganadas)</p>")
     return (f"{stats}{ab}{ce}{pe}{jo}")
 
 
