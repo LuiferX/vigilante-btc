@@ -30,6 +30,7 @@
 - **Coinbase** (spot + libro): premium USA = demanda institucional.
 - **Deribit**: strikes con más Open Interest = imanes de precio + put/call.
 - **Noticias RSS** (7 medios: Cointelegraph, Cryptoslate, Decrypt, Bitcoin Magazine, Bitcoinist, Watcher.Guru, TheBlock): presión −100…+100.
+- **Dominancia** (CoinGecko global, gratis): % BTC/ETH + temporada.
 - **Macro** (ForexFactory): eventos High/Medium con cuenta atrás.
 - **Yahoo**: DXY, SPX, oro.
 
