@@ -705,7 +705,13 @@ VIVO_JS = ("<script>(function(){"
           "el.textContent=fmt(p);"
           "if(ant>0){el.className=p>ant?'sub':(p<ant?'baj':'');}"
           "ant=p;}).catch(function(){});}"
-          "tic();setInterval(tic,10000);})();</script>")
+          "tic();setInterval(tic,10000);"
+          "var ed=document.getElementById('edad');"
+          "if(ed&&ed.dataset&&ed.dataset.t){var t0=new Date(ed.dataset.t).getTime();"
+          "function ve(){var s=Math.max(0,Math.floor((Date.now()-t0)/1000));"
+          "var m=Math.floor(s/60);ed.textContent=m>0?(m+' min '+('0'+(s%60)).slice(-2)+' s'):(s+' s');}"
+          "ve();setInterval(ve,1000);}"
+          "})();</script>")
 
 FONDO_JS = ("<script>(function(){"
           "var cv=document.getElementById('fondo');if(!cv||!cv.getContext)return;"
@@ -951,6 +957,7 @@ def build_dashboard(est, hist):
         hist = []
     ahora_dt = datetime.datetime.now(datetime.timezone.utc)
     ahora = ahora_dt.strftime("%d/%m %H:%M UTC")
+    ahora_iso = ahora_dt.isoformat()
     ult = [h for h in hist[-30:] if isinstance(h, dict)]
     px = [_num(h.get("precio")) for h in ult]
     cf = [h.get("conf", 0) for h in ult]
@@ -1047,12 +1054,13 @@ def build_dashboard(est, hist):
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
 <span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">2:00</b></span>
+<span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{ahora_iso}">…</b></span>
 <span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v24.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v25.</footer>
 </div>
 <script>var RL=120;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
