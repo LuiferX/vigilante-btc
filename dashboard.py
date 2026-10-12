@@ -140,6 +140,13 @@ background:radial-gradient(circle,#0b1e3a 0%,transparent 70%);opacity:.5;animati
 body::after{width:40vw;height:40vw;right:-10vw;bottom:-12vw;
 background:radial-gradient(circle,#1c1033 0%,transparent 70%);opacity:.45;animation:deriva 32s ease-in-out infinite alternate-reverse}
 @keyframes deriva{from{transform:translate(0,0) scale(1)}to{transform:translate(6vw,4vh) scale(1.15)}}
+body[data-bias="ALZA"]::before{background:radial-gradient(circle,#052e16 0%,transparent 70%)}
+body[data-bias="ALZA"]::after{background:radial-gradient(circle,#0a2e1a 0%,transparent 70%)}
+body[data-bias="BAJA"]::before{background:radial-gradient(circle,#3d0d0d 0%,transparent 70%)}
+body[data-bias="BAJA"]::after{background:radial-gradient(circle,#2b0808 0%,transparent 70%)}
+@keyframes temblor{0%,88%,100%{transform:translate(0,0)}90%{transform:translate(-3px,2px)}
+92%{transform:translate(3px,-2px)}94%{transform:translate(-2px,-1px)}96%{transform:translate(2px,1px)}}
+.wrap.alerta-max{animation:temblor 3.5s infinite}
 #fondo{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
 .wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -922,20 +929,25 @@ def build_dashboard(est, hist):
     tarjetas.append(_card("act", "Actividad", act_b))
     grid = "".join(tarjetas)
     fpx = ",".join(str(int(v)) for v in px[-30:] if v) or ""
+    snap_g = est.get("snapshot") or {}
+    grade = snap_g.get("grade", "?") if isinstance(snap_g, dict) else "?"
+    max_cls = " alerta-max" if grade == "A" else ""
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="300">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}"><canvas id="fondo"></canvas><div class="wrap">
+<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
-<span class="live"><span class="dot"></span>actualizado {ahora} · se refresca solo</span>
+<span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">5:00</b></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">🔇 Sonido</button></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v11.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v12.</footer>
 </div>
-<script>setTimeout(function(){{location.reload()}},300000);</script>
+<script>var RL=300;setInterval(function(){{var m=Math.floor(RL/60),s=RL%60;
+var el=document.getElementById('recarga');
+if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}},1000);</script>
 {CD_JS}
 {UI_JS}
 {TF_JS}
