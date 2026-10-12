@@ -1476,23 +1476,24 @@ def div_cvd(data=None):
 def mapa_liq(kl, last, funding):
     """Mapa ESTIMADO de liquidaciones: los stops viven tras maximos/minimos
     recientes y numeros redondos. El funding cargado marca el lado jugoso
-    (contrarian: longs recargados -> stops abajo)."""
+    (contrarian: longs recargados -> stops abajo).
+    Devuelve top-5 por lado + imán (lado con más score)."""
     if len(kl) < 30:
         return None
-    rec = kl[-48:]
+    rec = kl[-72:]
     altos, bajos = [], []
-    for i in range(3, len(rec) - 3):
-        if all(rec[i]["h"] >= rec[j]["h"] for j in range(i - 3, i + 4) if j != i):
+    for i in range(5, len(rec) - 5):
+        if all(rec[i]["h"] >= rec[j]["h"] for j in range(i - 5, i + 6) if j != i):
             altos.append(rec[i]["h"])
-        if all(rec[i]["l"] <= rec[j]["l"] for j in range(i - 3, i + 4) if j != i):
+        if all(rec[i]["l"] <= rec[j]["l"] for j in range(i - 5, i + 6) if j != i):
             bajos.append(rec[i]["l"])
     cands = []
-    for h in altos[-4:]:
+    for h in altos[-5:]:
         cands.append({"precio": round(h), "origen": "stop sobre máximo"})
-    for l in bajos[-4:]:
+    for l in bajos[-5:]:
         cands.append({"precio": round(l), "origen": "stop bajo mínimo"})
     base = (int(last // 1000)) * 1000
-    for r in (base - 1000, base, base + 1000, base + 2000):
+    for r in (base - 1000, base, base + 1000):
         if r > 0:
             cands.append({"precio": r, "origen": "redondo"})
     f = funding or 0.0
@@ -1507,11 +1508,16 @@ def mapa_liq(kl, last, funding):
             s += round(25 * mag)
         c["score"] = s
         c["dist"] = round((c["precio"] - last) / last * 100, 2)
-    arriba = sorted([c for c in cands if c["precio"] > last], key=lambda x: -x["score"])[:2]
-    abajo = sorted([c for c in cands if c["precio"] < last], key=lambda x: -x["score"])[:2]
+    arriba = sorted([c for c in cands if c["precio"] > last], key=lambda x: -x["score"])[:5]
+    abajo = sorted([c for c in cands if c["precio"] < last], key=lambda x: -x["score"])[:5]
     if not arriba and not abajo:
         return None
-    return {"arriba": arriba, "abajo": abajo}
+    ta = sum(c["score"] for c in arriba)
+    tb = sum(c["score"] for c in abajo)
+    tot = ta + tb or 1
+    lado = "abajo" if tb >= ta else "arriba"
+    return {"arriba": arriba, "abajo": abajo,
+            "iman": {"lado": lado, "pct": round(100 * (tb if lado == "abajo" else ta) / tot)}}
 
 
 def ballenas(data=None):
@@ -2277,9 +2283,12 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         hubo = True
     lm = extras.get("liqmap")
     if lm and cambio(est, "liqmap", str(lm.get("arriba")) + str(lm.get("abajo")), 0):
-        arrib = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("arriba", []))
-        abaj = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("abajo", []))
+        arrib = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("arriba", [])[:2])
+        abaj = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("abajo", [])[:2])
         L.append(f"🌊 LIQUIDEZ: arriba {arrib or '—'} / abajo {abaj or '—'}")
+        im = lm.get("iman") or {}
+        if im.get("lado"):
+            L.append(f"   → imán de stops: {im['lado'].upper()} ({im.get('pct', '?')}%)")
         hubo = True
     pc = extras.get("poc")
     if isinstance(pc, dict) and cambio(est, "poc", pc.get("poc", 0), 50):
@@ -2678,6 +2687,9 @@ def main():
                     if isinstance(bal, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
             "dom": dom if isinstance(dom, dict) else None,
+            "liqmap": ({"arriba": liqmap.get("arriba", [])[:5],
+                        "abajo": liqmap.get("abajo", [])[:5],
+                        "iman": liqmap.get("iman")} if isinstance(liqmap, dict) else None),
             "evstudy": {f: {"avg": round(sum(a) / len(a), 2), "n": len(a)}
                         for f, a in ((est.get("ev_study", {}) or {}).items()) if a},
         }
