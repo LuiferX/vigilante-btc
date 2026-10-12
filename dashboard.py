@@ -165,6 +165,9 @@ body[data-bias="LATERAL"]::after{background:radial-gradient(circle,#141519 0%,tr
 #latido{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent}
 #destello{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0}
 #motor{font-size:11px;color:#64748b}
+.saludo{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.flash{border-color:#ef444488!important;animation:flashB 1.8s ease-in-out infinite}
+@keyframes flashB{0%,100%{box-shadow:0 10px 30px #0006,0 0 8px #ef444433}50%{box-shadow:0 10px 30px #0006,0 0 28px #ef444488}}
 #pvivo{font-variant-numeric:tabular-nums;transition:color .3s ease}
 #pvivo.sub{color:#4ade80}#pvivo.baj{color:#fca5a5}
 .wrap{max-width:1120px;margin:0 auto;position:relative;z-index:1}
@@ -697,12 +700,16 @@ TF_JS = ("<script>(function(){"          "var boxes=document.querySelectorAll('s
 
 VIVO_JS = ("<script>(function(){"
           "var el=document.getElementById('pvivo');if(!el)return;"
-          "var ant=0;"
+          "var ant=0,cur=0,tmr=0;"
           "function fmt(x){try{return Number(x).toLocaleString('de-DE',{maximumFractionDigits:0});}catch(e){return x;}}"
           "function tic(){fetch('https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT')"
           ".then(function(r){if(!r.ok)throw 0;return r.json();})"
           ".then(function(j){var p=parseFloat(j.price);if(!(p>0))throw 0;"
-          "el.textContent=fmt(p);"
+          "if(tmr)clearInterval(tmr);"
+          "if(cur>0&&cur!==p){var d=p-cur,k=0;tmr=setInterval(function(){k++;cur=cur+d/8;"
+          "el.textContent=fmt(Math.round(cur));"
+          "if(k>=8){cur=p;el.textContent=fmt(p);clearInterval(tmr);tmr=0;}},60);}"
+          "else{cur=p;el.textContent=fmt(p);}"
           "if(ant>0){el.className=p>ant?'sub':(p<ant?'baj':'');}"
           "ant=p;}).catch(function(){});}"
           "tic();setInterval(tic,10000);"
@@ -950,6 +957,50 @@ def _duelo_html(snap):
         f"🐂 = taker buy/sell (misma fórmula del bot). Gana por ≥15.</p>")
 
 
+def _saludo(ahora_dt):
+    try:
+        hb = (ahora_dt - datetime.timedelta(hours=5)).hour
+    except Exception:
+        return ""
+    if 5 <= hb < 12:
+        return "☀️ Buenos días"
+    if 12 <= hb < 19:
+        return "🌤️ Buenas tardes"
+    if 19 <= hb or hb < 0:
+        return "🌙 Buenas noches"
+    return "🌌 De madrugada"
+
+
+def _banner_html(est, hist, ahora_dt):
+    ult = est.get("ultima_alerta") if isinstance(est.get("ultima_alerta"), dict) else None
+    if not ult:
+        for h in reversed(hist or []):
+            if isinstance(h, dict) and h.get("tipo") == "alerta":
+                ult = {"t": h.get("t", ""), "motivo": h.get("motivo", "alerta"),
+                       "precio": h.get("precio", 0), "bias": h.get("bias", "?"),
+                       "conf": h.get("conf", "?")}
+                break
+    if not ult:
+        return ""
+    try:
+        t0 = datetime.datetime.fromisoformat(ult.get("t", ""))
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=datetime.timezone.utc)
+        mins = (ahora_dt - t0).total_seconds() / 60
+    except Exception:
+        return ""
+    if not (0 <= mins < 45):
+        return ""
+    hace = f"hace {int(mins)} min" if mins >= 1 else "ahora mismo"
+    b = str(ult.get("bias", "?")).upper()
+    cls = "alza" if b == "ALZA" else ("baja" if b == "BAJA" else "lateral")
+    return (f"<div class='card flash' id='c-ultima'><div class='cbody'><div class='cinner'>"
+            f"🚨 <b>Última alerta</b> · {hace} · "
+            f"<span class='badge {cls}'>{b} {ult.get('conf', '?')}%</span> "
+            f"{miles(ult.get('precio'))} — {ult.get('motivo', '')[:140]}"
+            f"</div></div></div>")
+
+
 def build_dashboard(est, hist):
     if not isinstance(est, dict):
         est = {}
@@ -1018,10 +1069,14 @@ def build_dashboard(est, hist):
               f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>")
     act_b = (f"<p>{len(hist)} pasadas guardadas · run {est.get('runs', '?')}</p>"
              f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>")
-    tarjetas = [_card("hero", "Precio y sesgo", hero),
-                _card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva),
-                _card("alertas", "Alertas 🔔", _alertas_html(ult)),
-                _card("conf", "Confianza (escala 0–100)", confb)]
+    ban = _banner_html(est, ult, ahora_dt)
+    tarjetas = []
+    if ban:
+        tarjetas.append(ban)
+    tarjetas.append(_card("hero", "Precio y sesgo", hero))
+    tarjetas.append(_card("curva", f"Precio (últimas {len(px)}) + alertas 🔴", curva))
+    tarjetas.append(_card("alertas", "Alertas 🔔", _alertas_html(ult)))
+    tarjetas.append(_card("conf", "Confianza (escala 0–100)", confb))
     tfs = _tfs_html(est.get("snapshot"))
     if tfs:
         tarjetas.append(_card("tfs", "Temporalidades 📊", tfs))
@@ -1047,12 +1102,16 @@ def build_dashboard(est, hist):
     snap_g = est.get("snapshot") or {}
     grade = snap_g.get("grade", "?") if isinstance(snap_g, dict) else "?"
     max_cls = " alerta-max" if grade == "A" else ""
+    hoy = ahora_dt.strftime("%Y-%m-%d")
+    runs_hoy = sum(1 for h in hist if isinstance(h, dict) and str(h.get("t", ""))[:10] == hoy)
+    al_hoy = sum(1 for h in hist if isinstance(h, dict) and h.get("tipo") == "alerta" and str(h.get("t", ""))[:10] == hoy)
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="120">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1>🤖 Vigilante BTC</h1>
+<span class="saludo">{_saludo(ahora_dt)}</span>
 <span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">2:00</b></span>
 <span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{ahora_iso}">…</b></span>
 <span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
@@ -1060,7 +1119,7 @@ def build_dashboard(est, hist):
 <button class="tbtn" id="sonido">🔇 Sonido</button><span id="motor"></span></header>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v25.</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v26. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL=120;setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
