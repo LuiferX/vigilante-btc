@@ -1154,6 +1154,36 @@ def liquidez(kl, last):
     return None
 
 
+def mensaje_pila(zonas, last, sops, ress):
+    """Texto claro de la zona PILAS mas cercana (o (None, None) si esta lejos).
+    Incluye el encajonamiento piso/techo para no confundir (ayer: short bueno
+    entre dos zonas). sops/ress: soportes y resistencias ({precio})."""
+    if not zonas or not last:
+        return None, None
+    try:
+        zp = min(zonas, key=lambda z: abs(z["precio"] - last))
+        dist = abs(zp["precio"] - last) / last
+        if dist > 0.0035:
+            return None, None
+        razones = "+".join(zp.get("razones", [])[:3])
+        debajo = sorted((z["precio"] for z in zonas if z["precio"] < last), reverse=True)
+        encima = sorted(z["precio"] for z in zonas if z["precio"] > last)
+        ctx = ""
+        if debajo and encima:
+            ctx = f" Estás entre 🛡 {fmt_miles(debajo[0])} y 🧲 {fmt_miles(encima[0])}."
+        if zp["precio"] <= last:
+            inv = (sops[0]["precio"] if sops else zp["precio"])
+            return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+                    f"({razones}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
+                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}", str(zp["precio"]))
+        inv = (ress[0]["precio"] if ress else zp["precio"])
+        return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+                f"({razones}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
+                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}", str(zp["precio"]))
+    except Exception:
+        return None, None
+
+
 def zonas_pilas(pw, d1, w1, last, ima):
     """Zonas mayores de largo plazo (semanales, diarias, psicologicos, imanes).
     La paciencia vive aqui: el precio vuelve a estas zonas."""
@@ -1758,8 +1788,8 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
             est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 2, ahora):
         return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
-    if liq and enfriar(est, "liq:" + liq, 4, ahora):
-        return True, "Toma de liquidez: " + liq, "alerta"
+    if liq and enfriar(est, "liq:" + ("max" if "sobre" in liq else "min"), 4, ahora):
+        return True, "Toma de liquidez: " + liq + ". Quien la persigue suele quedar atrapado.", "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
         return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
@@ -2105,22 +2135,10 @@ def main():
         pila = None
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
-            if zonas:
-                zp = min(zonas, key=lambda z: abs(z["precio"] - t["last"]))
-                dist = abs(zp["precio"] - t["last"]) / t["last"]
-                key = str(zp["precio"])
-                if dist <= 0.0035 and est.get("pilas", {}).get(key) != hoy:
-                    es_piso = zp["precio"] <= t["last"]
-                    inv = niv["soportes"][0]["precio"] if es_piso else niv["resistencias"][0]["precio"]
-                    if es_piso:
-                        pila = (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
-                                f"({'+'.join(zp['razones'][:3])}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
-                                f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}")
-                    else:
-                        pila = (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
-                                f"({'+'.join(zp['razones'][:3])}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
-                                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}")
-                    est.setdefault("pilas", {})[key] = hoy
+            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"])
+            if texto and est.get("pilas", {}).get(key) != hoy:
+                pila = texto
+                est.setdefault("pilas", {})[key] = hoy
         except Exception:
             pila = None
         forzado = None
