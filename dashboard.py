@@ -228,6 +228,8 @@ transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;cursor:d
 .chead:hover .ctit{color:#fff}
 .chead:hover .chev{color:#fff;transform:scale(1.25)}
 table.ops tr:hover td{background:#ffffff0d}
+.tscroll{max-height:264px;overflow-y:auto;border-radius:8px}
+.tscroll thead th{position:sticky;top:0;background:#0c0c0e;z-index:1}
 footer{color:#64748b;font-size:12px;margin:14px 2px}
 @media(max-width:480px){.big{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
@@ -789,8 +791,8 @@ def _alertas_html(hist):
         filas += (f"<tr><td>{ft}</td><td><span class='badge {cls}'>{b}</span></td>"
                   f"<td>{miles(h.get('precio'))}</td><td>{h.get('conf', '?')}%</td>"
                   f"<td title='{mot}'>{corto}</td></tr>")
-    return (f"<table class='ops'><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr>"
-            f"{filas}</table><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>"
+    return (f"<div class='tscroll'><table class='ops'><thead><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr></thead>"
+            f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>"
             f"<p class='mini'>🧱 TECHO = estás debajo, puede devolver abajo · "
             f"🛡 PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
 
