@@ -49,3 +49,9 @@
 - DIR 34.2% EV +0.03R · LIQ 26.8%→33.3% confluencia · TOQUE 33.2%→40.0% (EV +0.20R) · zonas reaccionan 55–65%
 - Sesiones INESTABLES entre periodos (Londres 52.8→32.8, Asia 36.8→40.5) → semilla NEUTRA 1.0;
   solo los datos vivos (10+ evals) podrán sesgar. No sobreajustar es también entrenar.
+## 🏋️ Entrenamiento 4 (12/10, walk-forward 4 años 2022-10→2026-10, 5500 pasos)
+- TRAIN 2023-24 vs TEST 2024-26: DIR 29.6→30.0% (bajo break-even 33%, EV −0.10R) · DIR50 igual (no subir)
+- LIQc 34.3→31.9% · TOQc 26.4→38.9% (inestable pero con confluencia sobrevive) · zonas 52–65% roca
+- Ritmo-continuación pierde (17–22%): el ritmo avisa, no predice dirección sostenida
+- Veredicto: el replay no tiene vetos institucionales (funding/taker/noticias/régimen) que sí
+  tiene el vivo → el vivo debe batir al replay. Mandan las evals en vivo (siguen en 0).
