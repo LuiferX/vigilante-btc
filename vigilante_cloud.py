@@ -2088,11 +2088,16 @@ def main():
                 dist = abs(zp["precio"] - t["last"]) / t["last"]
                 key = str(zp["precio"])
                 if dist <= 0.0035 and est.get("pilas", {}).get(key) != hoy:
-                    lado = "ARRIBA" if zp["precio"] <= t["last"] else "ABAJO"
-                    inv = niv["soportes"][0]["precio"] if lado == "ARRIBA" else niv["resistencias"][0]["precio"]
-                    pre = "bajo" if lado == "ARRIBA" else "sobre"
-                    pila = (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
-                            f"({'+'.join(zp['razones'][:3])}) → rebote {lado} posible; se anula {pre} {fmt_miles(inv)} (cierre 1H)")
+                    es_piso = zp["precio"] <= t["last"]
+                    inv = niv["soportes"][0]["precio"] if es_piso else niv["resistencias"][0]["precio"]
+                    if es_piso:
+                        pila = (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+                                f"({'+'.join(zp['razones'][:3])}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
+                                f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}")
+                    else:
+                        pila = (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+                                f"({'+'.join(zp['razones'][:3])}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
+                                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}")
                     est.setdefault("pilas", {})[key] = hoy
         except Exception:
             pila = None
