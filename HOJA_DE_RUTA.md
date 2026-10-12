@@ -43,3 +43,4 @@
 - PILAS reacciona ≥0.3%/4h: psicológico 60% · S1 54% · R1 52% · NY 65% > Londres 63% > noche 61% > Asia 51%
 - Castigo aplicado: LIQ/TOQUE solo a favor del sesgo (28→39% y 30→41%, sobre break-even 33%)
 - Semilla de calibración medida en `SEMILLA_SESION` (los datos vivos la pisan al llegar)
+- Ajuste noche: DIR 28.6% <33% → noche exigente 1.1 (UMBRAL_CONF_SENAL 45→50 no gana: 38.6 vs 38.7, ER≥0.25 tampoco: 36.8)
