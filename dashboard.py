@@ -1032,6 +1032,7 @@ def build_dashboard(est, hist):
     conf = _conf if isinstance(_conf, (int, float)) else "?"
     conf_w = max(0, min(100, _conf)) if isinstance(_conf, (int, float)) else 0
     precio = (ult[-1].get("precio", 0) if ult else 0) or 0
+    emp = " · empate total de marcos" if isinstance(_conf, (int, float)) and _conf == 0 and bias == "LATERAL" else ""
     if len(px) >= 2 and px[0]:
         d = px[-1] - px[0]
         dpct = d / px[0] * 100
@@ -1060,7 +1061,7 @@ def build_dashboard(est, hist):
         nvs, dist_txt = [], ""
     hero = (f"<div class='big'>{miles(precio)}<span class='badge {_bias_class(bias)}'>{bias} {conf}%</span></div>"
             f"<div class='pill'><i style='--w:{conf_w}%'></i></div>"
-            f"<div class='sub'>{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana{dist_txt}</div>")
+            f"<div class='sub'>{delta_txt} · {rango_txt} · 🔴 {n_alertas} alertas en ventana{dist_txt}{emp}</div>")
     curva = (f"{svg_linea(px, marcas=marcas, niveles=nvs)}"
              f"<p><span style='color:#4ade80'>─ soporte</span> · "
              f"<span style='color:#fca5a5'>─ resistencia</span> (origen al pasar el mouse).</p>")
