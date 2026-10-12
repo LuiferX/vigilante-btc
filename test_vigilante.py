@@ -281,7 +281,7 @@ t("calib ny ok", v.calibrar({"eval_log": lgc}).get("NY") == 0.9)
 lgm = [{"b": "ALZA", "r": 0, "t": "2026-10-10T02:00:00+00:00"}] * 10
 t("calib asia exigente", v.calibrar({"eval_log": lgm}).get("Asia") == 1.15)
 t("calib pocos", v.calibrar({"eval_log": lgc[:5]}) == {})
-t("dec umbral custom", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None, 90, 90)[2] == "nada")
+t("dec umbral custom", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None, 90, 90)[2] == "nada")
 t("dec umbral bajo", "fuerte" in v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb, ultimo_bias="ALZA"), ah, None, None, "tendencia", False, "", None, None, None, 50, 40)[1])
 klL = [{"o": 82000, "h": 82000 + (300 if 10 <= i < 14 else 0), "l": 81900 - (300 if 20 <= i < 24 else 0), "c": 82000} for i in range(50)]
 lm = v.mapa_liq(klL, 82000, 0.06)
