@@ -492,6 +492,14 @@ t("ruptura baja", (v.ruptura([{"c": 81900}, {"c": 82000}], 82000, 84000) or "").
 t("ruptura sube", (v.ruptura([{"c": 84100}, {"c": 84000}], 82000, 84000) or "").startswith("ruptura ALCISTA"))
 t("ruptura nada", v.ruptura([{"c": 82000}, {"c": 83000}], 82000, 84000) is None)
 t("ruptura poca", v.ruptura([{"c": 1}], 2, 3) is None)
+_eb5 = dict(eb)
+_ahX = ah.replace(hour=10, minute=5)
+t("ruptura avisa", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb5, _ahX,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, None,
+    "ruptura BAJISTA confirmada bajo 82.000 (cierre 1H)")[2] == "alerta")
+t("ruptura serrucho", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb5, _ahX,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, None,
+    "ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)")[2] == "nada")
 t("dash card", _db._card("x", "Título", "cuerpo").count("chead") == 1)
 _sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
               "h4": {"tend": "bajista", "rsi": 30, "macd": -1},
