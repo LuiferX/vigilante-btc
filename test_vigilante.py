@@ -548,8 +548,8 @@ _xsec = _db.build_dashboard({"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1
 t("dash secciones", all(s in _xsec for s in ["s-precio", "s-senales", "s-mercado", "s-dinero", "s-sistema"]))
 t("dash nav", _xsec.count('class="nav"') == 1 and "#s-mercado" in _xsec)
 t("dash orden", _xsec.index("s-precio") < _xsec.index("s-senales") < _xsec.index("s-mercado") < _xsec.index("s-dinero") < _xsec.index("s-sistema"))
-t("dash layout", "align-items:start" in _db.CSS)
-t("dash masonry", "columns:" in _db.CSS and "break-inside:avoid" in _db.CSS and "column-span:all" in _db.CSS)
+t("dash layout", "display:grid" in _db.CSS)
+t("dash masonry", "grid-template-columns" in _db.CSS and "grid-column:1/-1" in _db.CSS)
 t("dash nav fija", "position:sticky" in _db.CSS and 'class="nav"' in _db.build_dashboard({"runs": 1}, []))
 t("dash a11y", "focus-visible" in _db.CSS and "scrollbar-width" in _db.CSS)
 import datetime as _dt
