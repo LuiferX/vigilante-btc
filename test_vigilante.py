@@ -234,11 +234,11 @@ t("cmd ajeno", cmd("/precio", chat=999) == (None, False))
 
 # ---------- diario/papel ----------
 t("racha", v.racha_perdidas({"paper_cerradas": [{"pnl": -1}, {"pnl": -2}]}) == 2)
-NV2 = {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 81000, "origen": "S"}]}
+NV2 = {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 82800, "origen": "S"}]}
 AH2 = datetime.datetime.now(datetime.timezone.utc)
 EB = {"bias": "ALZA", "confianza": 60}
 p = v.abrir_papel({"banco": 10000.0}, EB, NV2, 83000, AH2)
-t("papel abre", p and p["dir"] == "LONG" and p["riesgo"] == 100.0 and abs(p["tam"] - 100.0 / 2000) < 0.001)
+t("papel abre", p and p["dir"] == "LONG" and p["riesgo"] == 100.0 and abs(p["tam"] - 100.0 / 200) < 0.001 and p["lev"] == 60)
 t("papel lateral no", v.abrir_papel({}, {"bias": "LATERAL"}, NV2, 83000, AH2) is None)
 t("papel stop cero no", v.abrir_papel({"banco": 10000.0}, EB, {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 83000, "origen": "S"}]}, 83000, AH2) is None)
 t("papel kill drawdown", v.abrir_papel({"banco": 9000.0, "banco_pico": 10000.0}, EB, NV2, 83000, AH2) is None)
@@ -403,6 +403,20 @@ t("snap voy", "LONG" in scmd("/voy")[0])
 t("snap diario", "Diario" in scmd("/diario")[0])
 t("snap papel", "Papel" in scmd("/papel")[0])
 t("snap otro", "Comandos" in scmd("/otro")[0])
+t("xlx default", (lambda p: p is not None and p["riesgo"] == 1.0 and p["lev"] == 60 and "liq" in p)(
+    v.abrir_papel({}, {"bias": "ALZA", "confianza": 60},
+                  {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 82800, "origen": "S"}]},
+                  83000, AH2)))
+t("xlx stop lejos no", v.abrir_papel(
+    {}, {"bias": "ALZA", "confianza": 60},
+    {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 80000, "origen": "S"}]},
+    83000, AH2) is None)
+_XO = {"dir": "LONG", "entrada": 83000, "stop": 82500, "tp": 84000, "tam": 0.002, "riesgo": 1.0,
+       "lev": 60, "liq": 81755}
+t("xlx liq manda", v.cierre_papel(_XO, 83000, 81000, 82000)[1] == "LIQ")
+t("xlx liq pierde", v.cierre_papel(_XO, 83000, 81000, 82000)[2] < 0)
+t("xlx sl normal", v.cierre_papel(dict(_XO, liq=81000), 83000, 82400, 82600)[1] == "SL")
+t("xlx sigue", v.cierre_papel(dict(_XO, liq=81000), 83000, 82600, 82800) is None)
 t("ev fam", v.familia_evento("Core CPI m/m") == "CPI" and v.familia_evento("zzz") == "OTRO")
 t("ev linea fria", v.linea_estudio({}, "CPI m/m") == "")
 t("ev linea", v.linea_estudio({"ev_study": {"CPI": [0.5, 1.0, 1.5]}}, "Core CPI m/m") == "CPI suele mover ±1.00% (n=3)")
