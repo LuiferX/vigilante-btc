@@ -1,0 +1,27 @@
+[Unit]
+Description=Vigilante bot — un ciclo (parte + dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=vigilante
+Group=vigilante
+WorkingDirectory=/opt/vigilante
+Environment=PYTHONIOENCODING=utf-8
+Environment=VIGILANTE_REPO=/opt/vigilante
+Environment=VIGILANTE_ENV=/etc/vigilante/env
+ExecStart=/bin/bash /opt/vigilante/deploy/oracle/poll-vigilante.sh
+Restart=on-failure
+RestartSec=60
+# El timer es quien reintenta cada 5 min; esto cubre fallos transitorios.
+
+# Endurecimiento (el bot solo necesita leer red publica y escribir el repo).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/vigilante
+
+[Install]
+WantedBy=multi-user.target
