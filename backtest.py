@@ -95,6 +95,25 @@ def metricas(res):
             "exp": round(eq / n, 2), "dd": round(dd, 1)}
 
 
+def partir_purgado(n, train_frac=0.5, embargo=2):
+    """Split purgado con embargo: train = primeros int(n*frac), salta embargo, test = resto."""
+    n_train = int(n * train_frac)
+    train = list(range(max(0, n_train)))
+    inicio_test = n_train + max(0, embargo)
+    test = list(range(inicio_test, n)) if inicio_test < n else []
+    return train, test
+
+
+def puerta_trials(n_trials, mejor_sharpe):
+    """Puerta anti-overfit: pocos trials / exigir DSR / ok (informativo)."""
+    if n_trials < 5:
+        return f"pocos trials: n={n_trials} insuficiente para concluir"
+    if n_trials >= 10 or mejor_sharpe < 1.0:
+        return (f"exigir DSR antes de tocar umbrales "
+                f"(Deflated Sharpe Ratio DSR pendiente, n={n_trials}, sharpe={mejor_sharpe})")
+    return f"ok: n={n_trials} sharpe={mejor_sharpe} suficiente para evaluar"
+
+
 def main():
     hist = cargar_historial()
     senales = [h for h in hist if h.get("bias") in ("ALZA", "BAJA")
@@ -123,6 +142,15 @@ def main():
     if len(res) < 4:
         print("Velas insuficientes para evaluar. Intenta mas tarde.")
         return
+    if len(res) >= 4:
+        _tr, _te = partir_purgado(len(res))
+        try:
+            import statistics as _st
+            _rs = [x["r"] for x in res]
+            _sh = _st.mean(_rs) / (_st.pstdev(_rs) or 1.0)
+        except Exception:
+            _sh = 0.0
+        print(f"Split purgado: train={len(_tr)} test={len(_te)} | Puerta: {puerta_trials(len(res), round(_sh, 2))}")
     corte = len(res) // 2
     m_in, m_out, m_all = metricas(res[:corte]), metricas(res[corte:]), metricas(res)
     print("\n===== BACKTEST (regla del bot, plan 2R) =====")
