@@ -514,13 +514,17 @@ def _ops_html(est, ahora):
         frenos.append("aviso racha: riesgo 0,5%")
     freno_txt = " · ".join(frenos) if frenos else "frenos OK"
     btxt = f"{miles(banco)} USDT ({tot_pnl:+.0f})" if banco is not None else "10.000 USDT (sin empezar)"
+    uc = est.get("ultima_conf")
+    uc_txt = ""
+    if isinstance(uc, (int, float)) and not abiertas and n == 0:
+        uc_txt = f" · última conf {uc:g}% (requiere 35%+ con sesgo)"
     stats = (
         f"<div class='stats'>"
         f"<div class='stat'><small>Banco</small><b>{btxt}</b></div>"
         f"<div class='stat'><small>Ganadas</small><b>{wr}</b></div>"
         f"<div class='stat'><small>Total</small><b>{tot_r:+.1f}R{shp_txt}</b></div>"
         f"<div class='stat'><small>Racha pérdida</small><b>{racha}</b></div>"
-        f"</div><p class='mini'>{freno_txt} · papel opera señales 35%+ (invisible, sin avisos)</p>")
+        f"</div><p class='mini'>{freno_txt} · papel opera señales 35%+ (invisible, sin avisos){uc_txt}</p>")
     if abiertas:
         filas = "".join(
             f"<tr><td class='tag{o.get('dir', '')}'>{o.get('dir', '?')}</td>"
@@ -1393,7 +1397,7 @@ def build_dashboard(est, hist):
 <div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v35. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v36. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL={seg};setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
