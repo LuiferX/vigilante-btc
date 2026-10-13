@@ -532,6 +532,13 @@ t("dash silencio ruptura", "ALCISTA confirmada" in _db._alertas_html(
     {"cools": {"ruptura:ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)": _ah.isoformat()}}, [], _ah)
     and "ruptura ruptura" not in _db._alertas_html(
     {"cools": {"ruptura:ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)": _ah.isoformat()}}, [], _ah))
+_ph = [{"t": "2026-10-12T10:00:00+00:00", "tipo": "alerta", "motivo": "ruptura BAJISTA x"},
+       {"t": "2026-10-12T11:00:00+00:00", "tipo": "alerta", "motivo": "TECHO y"},
+       {"t": "2026-10-12T12:00:00+00:00", "tipo": "nada", "motivo": "z"}]
+t("presion dia", _db.presion_dia(_ph, "2026-10-12") == {"bajistas": 1, "alcistas": 1})
+t("presion vacia", _db.presion_dia([], "2026-10-12") == {"bajistas": 0, "alcistas": 0})
+t("dash presion", "1 bajistas / 1 alcistas" in _db._alertas_html(
+    {}, _ph, datetime.datetime(2026, 10, 12, 13, 0, tzinfo=datetime.timezone.utc)))
 t("dash barras cero", "empate total de marcos" in _db.svg_barras([0, 0, 0], ["0", "1", "2"]))
 _xsec = _db.build_dashboard({"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
                              "snapshot": {"tf": {"h1": {"tend": "t", "rsi": 1}, "h4": {"tend": "t", "rsi": 1},
