@@ -2725,6 +2725,16 @@ def main():
         va = vs_ayer(hist, t["last"], ahora)
         if va is not None:
             memoria.append(f"vs ayer a esta hora: {va:+.2f}%")
+        bj = sum(1 for h in hist if isinstance(h, dict) and h.get("tipo") == "alerta"
+                 and str(h.get("t", ""))[:10] == hoy
+                 and ("BAJISTA" in str(h.get("motivo", "")) or "PISO" in str(h.get("motivo", ""))
+                      or "bajo mínimos" in str(h.get("motivo", "")) or "Ritmo acelerado -" in str(h.get("motivo", ""))))
+        bl = sum(1 for h in hist if isinstance(h, dict) and h.get("tipo") == "alerta"
+                 and str(h.get("t", ""))[:10] == hoy
+                 and ("ALCISTA" in str(h.get("motivo", "")) or "TECHO" in str(h.get("motivo", ""))
+                      or "sobre máximos" in str(h.get("motivo", "")) or "Ritmo acelerado +" in str(h.get("motivo", ""))))
+        if bj + bl > 0:
+            memoria.append(f"presión del día: {bj} avisos bajistas / {bl} alcistas")
         er1 = h1.get("er")
         if er1 is not None and er1 >= 0.5:
             memoria.append(f"eficiencia {er1}: el 1H va a alguna parte (tendencia real)")
