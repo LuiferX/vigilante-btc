@@ -1,0 +1,380 @@
+name: Resumen semanal
+
+on:
+  schedule:
+    - cron: '0 13 * * MON'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resumen
+  cancel-in-progress: false
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar resumen semanal
+        run: |
+          python3 << 'PY'
+          import json
+          import subprocess
+          from datetime import datetime, timezone, timedelta
+
+          OUT = "/tmp/resumen.txt"
+
+          def sin_datos(msg="sin datos aún"):
+              txt = f"VigilanteCloud — Resumen semanal: {msg}."
+              print(txt)
+              try:
+                  with open(OUT, "w", encoding="utf-8") as f:
+                      f.write(txt + "\n")
+              except Exception:
+                  pass
+
+          try:
+              # Traer rama de estado (mejor esfuerzo, no falla si no existe)
+              try:
+                  subprocess.run(
+                      ["git", "fetch", "origin", "estado"],
+                      capture_output=True, text=True, timeout=30
+                  )
+              except Exception:
+                  pass
+
+              def show(ref_path):
+                  try:
+                      p = subprocess.run(
+                          ["git", "show", ref_path],
+                          capture_output=True, text=True, timeout=30
+                      )
+                      if p.returncode == 0:
+                          return p.stdout
+                  except Exception:
+                      pass
+                  return None
+
+              estado_raw = show("origin/estado:estado.json")
+              hist_raw = show("origin/estado:historial.jsonl")
+
+              if estado_raw is None and hist_raw is None:
+                  sin_datos("sin datos aún")
+                  raise SystemExit(0)
+
+              try:
+                  estado = json.loads(estado_raw) if estado_raw else {}
+                  if not isinstance(estado, dict):
+                      estado = {}
+              except Exception:
+                  estado = {}
+
+              hist = []
+              if hist_raw:
+                  for line in hist_raw.splitlines():
+                      line = line.strip()
+                      if not line:
+                          continue
+                      try:
+                          o = json.loads(line)
+                          if isinstance(o, dict):
+                              hist.append(o)
+                      except Exception:
+                          continue
+
+              if not hist and not estado:
+                  sin_datos("sin datos aún")
+                  raise SystemExit(0)
+
+              now = datetime.now(timezone.utc)
+              cutoff = now - timedelta(days=7)
+
+              def parse_t(v):
+                  try:
+                      if v is None:
+                          return None
+                      if isinstance(v, (int, float)):
+                          # epoch segundos o ms
+                          f = float(v)
+                          if f > 1e12:
+                              f = f / 1000.0
+                          elif f > 1e10:
+                              f = f / 1000.0
+                          return datetime.fromtimestamp(f, tz=timezone.utc)
+                      s = str(v).strip()
+                      if not s:
+                          return None
+                      # epoch en string
+                      try:
+                          f = float(s)
+                          if f > 1000000000:
+                              if f > 1e12:
+                                  f = f / 1000.0
+                              elif f > 1e10:
+                                  f = f / 1000.0
+                              return datetime.fromtimestamp(f, tz=timezone.utc)
+                      except Exception:
+                          pass
+                      # ISO
+                      s2 = s.replace("Z", "+00:00")
+                      try:
+                          d = datetime.fromisoformat(s2)
+                          if d.tzinfo is None:
+                              d = d.replace(tzinfo=timezone.utc)
+                          return d
+                      except Exception:
+                          pass
+                      for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                          try:
+                              d = datetime.strptime(s[:19], fmt)
+                              return d.replace(tzinfo=timezone.utc)
+                          except Exception:
+                              continue
+                      return None
+                  except Exception:
+                      return None
+
+              def entry_time(o):
+                  for k in ("t", "ts", "timestamp", "fecha", "time", "created_at", "evaluado_en"):
+                      if k in o:
+                          d = parse_t(o.get(k))
+                          if d is not None:
+                              return d
+                  return None
+
+              # Pasadas y alertas últimos 7 días
+              pasadas = 0
+              alertas = 0
+              for o in hist:
+                  try:
+                      d = entry_time(o)
+                      if d is not None and d < cutoff:
+                          continue
+                      if d is None and hist_raw:
+                          # sin tiempo: solo cuenta si no hay forma de filtrar
+                          # lo contamos como reciente para no ocultar datos
+                          pass
+                      pasadas += 1
+                      tipo = str(o.get("tipo", o.get("type", ""))).lower()
+                      if tipo == "alerta":
+                          alertas += 1
+                  except Exception:
+                      continue
+
+              # Evals: eval_log en estado + entradas de historial con r/hit
+              eval_entries = []
+              try:
+                  el = estado.get("eval_log", estado.get("evals", []))
+                  if isinstance(el, list):
+                      eval_entries.extend([e for e in el if isinstance(e, dict)])
+              except Exception:
+                  pass
+              for o in hist:
+                  try:
+                      if isinstance(o.get("r"), (int, float, bool)) or isinstance(o.get("hit"), (int, float, bool)):
+                          # si parece entrada de eval suelta en historial
+                          if "conf" in o or "r" in o or "hit" in o:
+                              # evita duplicar pasadas normales: solo si tiene pinta de eval
+                              # (tiene r/hit y conf o eval:true)
+                              if o.get("eval") is True or "conf" in o or "hit" in o or "r" in o:
+                                  pass
+                      # factura: si el historial trae eval_log anidado
+                      nested = o.get("eval_log")
+                      if isinstance(nested, list):
+                          for e in nested:
+                              if isinstance(e, dict):
+                                  eval_entries.append(e)
+                  except Exception:
+                      continue
+
+              def norm_r(e):
+                  try:
+                      if "r" in e and e["r"] is not None:
+                          v = e["r"]
+                      elif "hit" in e and e["hit"] is not None:
+                          v = e["hit"]
+                      else:
+                          return None
+                      if isinstance(v, bool):
+                          return 1 if v else 0
+                      if isinstance(v, (int, float)):
+                          return 1 if float(v) > 0.5 else 0
+                      s = str(v).strip().lower()
+                      if s in ("1", "true", "hit", "acierto", "si", "sí", "ok"):
+                          return 1
+                      if s in ("0", "false", "miss", "fallo", "no"):
+                          return 0
+                      return None
+                  except Exception:
+                      return None
+
+              def get_conf(e):
+                  try:
+                      for k in ("conf", "confianza", "confidence", "p", "prob"):
+                          if k in e and e[k] is not None:
+                              c = float(str(e[k]).replace("%", "").strip())
+                              return c
+                      return None
+                  except Exception:
+                      return None
+
+              # Filtrar evals recientes si tienen tiempo; sin tiempo se incluyen
+              evals_rec = []
+              for e in eval_entries:
+                  try:
+                      d = entry_time(e)
+                      if d is not None and d < cutoff:
+                          continue
+                      r = norm_r(e)
+                      if r is None:
+                          continue
+                      evals_rec.append(e)
+                  except Exception:
+                      continue
+
+              n_eval = len(evals_rec)
+              acierto = None
+              try:
+                  if n_eval > 0:
+                      hits = sum(norm_r(e) for e in evals_rec)
+                      acierto = 100.0 * hits / n_eval
+              except Exception:
+                  acierto = None
+
+              # Brier si >=5 evals con conf y r
+              brier = None
+              try:
+                  pares = []
+                  for e in evals_rec:
+                      r = norm_r(e)
+                      c = get_conf(e)
+                      if r is None or c is None:
+                          continue
+                      pares.append(((c / 100.0) - r) ** 2)
+                  if len(pares) >= 5:
+                      brier = sum(pares) / len(pares)
+              except Exception:
+                  brier = None
+
+              # Papel: banco + pnl semana
+              banco = None
+              try:
+                  for k in ("banco", "bank", "paper_banco", "balance", "paper_bank"):
+                      if k in estado and estado[k] is not None:
+                          banco = float(str(estado[k]).replace(",", "."))
+                          break
+                  if banco is None:
+                      paper = estado.get("paper", estado.get("papel", None))
+                      if isinstance(paper, dict):
+                          for k in ("banco", "bank", "balance"):
+                              if k in paper and paper[k] is not None:
+                                  banco = float(str(paper[k]).replace(",", "."))
+                                  break
+              except Exception:
+                  banco = None
+
+              cerradas = []
+              try:
+                  for k in ("paper_cerradas", "cerradas", "paper_closed", "trades_cerrados"):
+                      v = estado.get(k, None)
+                      if isinstance(v, list):
+                          cerradas = [c for c in v if isinstance(c, dict)]
+                          break
+                  if not cerradas:
+                      paper = estado.get("paper", estado.get("papel", None))
+                      if isinstance(paper, dict):
+                          for k in ("cerradas", "paper_cerradas", "closed"):
+                              v = paper.get(k, None)
+                              if isinstance(v, list):
+                                  cerradas = [c for c in v if isinstance(c, dict)]
+                                  break
+              except Exception:
+                  cerradas = []
+
+              pnl_sem = 0.0
+              n_cerr = 0
+              try:
+                  for c in cerradas:
+                      d = entry_time(c)
+                      if d is not None and d < cutoff:
+                          continue
+                      # sin tiempo: se incluye para no ocultar pnl
+                      pnl = c.get("pnl", c.get("PnL", c.get("profit", None)))
+                      if pnl is None:
+                          continue
+                      pnl_sem += float(str(pnl).replace(",", "."))
+                      n_cerr += 1
+              except Exception:
+                  pnl_sem = 0.0
+                  n_cerr = 0
+
+              # Si todo vacío/cero y sin evals ni historial reciente: sin datos
+              if pasadas == 0 and n_eval == 0 and n_cerr == 0 and banco is None:
+                  sin_datos("sin datos aún")
+                  raise SystemExit(0)
+
+              ini = cutoff.strftime("%Y-%m-%d")
+              fin = now.strftime("%Y-%m-%d")
+              L = []
+              L.append(f"VigilanteCloud — Resumen semanal ({ini} a {fin})")
+              L.append(f"Pasadas 7d: {pasadas} | Alertas 7d: {alertas}")
+              if n_eval > 0 and acierto is not None:
+                  L.append(f"Evals 7d: n={n_eval} acierto={acierto:.1f}%")
+              else:
+                  L.append("Evals 7d: n=0")
+              if brier is not None:
+                  L.append(f"Calibracion Brier (n>={len(pares)}): {brier:.3f} (menor es mejor)")
+              if banco is not None:
+                  L.append(f"Papel banco: {banco:.2f} | PnL semana: {pnl_sem:+.2f} ({n_cerr} cerradas)")
+              else:
+                  L.append(f"Papel PnL semana: {pnl_sem:+.2f} ({n_cerr} cerradas)")
+              txt = "\n".join(L) + "\n"
+              print(txt)
+              with open(OUT, "w", encoding="utf-8") as f:
+                  f.write(txt)
+          except SystemExit:
+              raise
+          except Exception as e:
+              try:
+                  sin_datos("sin datos aún")
+              except Exception:
+                  pass
+          PY
+
+      - name: Enviar a Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          if [ ! -f /tmp/resumen.txt ]; then
+            echo "sin resumen, omitiendo envio"
+            exit 0
+          fi
+          if grep -qi "sin datos" /tmp/resumen.txt; then
+            echo "sin datos, omitiendo envio"
+            cat /tmp/resumen.txt
+            exit 0
+          fi
+          CHAT="${TELEGRAM_CHAT_ID:-${CHAT_ID:-}}"
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "$CHAT" ]; then
+            echo "sin secrets, omitiendo envio"
+            exit 0
+          fi
+          TEXT="$(cat /tmp/resumen.txt)"
+          for i in 1 2 3; do
+            if curl --fail --silent --show-error --max-time 20 -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${CHAT}" \
+              --data-urlencode "text=${TEXT}"; then
+              echo "enviado"
+              exit 0
+            fi
+            echo "reintento $i fallo, esperando..."
+            sleep 5
+          done
+          echo "no se pudo enviar tras 3 intentos"
+          exit 1
