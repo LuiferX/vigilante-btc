@@ -54,6 +54,9 @@
 ## 🏋️ Entrenamiento 5 (13/10, gates PILAS en 8 meses: momentum y régimen NO sirven)
 ## 🏋️ Entrenamiento 6 (13/10, intensivo walk-forward 4 años, 11.000 pasos c/3h)
 ## 🏋️ Entrenamiento 7 (13/10, mini-IA Naive-Bayes 4894 muestras, validada fuera de muestra)
+## 🏋️ Entrenador local indeterminado (13/10, `entrenamiento/entrenador.py`)
+- Rondas cada 30 min con datos frescos (DIR/LIQ/TOQUE/ZON/ER), panel `panel.html`, log `progreso.jsonl`
+- Independiente del bot (solo importa funciones), sin secretos, sin Telegram/GitHub, UA genérico, STOP para parar
 - Train 70% / test 30% temporales: top10% por score 25.3% vs base 29.3%, top33% 28.5% vs 29.3%
 - Ningún contexto supera el ruido (mejor: h4t ALCISTA 34.7%)
 - Veredicto: la mini-IA con solo-precio NO gana su lugar — rechazada, no se cablea. Forzar sin filo sería humo.
