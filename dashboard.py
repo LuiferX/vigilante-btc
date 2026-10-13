@@ -496,7 +496,7 @@ def _ops_html(est, ahora):
             break
     frenos = []
     try:
-        b = float(banco) if banco is not None else 10000.0
+        b = float(banco) if banco is not None else 100.0
         pico = float(est.get("banco_pico", b))
         dd = (pico - b) / pico * 100 if pico > 0 else 0
         if dd >= 10:
@@ -505,7 +505,7 @@ def _ops_html(est, ahora):
         dd = 0
     pd = est.get("paper_dia") or {}
     try:
-        base = float(banco) if banco is not None else 10000.0
+        base = float(banco) if banco is not None else 100.0
         if isinstance(pd, dict) and float(pd.get("pnl", 0)) <= -0.03 * base:
             frenos.append("bloqueo día −3%")
     except Exception:
@@ -513,7 +513,7 @@ def _ops_html(est, ahora):
     if racha >= 3:
         frenos.append("aviso racha: riesgo 0,5%")
     freno_txt = " · ".join(frenos) if frenos else "frenos OK"
-    btxt = f"{miles(banco)} USDT ({tot_pnl:+.0f})" if banco is not None else "10.000 USDT (sin empezar)"
+    btxt = f"{miles(banco)} USDT ({tot_pnl:+.0f})" if banco is not None else "100 USDT (sin empezar)"
     uc = est.get("ultima_conf")
     uc_txt = ""
     if isinstance(uc, (int, float)) and not abiertas and n == 0:
@@ -1271,13 +1271,13 @@ def build_dashboard(est, hist):
     pa = f"{round(sum(alza) / len(alza) * 100)}% ({sum(alza)}/{len(alza)})" if len(alza) >= 5 else "s/d"
     pb = f"{round(sum(baja) / len(baja) * 100)}% ({sum(baja)}/{len(baja)})" if len(baja) >= 5 else "s/d"
     banco = est.get("banco")
-    eq = [10000.0]
+    eq = [100.0]
     for c in est.get("paper_cerradas", []) or []:
         try:
             eq.append(eq[-1] + float((c or {}).get("pnl", 0)))
         except Exception:
             continue
-    eq_txt = f"{miles(banco)} USDT" if banco is not None else "10.000 USDT (sin empezar)"
+    eq_txt = f"{miles(banco)} USDT" if banco is not None else "100 USDT (sin empezar)"
     bias = _txt(est.get("ultimo_bias"))
     _conf = est.get("ultima_conf")
     conf = _conf if isinstance(_conf, (int, float)) else "?"
