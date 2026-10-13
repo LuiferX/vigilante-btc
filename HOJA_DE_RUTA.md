@@ -52,6 +52,11 @@
   solo los datos vivos (10+ evals) podrán sesgar. No sobreajustar es también entrenar.
 ## 🏋️ Entrenamiento 4 (12/10, walk-forward 4 años 2022-10→2026-10, 5500 pasos)
 ## 🏋️ Entrenamiento 5 (13/10, gates PILAS en 8 meses: momentum y régimen NO sirven)
+## 🏋️ Entrenamiento 6 (13/10, intensivo walk-forward 4 años, 11.000 pasos c/3h)
+- 2R vs 1.5R: EV −0.07/−0.09 vs −0.15/−0.16 en ambas mitades → se queda 2R
+- Conf 45–55 (n=20) y días de semana: sin filo estable (Sat flojo y Sun mejor, se contradicen)
+- Sesiones×lado y zonas 2R: nada que adopte sin sobreajustar
+- Veredicto: la config actual sobrevive al intensivo; no hay cambio que los datos pidan.
 - Techo sin 1H alcista: 28.6% · piso sin 1H bajista: 29.6% (peor/igual que sin gate)
 - Por régimen ADX: rango 27.8% vs tendencia 30.5% (sin diferencia útil)
 - Veredicto: el fade PILAS vale por marcar niveles (reacción 60%), no por 2R. Sin cambios.
