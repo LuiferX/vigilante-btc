@@ -51,6 +51,10 @@
 - Sesiones INESTABLES entre periodos (Londres 52.8→32.8, Asia 36.8→40.5) → semilla NEUTRA 1.0;
   solo los datos vivos (10+ evals) podrán sesgar. No sobreajustar es también entrenar.
 ## 🏋️ Entrenamiento 4 (12/10, walk-forward 4 años 2022-10→2026-10, 5500 pasos)
+## 🏋️ Entrenamiento 5 (13/10, gates PILAS en 8 meses: momentum y régimen NO sirven)
+- Techo sin 1H alcista: 28.6% · piso sin 1H bajista: 29.6% (peor/igual que sin gate)
+- Por régimen ADX: rango 27.8% vs tendencia 30.5% (sin diferencia útil)
+- Veredicto: el fade PILAS vale por marcar niveles (reacción 60%), no por 2R. Sin cambios.
 - TRAIN 2023-24 vs TEST 2024-26: DIR 29.6→30.0% (bajo break-even 33%, EV −0.10R) · DIR50 igual (no subir)
 - LIQc 34.3→31.9% · TOQc 26.4→38.9% (inestable pero con confluencia sobrevive) · zonas 52–65% roca
 - Ritmo-continuación pierde (17–22%): el ritmo avisa, no predice dirección sostenida
