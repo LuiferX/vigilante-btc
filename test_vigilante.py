@@ -720,6 +720,15 @@ t("dsr exige T", _bt.deflated_sharpe(0.5, 3, 0.0, 3.0, 10) is None)
 t("dsr penaliza trials", _bt.deflated_sharpe(0.5, 20, 0.0, 3.0, 10) < _bt.deflated_sharpe(0.5, 20, 0.0, 3.0, 1))
 t("costo calibra 0.5pct", 8.0 <= _bt.costo_bps(0.005) <= 12.0)
 t("costo base spread", _bt.costo_bps(0) == 1.5 and _bt.costo_bps(-0.01) == 1.5)
+t("dash tipo sobria", "BlinkMacSystemFont" in _db.CSS and "antialiased" in _db.CSS and "background:#000" in _db.CSS)
+t("dash movil plegable", "@media(max-width:640px)" in _db.CSS and "minmax(0,1fr)" in _db.CSS and "min-height:36px" in _db.CSS)
+t("svg linea premium", "linearGradient" in _db.svg_linea([10, 20, 15, 30], color="#22c55e") and "stroke-opacity='.06'" in _db.svg_linea([10, 20, 15, 30]) and 'opacity=".18"' in _db.svg_linea([10, 20, 15, 30]) and "<title>cierre" in _db.svg_linea([10, 20, 15, 30]))
+t("svg fallback intacto", _db.svg_linea([1]) == "<p>sin datos aún</p>" and _db.svg_barras([], []) == "<p>sin datos aún</p>" and "<svg" in _db.svg_barras([10, 20, 30], ["0", "1", "2"]))
+t("dash ids vivos", all(s in _db.build_dashboard({"ultimo_run": "2026-10-13T12:00:00+00:00", "ultimo_bias": "LATERAL", "runs": 1}, [{"t": "2026-10-13T11:00:00+00:00", "precio": 83000, "conf": 50, "tipo": "nada", "bias": "LATERAL", "motivo": "x"}]) for s in ['id="recarga"', 'id="edad"', 'data-t=', 'id="pvivo"', 'id="plegar"', 'id="sonido"', 'id="fondo"', 'data-bias=', 'data-conf=', 'data-alertas=', 'data-run=', 'data-px=', 'data-grade=', 'content="120"']))
+t("dash js con try", all("try{" in getattr(_db, n) and "catch" in getattr(_db, n) for n in ["CD_JS", "UI_JS", "TF_JS", "VIVO_JS", "FONDO_JS"]))
+t("dash header ids", all(s in _db.build_dashboard({"runs": 1}, []) for s in ['id="hdr-act"', 'id="hdr-prox"', 'id="hdr-edad"', 'id="pvivo"']) and "sin datos aún" in _db.build_dashboard({}, []))
+t("dash orden secciones", (_db.build_dashboard({"runs": 1}, []).index('s-precio') < _db.build_dashboard({"runs": 1}, []).index('s-senales') < _db.build_dashboard({"runs": 1}, []).index('s-mercado') < _db.build_dashboard({"runs": 1}, []).index('s-dinero') < _db.build_dashboard({"runs": 1}, []).index('s-sistema')))
+t("dash fallback roto", "construccion" in open(os.path.join(_AQUI, "dashboard.py"), encoding="utf-8").read() and "sin datos" in _db.build_dashboard(None, None))
 
 # FIX BUG1/BUG2: preaviso puro + pila con enfriar 4h por zona
 _ep1 = {}
