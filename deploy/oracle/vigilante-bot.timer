@@ -1,0 +1,10 @@
+[Unit]
+Description=Vigilante bot — cada 5 minutos
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+Unit=vigilante-bot.service
+
+[Install]
+WantedBy=timers.target
