@@ -243,6 +243,9 @@ UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
 SEMILLA_SESION = {"NY": 1.0, "Londres": 1.0, "noche": 1.0, "Asia": 1.0}  # neutra: ver doc
+PAPER_BANCO = 100.0    # perfil XLX: banco virtual en USDT
+PAPER_LEV = 60         # apalancamiento: solo dimensiona la liquidacion estimada
+PAPER_RIESGO = 0.01    # 1% por idea (0.5% en racha de 3+ perdidas)
 
 
 def fetch(url, timeout=20, tries=3):
@@ -875,20 +878,20 @@ def responder_comando(cmd, ctx):
         tr = round(sum(x.get("r", 0) for x in j), 1)
         return (f"Diario: {len(j)} ops · ganadas {w} ({round(w / len(j) * 100)}%) · total {tr:+.1f}R.", False)
     if c == "/papel":
-        banco = float(est.get("banco", 10000.0))
+        banco = float(est.get("banco", PAPER_BANCO))
         j = est.get("paper_cerradas", [])
         ops = est.get("paper_abiertas", [])
         if not j and not ops:
-            return ("Papel: banco 10,000 USDT, sin operaciones aún. Abro solo con señales ALZA/BAJA de 35%+.", False)
+            return (f"Papel XLX: banco {PAPER_BANCO:.0f} USDT, lev {PAPER_LEV}x, sin operaciones aún. Abro solo con señales ALZA/BAJA de 35%+.", False)
         w = sum(1 for x in j if x.get("pnl", 0) > 0)
         wr = f"{round(w / len(j) * 100)}% ({w}/{len(j)})" if j else "s/d"
         tr = round(sum(x.get("r", 0) for x in j), 1) if j else 0
-        txt = (f"Papel: banco {fmt_miles(banco)} USDT ({banco - 10000.0:+.0f}) · cerradas {len(j)} · ganadas {wr} · total {tr:+.1f}R.")
+        txt = (f"Papel XLX: banco {fmt_miles(banco)} USDT ({banco - PAPER_BANCO:+.0f}) · lev {PAPER_LEV}x · cerradas {len(j)} · ganadas {wr} · total {tr:+.1f}R.")
         if racha_perdidas(est) >= 3:
             txt += " Penalizado: arriesga 0.5% (3+ pérdidas seguidas)."
         if ops:
             txt += "\nAbiertas:\n" + "\n".join(
-                f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])})" for o in ops)
+                f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])} / LIQ {fmt_miles(o.get('liq', 0))})" for o in ops)
         return (txt, False)
     if c == "/cerrar":
         ops = est.get("ops", [])
@@ -1087,13 +1090,14 @@ def sharpe(rs):
 
 
 def abrir_papel(est, dirb, niv, precio, ahora):
-    """Abre papel virtual con frenos institucionales (devuelve la posicion o None):
+    """Abre papel virtual XLX con frenos institucionales (devuelve la posicion o None):
     - drawdown -10% desde maximo: frena todo
     - -3% en el dia: frena el dia
-    - 3+ perdidas seguidas: riesgo 0.5% en vez de 1%"""
+    - 3+ perdidas seguidas: riesgo 0.5% en vez de 1%
+    - SL mas alla de la liquidacion estimada (60x): no abre (te liquidarian antes)"""
     if dirb["bias"] not in ("ALZA", "BAJA"):
         return None
-    banco = float(est.get("banco", 10000.0))
+    banco = float(est.get("banco", PAPER_BANCO))
     pico = float(est.get("banco_pico", banco))
     if banco > pico:
         pico = banco
@@ -1111,7 +1115,7 @@ def abrir_papel(est, dirb, niv, precio, ahora):
         riesgo_pct = 0.005
     else:
         k = kelly_half([c.get("r", 0) for c in est.get("paper_cerradas", [])])
-        riesgo_pct = k if k is not None else 0.01
+        riesgo_pct = k if k is not None else PAPER_RIESGO
     if dirb["bias"] == "ALZA":
         stop = niv["soportes"][0]["precio"]
         tp = niv["resistencias"][0]["precio"]
@@ -1127,11 +1131,42 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     dist_stop = abs(precio - stop)
     if dist_stop <= 0:
         return None
+    liq = round(precio * (1 - 0.9 / PAPER_LEV)) if dire == "LONG" else round(precio * (1 + 0.9 / PAPER_LEV))
+    if dist_stop > abs(precio - liq):
+        return None
     tam = (banco * riesgo_pct) / dist_stop
     pos = {"dir": dire, "entrada": round(precio), "stop": stop, "tp": round(tp),
-           "tam": round(tam, 4), "riesgo": round(banco * riesgo_pct, 2), "t": ahora.isoformat()}
+           "tam": round(tam, 4), "riesgo": round(banco * riesgo_pct, 2), "lev": PAPER_LEV,
+           "liq": liq, "t": ahora.isoformat()}
     est["paper_abiertas"] = est.get("paper_abiertas", []) + [pos]
     return pos
+
+
+def cierre_papel(o, ref_h, ref_l, last):
+    """Cierre de papel XLX: la LIQUIDACION manda sobre SL/TP.
+    Devuelve (px, donde, pnl) o None si sigue abierta."""
+    try:
+        lev = float(o.get("lev") or PAPER_LEV)
+        ent, tam = float(o["entrada"]), float(o["tam"])
+        liq = float(o.get("liq") or (ent * (1 - 0.9 / lev) if o["dir"] == "LONG"
+                                     else ent * (1 + 0.9 / lev)))
+        if o["dir"] == "LONG":
+            if ref_l <= liq or last <= liq:
+                return liq, "LIQ", round(-(tam * ent) / lev, 2)
+            if ref_l <= o["stop"] or last <= o["stop"]:
+                return float(o["stop"]), "SL", round((float(o["stop"]) - ent) * tam, 2)
+            if ref_h >= o["tp"] or last >= o["tp"]:
+                return float(o["tp"]), "TP", round((float(o["tp"]) - ent) * tam, 2)
+        else:
+            if ref_h >= liq or last >= liq:
+                return liq, "LIQ", round(-(tam * ent) / lev, 2)
+            if ref_h >= o["stop"] or last >= o["stop"]:
+                return float(o["stop"]), "SL", round((ent - float(o["stop"])) * tam, 2)
+            if ref_l <= o["tp"] or last <= o["tp"]:
+                return float(o["tp"]), "TP", round((ent - float(o["tp"])) * tam, 2)
+        return None
+    except Exception:
+        return None
 
 
 def journal_check(ops, kl_h1, last):
@@ -2610,30 +2645,16 @@ def main():
                 send_telegram(f"🔬 Simulada cerrada: {cc['dir']} {cc['res']} ({cc['r']:+.1f}R). Sin dinero, solo aprendizaje.")
                 print(f"  simulada cerrada {cc['dir']} {cc['res']}")
             est["sim_cerradas"] = sc[-20:]
-        # PAPEL: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
+        # PAPEL XLX: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
         abiertas_p = []
         for o in est.get("paper_abiertas", []):
             try:
                 ref_h = kl_h1[-2]["h"] if len(kl_h1) >= 2 else t["last"]
                 ref_l = kl_h1[-2]["l"] if len(kl_h1) >= 2 else t["last"]
-                cerrada = None
-                if o["dir"] == "LONG":
-                    if ref_l <= o["stop"] or t["last"] <= o["stop"]:
-                        cerrada = (o["stop"], "SL")
-                    elif ref_h >= o["tp"] or t["last"] >= o["tp"]:
-                        cerrada = (o["tp"], "TP")
-                else:
-                    if ref_h >= o["stop"] or t["last"] >= o["stop"]:
-                        cerrada = (o["stop"], "SL")
-                    elif ref_l <= o["tp"] or t["last"] <= o["tp"]:
-                        cerrada = (o["tp"], "TP")
-                if cerrada:
-                    px, donde = cerrada
-                    if o["dir"] == "LONG":
-                        pnl = (px - o["entrada"]) * o["tam"]
-                    else:
-                        pnl = (o["entrada"] - px) * o["tam"]
-                    banco = float(est.get("banco", 10000.0)) + pnl
+                fin = cierre_papel(o, ref_h, ref_l, t["last"])
+                if fin:
+                    px, donde, pnl = fin
+                    banco = float(est.get("banco", PAPER_BANCO)) + pnl
                     est["banco"] = round(banco, 2)
                     cerr = est.get("paper_cerradas", [])
                     cerr.append({"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
