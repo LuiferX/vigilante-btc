@@ -1,0 +1,10 @@
+[Unit]
+Description=Vigilante oyente — cada 1 minuto
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=vigilante-oyente.service
+
+[Install]
+WantedBy=timers.target
