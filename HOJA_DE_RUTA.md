@@ -53,6 +53,10 @@
 ## 🏋️ Entrenamiento 4 (12/10, walk-forward 4 años 2022-10→2026-10, 5500 pasos)
 ## 🏋️ Entrenamiento 5 (13/10, gates PILAS en 8 meses: momentum y régimen NO sirven)
 ## 🏋️ Entrenamiento 6 (13/10, intensivo walk-forward 4 años, 11.000 pasos c/3h)
+## 🏋️ Entrenamiento 7 (13/10, mini-IA Naive-Bayes 4894 muestras, validada fuera de muestra)
+- Train 70% / test 30% temporales: top10% por score 25.3% vs base 29.3%, top33% 28.5% vs 29.3%
+- Ningún contexto supera el ruido (mejor: h4t ALCISTA 34.7%)
+- Veredicto: la mini-IA con solo-precio NO gana su lugar — rechazada, no se cablea. Forzar sin filo sería humo.
 - 2R vs 1.5R: EV −0.07/−0.09 vs −0.15/−0.16 en ambas mitades → se queda 2R
 - Conf 45–55 (n=20) y días de semana: sin filo estable (Sat flojo y Sun mejor, se contradicen)
 - Sesiones×lado y zonas 2R: nada que adopte sin sobreajustar
