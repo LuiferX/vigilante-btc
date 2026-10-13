@@ -675,6 +675,12 @@ t("dash chip er", "ER 0.62" in _db._contexto_html(
      "tf": {"h1": {"tend": "t", "rsi": 1}, "h4": {"tend": "t", "rsi": 1},
             "d1": {"tend": "t", "rsi": 1}, "w1": {"tend": "t", "rsi": 1, "er": 0.62}},
      "fg": {}, "senti": {}, "pres": {}, "niv": {}, "evs": []}))
+t("dash escapa html", _db._esc("<script>alert(1)</script>") == "&lt;script&gt;alert(1)&lt;/script&gt;" and "&lt;img" in _db.build_dashboard({"runs": 1}, [{"t": "2026-10-13T14:00:00+00:00", "bias": "ALZA", "motivo": "<img src=x onerror=alert(1)>", "precio": 83000, "conf": 50, "tipo": "alerta"}]))
+t("dash vacio honesto", "sin datos" in _db.build_dashboard({}, []))
+t("dash duelo sucio no rompe", isinstance(_db._duelo_html({"bal": {"buys": "?", "sells": None, "nb": "x", "ns": None}}), str))
+t("dash alza sucia no rompe", isinstance(_db.build_dashboard({"alza": ["a", None, 1, 2, 3, 4, 5], "baja": [1, "b"], "runs": 1}, []), str))
+t("dash prox medianoche dia siguiente", _db._prox_pasada(datetime.datetime(2026, 10, 13, 23, 50, tzinfo=datetime.timezone.utc)).day == 14)
+t("telegram retry existe", "for intento in range(3)" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
