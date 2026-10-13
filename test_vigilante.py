@@ -681,6 +681,34 @@ t("dash duelo sucio no rompe", isinstance(_db._duelo_html({"bal": {"buys": "?", 
 t("dash alza sucia no rompe", isinstance(_db.build_dashboard({"alza": ["a", None, 1, 2, 3, 4, 5], "baja": [1, "b"], "runs": 1}, []), str))
 t("dash prox medianoche dia siguiente", _db._prox_pasada(datetime.datetime(2026, 10, 13, 23, 50, tzinfo=datetime.timezone.utc)).day == 14)
 t("telegram retry existe", "for intento in range(3)" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
+# --- Bloque seguro 3x10 (TDD): TCA + validador/gaps + purge/DSR + latido/runbook + frescura ---
+t("tca linea drift", "bps" in v.tca_linea(83000, 83207.5) and "83.000" in v.tca_linea(83000, 83207.5))
+t("tca linea sin arrival", "s/d" in v.tca_linea(None, 83000))
+t("tca linea sin cero", "s/d" in v.tca_linea(0, 83000))
+_vv = [{"t": datetime.datetime(2026, 10, 13, i, tzinfo=datetime.timezone.utc),
+        "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10.0} for i in range(5)]
+t("validar velas ok", v.validar_velas(_vv, 60)["ok"] is True and v.validar_velas(_vv, 60)["gaps"] == 0)
+_vgap = [_vv[0], _vv[1], {"t": datetime.datetime(2026, 10, 13, 4, tzinfo=datetime.timezone.utc),
+        "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10.0}]
+t("validar velas gap", v.validar_velas(_vgap, 60)["gaps"] >= 1)
+_vmal = [_vv[0], {"t": datetime.datetime(2026, 10, 13, 1, tzinfo=datetime.timezone.utc),
+        "o": 1.0, "h": 0.4, "l": 0.5, "c": 1.5, "v": 10.0}]
+t("validar velas mala", v.validar_velas(_vmal, 60)["malas"] >= 1)
+t("latido tarde si", v.latido_tarde("2026-10-13T14:00:00+00:00", "2026-10-13T14:30:00+00:00", 15) is True)
+t("latido tarde no", v.latido_tarde("2026-10-13T14:20:00+00:00", "2026-10-13T14:30:00+00:00", 15) is False)
+t("runbook linea", "github.com/LuiferX/vigilante-btc" in v.linea_runbook())
+import importlib.util as _ilu
+spec_bt = _ilu.spec_from_file_location("bt", os.path.join(_AQUI, "backtest.py"))
+_bt = _ilu.module_from_spec(spec_bt)
+spec_bt.loader.exec_module(_bt)
+_tr, _te = _bt.partir_purgado(10, 0.5, 2)
+t("purga embargo", len(_tr) == 5 and len(_te) == 3 and max(_tr) < min(_te))
+t("puerta trials exige dsr", "DSR" in _bt.puerta_trials(12, 0.8))
+t("puerta trials ok pocos", "ok" in _bt.puerta_trials(3, 1.5).lower() or "pocos" in _bt.puerta_trials(3, 1.5).lower())
+_fr, _ft = _db.frescura("2026-10-13T14:29:00+00:00", datetime.datetime(2026, 10, 13, 14, 30, tzinfo=datetime.timezone.utc), 15)
+t("frescura vivo", _fr == "vivo")
+_fr2, _ft2 = _db.frescura("2026-10-13T10:00:00+00:00", datetime.datetime(2026, 10, 13, 14, 30, tzinfo=datetime.timezone.utc), 15)
+t("frescura viejo", _fr2 == "viejo")
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
