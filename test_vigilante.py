@@ -528,6 +528,9 @@ _ahc = {"cools": {"ritmo:baja": _ah.isoformat(),
                   "liq:max": "2020-01-01T00:00:00+00:00"}}
 _sil = _db._alertas_html(_ahc, [], _ah)
 t("dash silencios", "ritmo baja" in _sil and "hasta" in _sil and "liq" not in _sil)
+_sil4 = _db._alertas_html({"cools": {f"{c}:x": _ah.isoformat()
+    for c in ("ritmo", "brusco", "liq", "toque", "fuerte")}}, [], _ah)
+t("dash silencios tope", "+2 más" in _sil4)
 t("dash silencio ruptura", "ALCISTA confirmada" in _db._alertas_html(
     {"cools": {"ruptura:ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)": _ah.isoformat()}}, [], _ah)
     and "ruptura ruptura" not in _db._alertas_html(
