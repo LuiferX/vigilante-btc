@@ -213,7 +213,7 @@ box-shadow:0 10px 30px #0006;backdrop-filter:blur(6px);animation:up .55s both}
 @keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 h2{font-size:13px;letter-spacing:.4px;text-transform:uppercase;color:#93c5fd;margin:0 0 10px}
 p{color:var(--mut);font-size:13px;margin:6px 0}
-.big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.big{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 .badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;
 vertical-align:middle;margin-left:6px}
 .badge.alza{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
@@ -258,7 +258,12 @@ table.ops tr:hover td{background:#ffffff0d}
 .tscroll{max-height:264px;overflow-y:auto;border-radius:8px}
 .tscroll thead th{position:sticky;top:0;background:#0c0c0e;z-index:1}
 footer{color:#64748b;font-size:12px;margin:14px 2px}
-@media(max-width:480px){.big{font-size:24px}}
+@media(max-width:480px){.big{font-size:26px}}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:#000}
+::-webkit-scrollbar-thumb{background:#26262b;border-radius:99px;border:2px solid #000}
+::-webkit-scrollbar-thumb:hover{background:#3a3a41}
+button:focus-visible,a:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 .stats{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .stat{flex:1 1 100px;background:#0c0c0e;border:1px solid var(--line);border-radius:10px;padding:6px 9px;
@@ -283,9 +288,10 @@ ul.pq{list-style:none;margin:8px 0 0;padding:0}
 ul.pq li{font-size:12.5px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
 border-radius:10px;padding:7px 10px;margin-bottom:6px}
 ul.pq li:hover{border-color:#ffffff38}
-.sec{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
-color:#64748b;margin:6px 2px -2px}
-.nav{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;margin-bottom:4px;scrollbar-width:none}
+.sec{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+color:#64748b;margin:10px 2px 0;padding-top:10px;border-top:1px solid #ffffff10}
+.nav{display:flex;gap:6px;overflow-x:auto;padding:8px 2px;margin-bottom:4px;scrollbar-width:none;
+position:sticky;top:0;z-index:5;background:rgba(0,0,0,.82);backdrop-filter:blur(8px)}
 .nav::-webkit-scrollbar{display:none}
 .nav a{flex:none;font-size:12px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
 border-radius:999px;padding:5px 13px;text-decoration:none;transition:border-color .2s ease,color .2s ease}
@@ -1384,7 +1390,7 @@ def build_dashboard(est, hist):
 <div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v32. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v33. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL={seg};setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
