@@ -577,7 +577,7 @@ t("dash orden", _xsec.index("s-precio") < _xsec.index("s-senales") < _xsec.index
 t("dash layout", "display:grid" in _db.CSS)
 t("dash papel quieto", "requiere 35%" in _db._ops_html(
     {"ultima_conf": 31}, datetime.datetime.now(datetime.timezone.utc)))
-t("dash masonry", "grid-template-columns" in _db.CSS and "grid-column:1/-1" in _db.CSS)
+t("dash masonry", ".grid{display:grid" not in _db.CSS and "columns:" in _db.CSS)
 t("dash nav fija", "position:sticky" in _db.CSS and 'class="nav"' in _db.build_dashboard({"runs": 1}, []))
 t("dash a11y", "focus-visible" in _db.CSS and "scrollbar-width" in _db.CSS)
 import datetime as _dt
@@ -712,6 +712,31 @@ _fr, _ft = _db.frescura("2026-10-13T14:29:00+00:00", datetime.datetime(2026, 10,
 t("frescura vivo", _fr == "vivo")
 _fr2, _ft2 = _db.frescura("2026-10-13T10:00:00+00:00", datetime.datetime(2026, 10, 13, 14, 30, tzinfo=datetime.timezone.utc), 15)
 t("frescura viejo", _fr2 == "viejo")
+import sys as _sysn
+_sysn.path.insert(0, os.path.join(_AQUI, "entrenamiento"))
+import evaluar as _ev
+t("wilson n0", _ev.wilson(0, 0) is None)
+t("wilson rango", _ev.wilson(30, 15) is not None and 0 < _ev.wilson(30, 15)[0] < 0.5 < _ev.wilson(30, 15)[1] < 1)
+t("veredicto pocos", _ev.veredicto(10, 3) == "pocos")
+t("pf proxy debil", _ev.pf_proxy(10, 3) < 1.0)
+t("agregar vacio", "dir" in _ev.agregar([]))
+import entrenador as _ent
+t("pf exp vacio", _ent.pf_exp(0, 0) == {"pf": None, "exp": None})
+t("pf exp sintetico", _ent.pf_exp(10, 5)["exp"] == -0.75)
+t("clave formato", _ent.clave("dir", "2026-10-13T14:00:00+00:00") == "dir|2026-10-13T14:00")
+t("clave vacia", _ent.clave(None, None) == "None|None" or isinstance(_ent.clave("x", "t"), str))
+t("claves archivo ausente", _ent.cargar_claves("no_existe_xyz.jsonl") == set())
+t("totales archivo ausente", _ent.totales_ledger("no_existe_xyz.jsonl") == {"dir": [0, 0], "liq": [0, 0], "toq": [0, 0], "zon": [0, 0]})
+def _ledger_tmp():
+    import tempfile
+    d = tempfile.mkdtemp()
+    p = os.path.join(d, "sen.jsonl")
+    ok1 = _ent.guardar_nuevas([{"k": "dir|2026-10-13T00:00", "s": "dir", "t": "2026-10-13T00:00", "w": 1},
+                               {"k": "zon|2026-10-13T06:00", "s": "zon", "t": "2026-10-13T06:00", "w": 0}], p) == 2
+    tot = _ent.totales_ledger(p)
+    return ok1 and tot["dir"] == [1, 1] and tot["zon"] == [1, 0] and _ent.cargar_claves(p) == {"dir|2026-10-13T00:00", "zon|2026-10-13T06:00"}
+t("ledger ida y vuelta", _ledger_tmp())
+t("ledger ledger evaluar", isinstance(_ev.leer_ledger("no_existe_xyz.jsonl"), tuple) and _ev.leer_ledger("no_existe_xyz.jsonl") == ({}, 0))
 t("sharpe none si n<5", _bt.sharpe_ratio([2, -1, 2]) is None)
 t("sharpe positivo", _bt.sharpe_ratio([2, -1, 2, 2, -1, 2, -1, -1, 2, 2]) > 0)
 t("sharpe plano none", _bt.sharpe_ratio([1.0] * 6) is None)
@@ -721,7 +746,8 @@ t("dsr penaliza trials", _bt.deflated_sharpe(0.5, 20, 0.0, 3.0, 10) < _bt.deflat
 t("costo calibra 0.5pct", 8.0 <= _bt.costo_bps(0.005) <= 12.0)
 t("costo base spread", _bt.costo_bps(0) == 1.5 and _bt.costo_bps(-0.01) == 1.5)
 t("dash tipo sobria", "BlinkMacSystemFont" in _db.CSS and "antialiased" in _db.CSS and "background:#000" in _db.CSS)
-t("dash movil plegable", "@media(max-width:640px)" in _db.CSS and "minmax(0,1fr)" in _db.CSS and "min-height:36px" in _db.CSS)
+t("dash movil plegable", "@media(max-width:640px)" in _db.CSS and "columns:1" in _db.CSS and "min-height:36px" in _db.CSS)
+t("dash masonry sin huecos", "columns:3 330px" in _db.CSS and "break-inside:avoid" in _db.CSS and "column-span:all" in _db.CSS)
 t("svg linea premium", "linearGradient" in _db.svg_linea([10, 20, 15, 30], color="#22c55e") and "stroke-opacity='.06'" in _db.svg_linea([10, 20, 15, 30]) and 'opacity=".18"' in _db.svg_linea([10, 20, 15, 30]) and "<title>cierre" in _db.svg_linea([10, 20, 15, 30]))
 t("svg fallback intacto", _db.svg_linea([1]) == "<p>sin datos aún</p>" and _db.svg_barras([], []) == "<p>sin datos aún</p>" and "<svg" in _db.svg_barras([10, 20, 30], ["0", "1", "2"]))
 t("dash ids vivos", all(s in _db.build_dashboard({"ultimo_run": "2026-10-13T12:00:00+00:00", "ultimo_bias": "LATERAL", "runs": 1}, [{"t": "2026-10-13T11:00:00+00:00", "precio": 83000, "conf": 50, "tipo": "nada", "bias": "LATERAL", "motivo": "x"}]) for s in ['id="recarga"', 'id="edad"', 'data-t=', 'id="pvivo"', 'id="plegar"', 'id="sonido"', 'id="fondo"', 'data-bias=', 'data-conf=', 'data-alertas=', 'data-run=', 'data-px=', 'data-grade=', 'content="120"']))
