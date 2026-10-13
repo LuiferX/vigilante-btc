@@ -997,6 +997,28 @@ def veredicto_dom(btc, prev=None):
         return "s/d"
 
 
+REAC_BASE = 0.522
+REAC_TAB = {  # mini-IA contenida: P(reaccion>=0.3%/4h en PILAS). Entrenada replay
+    # 8m (2026-02 a 2026-10, n=314); test temporal: top25 72.7% / mid 54.4% / bot 51.5%.
+    # SOLO lectura (etiqueta en el mensaje). No decide, no opera, no toca red.
+    "rsi=0": 0.456, "rsi=1": 0.523, "rsi=2": 0.586,
+    "adx=0": 0.418, "adx=1": 0.573,
+    "er=0": 0.562, "er=1": 0.5, "er=2": 0.501,
+    "ses=Asia": 0.473, "ses=Londres": 0.617, "ses=NY": 0.533,
+    "h1t=ALCISTA": 0.558, "h1t=BAJISTA": 0.437, "h1t=lateral": 0.56,
+    "zt=0": 0.471, "zt=1": 0.583, "zt=2": 0.538}
+
+
+def prob_reaccion(feats):
+    """Puntaje 0..1 de reaccion probable (media de tablas). None si falla."""
+    try:
+        vals = [REAC_TAB.get(k + "=" + str((feats or {}).get(k)), REAC_BASE)
+                for k in ("rsi", "adx", "er", "ses", "h1t", "zt")]
+        return round(sum(vals) / len(vals), 3)
+    except Exception:
+        return None
+
+
 def punto_control(kl, n=168):
     """POC + área de valor (microestructura sin dependencias):
     nivel con más volumen negociado en las últimas n velas 1H y rango
@@ -1357,7 +1379,7 @@ def liquidez(kl, last):
     return None
 
 
-def mensaje_pila(zonas, last, sops, ress, h1=None):
+def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
     """Texto claro de la zona PILAS mas cercana (o (None, None) si esta lejos).
     Incluye el encajonamiento piso/techo para no confundir (ayer: short bueno
     entre dos zonas). sops/ress: soportes y resistencias ({precio})."""
@@ -1387,15 +1409,31 @@ def mensaje_pila(zonas, last, sops, ress, h1=None):
                     adv = " Va contra momentum 1H: tamaño pequeño o espera."
         except Exception:
             pass
+        rc = ""
+        try:
+            if isinstance(h1, dict) and isinstance(a4, dict) and hora is not None:
+                rsi = h1.get("rsi", 50)
+                er = h1.get("er")
+                f = {"rsi": 0 if rsi < 40 else (1 if rsi < 60 else 2),
+                     "adx": 1 if (a4.get("adx", 0) or 0) >= 20 else 0,
+                     "er": 0 if (er if er is not None else 0.2) < 0.15 else (1 if er < 0.4 else 2),
+                     "ses": "Asia" if 0 <= hora < 7 else ("Londres" if 7 <= hora < 13 else ("NY" if 13 <= hora < 21 else "noche")),
+                     "h1t": h1.get("tend", "?"),
+                     "zt": 0 if abs(h1.get("z") or 0) < 1.0 else (1 if abs(h1.get("z") or 0) < 2.0 else 2)}
+                p = prob_reaccion(f)
+                if p is not None:
+                    rc = f" Reacción probable {'ALTA' if p >= 0.65 else ('BAJA' if p < 0.55 else 'MEDIA')} (historial)."
+        except Exception:
+            pass
         if zp["precio"] <= last:
             inv = (sops[0]["precio"] if sops else zp["precio"])
             return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                     f"({razones}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
-                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}", str(zp["precio"]))
+                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}{rc}", str(zp["precio"]))
         inv = (ress[0]["precio"] if ress else zp["precio"])
         return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                 f"({razones}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
-                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}", str(zp["precio"]))
+                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}{rc}", str(zp["precio"]))
     except Exception:
         return None, None
 
@@ -2537,7 +2575,7 @@ def main():
         pila = None
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
-            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"], h1)
+            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"], h1, a4, ahora.hour)
             if texto and est.get("pilas", {}).get(key) != hoy:
                 pila = texto
                 est.setdefault("pilas", {})[key] = hoy
