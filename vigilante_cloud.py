@@ -1323,11 +1323,19 @@ def ruptura(kl_h1, sup, res):
     try:
         if not kl_h1 or len(kl_h1) < 2:
             return None
-        c = kl_h1[-2]["c"]
+        vc = kl_h1[-2]
+        c = vc["c"]
+        hh = ""
+        try:
+            hh = vc["t"].strftime("%H:%M")
+        except Exception:
+            pass
         if sup and c < sup:
-            return f"ruptura BAJISTA confirmada bajo {fmt_miles(sup)} (cierre 1H)"
+            d = (sup - c) / sup * 100
+            return f"ruptura BAJISTA confirmada bajo {fmt_miles(sup)} (cierre 1H {hh} en {fmt_miles(c)}, {d:.2f}% debajo)"
         if res and c > res:
-            return f"ruptura ALCISTA confirmada sobre {fmt_miles(res)} (cierre 1H)"
+            d = (c - res) / res * 100
+            return f"ruptura ALCISTA confirmada sobre {fmt_miles(res)} (cierre 1H {hh} en {fmt_miles(c)}, {d:.2f}% encima)"
         return None
     except Exception:
         return None
@@ -2122,8 +2130,14 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
             est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
-    if rup and enfriar(est, "ruptura:" + rup.replace("BAJISTA", "").replace("ALCISTA", "").replace("bajo ", "").replace("sobre ", ""), 12, ahora):
-        return True, rup, "alerta"
+    if rup:
+        try:
+            mm = re.search(r"(?:bajo|sobre)\s+([\d.]+)", rup)
+            rkey = "ruptura:" + (mm.group(1) if mm else rup)
+        except Exception:
+            rkey = "ruptura:?"
+        if enfriar(est, rkey, 12, ahora):
+            return True, rup, "alerta"
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
         lado = "max" if "sobre" in liq else "min"
