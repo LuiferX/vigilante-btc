@@ -432,6 +432,8 @@ _ev3 = [{"titulo": "Core CPI m/m", "cuando": datetime.datetime(2026, 10, 12, 12,
 t("preaviso avisa", (v.preaviso({}, _ev3, _ahora, "2026-10-12") or "").startswith("⚠️ Core CPI"))
 _ee2 = {}
 v.preaviso(_ee2, _ev3, _ahora, "2026-10-12")
+# FIX BUG1: preaviso() es puro (no marca); la marca solo tras envío real.
+v.marcar_preaviso(_ee2, _ev3, _ahora, "2026-10-12")
 t("preaviso unico", v.preaviso(_ee2, _ev3, _ahora, "2026-10-12") is None)
 t("preaviso lejos", v.preaviso({}, _ev3, datetime.datetime(2026, 10, 12, 10, 0, tzinfo=datetime.timezone.utc), "2026-10-12") is None)
 t("preaviso low", v.preaviso({}, [{"titulo": "X", "cuando": _ev3[0]["cuando"], "impact": "Low"}], _ahora, "2026-10-12") is None)
@@ -710,6 +712,51 @@ _fr, _ft = _db.frescura("2026-10-13T14:29:00+00:00", datetime.datetime(2026, 10,
 t("frescura vivo", _fr == "vivo")
 _fr2, _ft2 = _db.frescura("2026-10-13T10:00:00+00:00", datetime.datetime(2026, 10, 13, 14, 30, tzinfo=datetime.timezone.utc), 15)
 t("frescura viejo", _fr2 == "viejo")
+t("sharpe none si n<5", _bt.sharpe_ratio([2, -1, 2]) is None)
+t("sharpe positivo", _bt.sharpe_ratio([2, -1, 2, 2, -1, 2, -1, -1, 2, 2]) > 0)
+t("sharpe plano none", _bt.sharpe_ratio([1.0] * 6) is None)
+t("dsr rango", 0.0 <= _bt.deflated_sharpe(0.54, 10, -0.41, 1.17, 10) <= 1.0)
+t("dsr exige T", _bt.deflated_sharpe(0.5, 3, 0.0, 3.0, 10) is None)
+t("dsr penaliza trials", _bt.deflated_sharpe(0.5, 20, 0.0, 3.0, 10) < _bt.deflated_sharpe(0.5, 20, 0.0, 3.0, 1))
+t("costo calibra 0.5pct", 8.0 <= _bt.costo_bps(0.005) <= 12.0)
+t("costo base spread", _bt.costo_bps(0) == 1.5 and _bt.costo_bps(-0.01) == 1.5)
+
+# FIX BUG1/BUG2: preaviso puro + pila con enfriar 4h por zona
+_ep1 = {}
+_txt1 = v.preaviso(_ep1, _ev3, _ahora, "2026-10-12")
+# (usa _ev3/_ahora definidos arriba; _ep1 debe quedar sin marca tras solo calcular)
+t("preaviso no marca sin envío", _txt1 is not None and (_ep1.get("preavisos") in (None, {})))
+_ep2 = {}
+_txt2 = v.preaviso(_ep2, _ev3, _ahora, "2026-10-12")
+try:
+    v.marcar_preaviso(_ep2, _ev3, _ahora, "2026-10-12")
+except Exception:
+    pass
+t("preaviso marca tras envío", _txt2 is not None and v.preaviso(_ep2, _ev3, _ahora, "2026-10-12") is None)
+_eb_p1 = dict(eb)
+_ahP = ah.replace(hour=10, minute=5)
+_r1 = v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb_p1, _ahP, None, None, "tendencia", False, "", None, None, "EYY PILAS: a 0.2% de 83.500 (x)", 90, 90)
+_r2 = v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb_p1, _ahP, None, None, "tendencia", False, "", None, None, "EYY PILAS: a 0.2% de 83.500 (x)", 90, 90)
+t("pila repetida se silencia", _r1[2] == "alerta" and _r2[2] == "nada")
+_eb_p2 = dict(eb)
+v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb_p2, _ahP, None, None, "tendencia", False, "", None, None, "EYY PILAS: a 0.2% de 83.500 (x)", 90, 90)
+_r3 = v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb_p2, _ahP, None, None, "tendencia", False, "", None, None, "EYY PILAS: a 0.3% de 84.000 (y)", 90, 90)
+t("pila distinta avisa", _r3[2] == "alerta")
+
+# tags solo-medición (etiquetar_senal puro, no decide)
+_tg1 = v.etiquetar_senal({"funding": 0.01, "taker": 0.2}, 14, "alcista")
+t("tags ny funding", _tg1.get("sesion") == "NY" and _tg1.get("funding") == 0.01)
+try:
+    _tg2 = v.etiquetar_senal(None, "x", None)
+    _tg2_ok = _tg2.get("sesion") == "?"
+except Exception:
+    _tg2_ok = False
+t("tags rotas sesion ?", _tg2_ok)
+_eb_t0 = dict(eb)
+_eb_t1 = dict(eb, tags={"funding": 0.01, "taker": 0.2, "sesion": "NY", "cvd_div": "sí"})
+_r_t0 = v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, _eb_t0, ah, None, None, "tendencia", False, "", None, None, None)
+_r_t1 = v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, _eb_t1, ah, None, None, "tendencia", False, "", None, None, None)
+t("snapshot no decide", _r_t0[2] == _r_t1[2])
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
