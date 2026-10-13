@@ -3,6 +3,7 @@
 """dashboard.py v3 - genera docs/index.html (GitHub Pages).
 Bonito + animado + robusto: ningun campo rompe el render."""
 import datetime
+import html
 import json
 import os
 
@@ -25,6 +26,13 @@ def _txt(x, default="?"):
     if isinstance(x, str) and x.strip():
         return x
     return default
+
+
+def _esc(x):
+    try:
+        return html.escape(str(x), quote=True)
+    except Exception:
+        return "?"
 
 
 def miles(x):
@@ -363,7 +371,9 @@ def _prox_pasada(ahora_dt):
             return base + datetime.timedelta(minutes=nm - m) if nm < 60 else base.replace(hour=h + 1, minute=0)
         nm = ((m // 15) + 1) * 15
         base = ahora_dt.replace(second=0, microsecond=0)
-        return base + datetime.timedelta(minutes=nm - m) if nm < 60 else base.replace(hour=(h + 1) % 24, minute=0)
+        if nm < 60:
+            return base + datetime.timedelta(minutes=nm - m)
+        return (base + datetime.timedelta(days=1)).replace(hour=0, minute=0)
     except Exception:
         return None
 
@@ -945,7 +955,7 @@ def _alertas_html(est, hist, ahora_dt=None):
     if sil:
         vis = "; ".join(sil[:3])
         mas = f" (+{len(sil) - 3} más)" if len(sil) > 3 else ""
-        sils = f"<p class='mini' title='{'; '.join(sil)}'>Silenciados: {vis}{mas}</p>"
+        sils = f"<p class='mini' title='{_esc('; '.join(sil))}'>Silenciados: {_esc(vis)}{mas}</p>"
     try:
         hoy = (ahora_dt.strftime("%Y-%m-%d") if ahora_dt is not None
                else datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"))
@@ -969,7 +979,7 @@ def _alertas_html(est, hist, ahora_dt=None):
         corto = (mot[:110] + "…") if len(mot) > 110 else mot
         filas += (f"<tr><td>{ft}</td><td><span class='badge {cls}'>{b}</span></td>"
                   f"<td>{miles(h.get('precio'))}</td><td>{h.get('conf', '?')}%</td>"
-                  f"<td title='{mot}'>{corto}</td></tr>")
+                  f"<td title='{_esc(mot)}'>{_esc(corto)}</td></tr>")
     return (f"<div class='tscroll'><table class='ops'><thead><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr></thead>"
             f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>{sils}{pres_txt}"
             f"<p class='mini' title='TECHO = estás debajo, puede devolver abajo · PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.'>TECHO / PISO: se anulan con cierre 1H más allá.</p>")
@@ -1129,11 +1139,11 @@ def _duelo_html(snap):
     bal = snap.get("bal") if isinstance(snap.get("bal"), dict) else None
     taker = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
     pw = None
-    if bal and (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) > 0:
-        try:
+    try:
+        if bal and (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) > 0:
             pw = float(bal.get("buys", 0)) / (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) * 100
-        except Exception:
-            pw = None
+    except Exception:
+        pw = None
     pt = None
     try:
         if taker is not None:
@@ -1154,7 +1164,12 @@ def _duelo_html(snap):
            "<div class='fname'>{n} en espera</div><div class='fpow'>s/d</div></div>")
     if pw is None or pt is None:
         dw = ""
-        if bal and (int(bal.get("nb", 0)) + int(bal.get("ns", 0))) > 0:
+        try:
+            nb = int(bal.get("nb", 0)) if bal else 0
+            ns = int(bal.get("ns", 0)) if bal else 0
+        except Exception:
+            nb, ns = 0, 0
+        if (nb + ns) > 0:
             dw = (f"<div class='tmeta'><span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span> · "
                   f"<span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span></div>")
         fw = (f"<div class='fighter'><span class='fmono b'>B</span><div class='fname'>Ballenas</div>"
@@ -1182,7 +1197,12 @@ def _duelo_html(snap):
     else:
         banner, cw, cl = "Pelea pareja — nadie domina", "", ""
     det_w = ""
-    if bal and (int(bal.get("nb", 0)) + int(bal.get("ns", 0))) > 0:
+    try:
+        nb2 = int(bal.get("nb", 0)) if bal else 0
+        ns2 = int(bal.get("ns", 0)) if bal else 0
+    except Exception:
+        nb2, ns2 = 0, 0
+    if (nb2 + ns2) > 0:
         det_w = (f"<div class='tmeta'><span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span> · "
                  f"<span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span> · max {bal.get('big', 0)}</div>")
     elif bal:
@@ -1254,20 +1274,22 @@ def build_dashboard(est, hist):
     if not isinstance(hist, list):
         hist = []
     ahora_dt = datetime.datetime.now(datetime.timezone.utc)
+    hay_dato = False
     try:
         dt_data = datetime.datetime.fromisoformat(est.get("ultimo_run", ""))
         if dt_data.tzinfo is None:
             dt_data = dt_data.replace(tzinfo=datetime.timezone.utc)
+        hay_dato = True
     except Exception:
         dt_data = ahora_dt
-    ahora = dt_data.strftime("%d/%m %H:%M UTC")
-    ahora_iso = dt_data.isoformat()
+    ahora = dt_data.strftime("%d/%m %H:%M UTC") if hay_dato else "sin datos aún"
+    ahora_iso = dt_data.isoformat() if hay_dato else ""
     ult = [h for h in hist[-30:] if isinstance(h, dict)]
     px = [_num(h.get("precio")) for h in ult]
     cf = [h.get("conf", 0) for h in ult]
     marcas = [i for i, h in enumerate(ult) if h.get("tipo") == "alerta"]
-    alza = est.get("alza") or []
-    baja = est.get("baja") or []
+    alza = [v for v in (est.get("alza") or []) if isinstance(v, (int, float))]
+    baja = [v for v in (est.get("baja") or []) if isinstance(v, (int, float))]
     pa = f"{round(sum(alza) / len(alza) * 100)}% ({sum(alza)}/{len(alza)})" if len(alza) >= 5 else "s/d"
     pb = f"{round(sum(baja) / len(baja) * 100)}% ({sum(baja)}/{len(baja)})" if len(baja) >= 5 else "s/d"
     banco = est.get("banco")
@@ -1385,12 +1407,12 @@ def build_dashboard(est, hist):
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
+<style>{CSS}</style></head><body data-bias="{_esc(bias)}" data-conf="{_esc(conf)}" data-alertas="{n_alertas}" data-run="{_esc(est.get("runs", "?"))}" data-px="{fpx}" data-grade="{_esc(grade)}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header><h1><span class="logo">V</span>Vigilante BTC</h1>
-<span class="saludo">{_saludo(ahora_dt)}</span>
-<span class="live"><span class="dot"></span>actualizado {ahora} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
-<span class="live"><span class="dot"></span>próxima pasada ~{prox_txt}</span>
-<span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{ahora_iso}">…</b></span>
+<span class="saludo">{_esc(_saludo(ahora_dt))}</span>
+<span class="live"><span class="dot"></span>actualizado {_esc(ahora)} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
+<span class="live"><span class="dot"></span>próxima pasada ~{_esc(prox_txt)}</span>
+<span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{_esc(ahora_iso)}">…</b></span>
 <span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">Sonido off</button><span id="motor"></span></header>
