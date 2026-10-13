@@ -443,6 +443,40 @@ def _hace(tiso, ahora):
         return ""
 
 
+def frescura(tiso, ahora_dt, max_min=15):
+    try:
+        s = str(tiso).strip() if isinstance(tiso, str) else tiso
+        try:
+            if isinstance(s, str) and s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            t0 = datetime.datetime.fromisoformat(s)
+        except Exception:
+            return ("s/d", "")
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=datetime.timezone.utc)
+        try:
+            ahora = ahora_dt
+            if ahora.tzinfo is None:
+                ahora = ahora.replace(tzinfo=datetime.timezone.utc)
+        except Exception:
+            return ("s/d", "")
+        try:
+            mm = float(max_min)
+        except Exception:
+            mm = 15
+        diff_min = (ahora - t0).total_seconds() / 60
+        if diff_min < 0:
+            diff_min = 0
+        texto = _hace(tiso if isinstance(tiso, str) else str(tiso), ahora_dt) or f"hace {int(diff_min)}min"
+        if diff_min <= mm:
+            return ("vivo", texto)
+        if diff_min <= 4 * mm:
+            return ("tibio", texto)
+        return ("viejo", texto)
+    except Exception:
+        return ("s/d", "")
+
+
 def _sh(x):
     try:
         import math
@@ -1345,8 +1379,18 @@ def build_dashboard(est, hist):
               f"<p>EV ALZA {_ev_txt(alza)} · BAJA {_ev_txt(baja)} (plan 2R, rentable sobre 33%)</p>"
               f"{_calib_txt(est.get('eval_log'))}"
               f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>")
+    try:
+        _tiso = est.get("latido") or est.get("ultimo_run")
+    except Exception:
+        _tiso = None
+    try:
+        _fest, _ftxt = frescura(_tiso, ahora_dt) if _tiso else ("s/d", "")
+    except Exception:
+        _fest, _ftxt = ("s/d", "")
+    _fuente = f"fuente: {_fest} ({_ftxt})" if _ftxt else "fuente: s/d"
     act_b = (f"<p>{len(hist)} pasadas guardadas · run {est.get('runs', '?')}</p>"
-             f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>")
+             f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>"
+             f"<p>{_esc(_fuente)}</p>")
     ban = _banner_html(est, ult, ahora_dt)
     tarjetas = []
     if ban:
