@@ -2471,12 +2471,26 @@ def send_telegram(text):
         print("\n[modo local] Variables TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID ausentes.")
         return False
     url = f"https://api.telegram.org/bot{token}/sendMessage"
+    import time as _t
     for i, parte in enumerate(trocear(text)):
         txt = parte if i == 0 else "(sigue) " + parte
         payload = json.dumps({"chat_id": chat, "text": txt}).encode("utf-8")
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            r.read()
+        ok = False
+        for intento in range(3):
+            try:
+                req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    r.read()
+                ok = True
+                break
+            except Exception:
+                if intento < 2:
+                    try:
+                        _t.sleep(2 * (intento + 1))
+                    except Exception:
+                        pass
+        if not ok:
+            return False
     return True
 
 
