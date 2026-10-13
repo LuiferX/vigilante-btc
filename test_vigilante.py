@@ -592,6 +592,15 @@ t("pila contra", "contra momentum" in (v.mensaje_pila(
 t("pila a favor", "contra momentum" not in (v.mensaje_pila(
     [{"precio": 84000, "razones": ["x"]}], 83752, [{"precio": 82992}], [{"precio": 84199}],
     {"tend": "lateral", "er": 0.1, "rsi": 50})[0] or ""))
+_h1r = {"tend": "lateral", "er": 0.1, "rsi": 55, "z": 0.5}
+_a4r = {"adx": 25}
+_mr = v.mensaje_pila([{"precio": 82992, "razones": ["S1 semanal"]}], 83100,
+                     [{"precio": 82992}], [{"precio": 84199}], _h1r, _a4r, 14)[0] or ""
+t("pila reaccion", "Reacción probable" in _mr and ("ALTA" in _mr or "MEDIA" in _mr or "BAJA" in _mr))
+t("pila sin reloj", "Reacción probable" not in (v.mensaje_pila(
+    [{"precio": 82992, "razones": ["x"]}], 83100, [{"precio": 82992}], [{"precio": 84199}],
+    _h1r)[0] or ""))
+t("prob rango", 0 <= (v.prob_reaccion({}) or -1) <= 1)
 t("liq claro", "compradores" in v.liquidez([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
     [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080},
      {"o": 82080, "h": 82120, "l": 82000, "c": 81990}], 81990))
