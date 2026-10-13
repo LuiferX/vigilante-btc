@@ -12,6 +12,8 @@ Uso:  python backtest.py   (lee el historial de la nube; si no hay, usa demo)
 """
 import datetime
 import json
+import math
+import statistics
 import urllib.request
 
 HIST_URL = "https://raw.githubusercontent.com/LuiferX/vigilante-btc/estado/historial.jsonl"
@@ -95,6 +97,129 @@ def metricas(res):
             "exp": round(eq / n, 2), "dd": round(dd, 1)}
 
 
+def sharpe_ratio(rs):
+    """Sharpe por trade (media / pstdev) de una lista de R.
+
+    Pura/stdlib. Devuelve None si n<5 o si la desv. es 0
+    (muestra insuficiente para un Sharpe estable).
+    """
+    rs = list(rs)
+    if len(rs) < 5:
+        return None
+    mu = statistics.mean(rs)
+    sd = statistics.pstdev(rs)
+    if not sd:
+        return None
+    return mu / sd
+
+
+def costo_bps(atr_pct, spread_bps=3.0):
+    """Estimador dinamico simple de costos en bps. Puro.
+
+    Formula: spread_bps/2 + K*sqrt(atr_pct), con atr_pct en tanto por uno
+    (p.ej. 0.005 = 0.5%) y K=120 bps.
+
+    Calibracion: atr 0.5% -> 1.5 + 120*sqrt(0.005) ~= 10.0 bps totales,
+    dentro del rango 8-12 bps buscado.
+    Limites: modelo didactico, no microestructura; valido aprox. para
+    atr_pct en [0, 0.05]; si atr_pct<=0 devuelve solo spread/2; ignora
+    funding/fees fijos y slippage extremo en saltos de volatilidad.
+    """
+    k = 120.0
+    base = float(spread_bps) / 2.0
+    try:
+        a = float(atr_pct)
+    except (TypeError, ValueError):
+        return round(base, 2)
+    if a <= 0:
+        return round(base, 2)
+    return round(base + k * math.sqrt(a), 2)
+
+
+def _norm_cdf(x):
+    """CDF normal estandar via math.erf. Pura/interna."""
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def _norm_ppf(p):
+    """Inversa de la CDF normal (aprox. de Acklam). Pura/interna.
+
+    Valida para p en (0,1); clamp interno a [1e-12, 1-1e-12].
+    """
+    p = min(max(float(p), 1e-12), 1.0 - 1e-12)
+    a1, a2, a3, a4, a5, a6 = (-3.969683028665376e+01, 2.209460984245205e+02,
+                              -2.759285104469687e+02, 1.383577518672690e+02,
+                              -3.066479806614716e+01, 2.506628277459239e+00)
+    b1, b2, b3, b4, b5 = (-5.447609879822406e+01, 1.615858368580409e+02,
+                          -1.556989798598866e+02, 6.680131188771972e+01,
+                          -1.328068155288572e+01)
+    c1, c2, c3, c4, c5, c6 = (-7.784894002430293e-03, -3.223964580411365e-01,
+                              -2.400758277161838e+00, -2.549732539343734e+00,
+                              4.374664141464968e+00, 2.938163982698783e+00)
+    d1, d2, d3, d4 = (7.784695709041462e-03, 3.224671290700398e-01,
+                      2.445134137142996e+00, 3.754408661907416e+00)
+    plow, phigh = 0.02425, 1.0 - 0.02425
+    if p < plow:
+        q = math.sqrt(-2.0 * math.log(p))
+        return (((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) / \
+               ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0)
+    if p > phigh:
+        q = math.sqrt(-2.0 * math.log(1.0 - p))
+        return -(((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) / \
+                ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0)
+    q = p - 0.5
+    r = q * q
+    return (((((a1 * r + a2) * r + a3) * r + a4) * r + a5) * r + a6) * q / \
+           (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1.0)
+
+
+def deflated_sharpe(sr, T, skew, kurt, n_trials):
+    """Deflated Sharpe Ratio (Bailey-Lopez de Prado 2014). Pura.
+
+    PROXY DOCUMENTADO: sin la matriz de retornos de los K trials no se
+    puede estimar V (varianza entre los Sharpe de los trials) ni sus
+    correlaciones; se usa V ~= 1/T (Sharpe nulo ~ N(0, 1/T)). Es solo
+    una referencia informativa contra data-mining, no una puerta de trading.
+
+    Args:
+        sr: Sharpe observado (mismo periodo que T).
+        T: n. observaciones (trades). Requiere T>=5.
+        skew: asimetria (gamma3) de los R.
+        kurt: curtosis CRUDA (gamma4; 3.0 = normal). No exceso.
+        n_trials: K, n. de configuraciones probadas. K<=1 -> SR0=0.
+
+    Formula:
+        SR0 = sqrt(V)*((1-g)*ppf(1-1/K) + g*ppf(1-1/(K*e))),
+        con g=0.5772 (Euler-Mascheroni), e=2.718...
+        DSR = Phi((sr-SR0)*sqrt(T-1) / sqrt(1-skew*sr+(kurt-1)/4*sr^2)).
+        Phi via math.erf. Devuelve None si inputs insuficientes.
+    """
+    try:
+        sr = float(sr)
+        T = int(T)
+        skew = float(skew)
+        kurt = float(kurt)
+        k = int(n_trials)
+    except (TypeError, ValueError):
+        return None
+    if T < 5 or k < 1:
+        return None
+    if k <= 1:
+        sr0 = 0.0
+    else:
+        gamma = 0.5772156649015329
+        v = 1.0 / T
+        q1 = _norm_ppf(1.0 - 1.0 / k)
+        q2 = _norm_ppf(1.0 - 1.0 / (k * math.e))
+        sr0 = math.sqrt(v) * ((1.0 - gamma) * q1 + gamma * q2)
+    denom2 = 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr * sr
+    if denom2 <= 1e-12:
+        return None
+    stat = (sr - sr0) * math.sqrt(T - 1) / math.sqrt(denom2)
+    dsr = _norm_cdf(stat)
+    return min(max(dsr, 0.0), 1.0)
+
+
 def partir_purgado(n, train_frac=0.5, embargo=2):
     """Split purgado con embargo: train = primeros int(n*frac), salta embargo, test = resto."""
     n_train = int(n * train_frac)
@@ -124,6 +249,7 @@ def main():
         return
     velas = velas_1h()
     res = []
+    atr_pcts = []
     for s in senales:
         try:
             t0 = datetime.datetime.fromisoformat(s["t"])
@@ -139,6 +265,7 @@ def main():
         hit = 1 if ((mov >= umbral) if s["bias"] == "ALZA" else (mov <= -umbral)) else 0
         res.append({"t": s["t"], "bias": s["bias"], "hit": hit, "r": 2 if hit else -1,
                     "motivo": s.get("motivo", ""), "grade": s.get("grade", "?")})
+        atr_pcts.append(at / p0)
     if len(res) < 4:
         print("Velas insuficientes para evaluar. Intenta mas tarde.")
         return
@@ -159,6 +286,31 @@ def main():
               f"exp={m['exp']}R dd={m['dd']}R")
     print("\nRegla honesta: si OUT es parecido a IN, el sistema es real. "
           "Si OUT se derrumba, era suerte del pasado.")
+    # --- Informativo (no cambia regla 2R ni corte IN/OOS) ---
+    rs_in = [x["r"] for x in res[:corte]]
+    rs_out = [x["r"] for x in res[corte:]]
+    rs_all = [x["r"] for x in res]
+    sh_in, sh_out, sh_all = sharpe_ratio(rs_in), sharpe_ratio(rs_out), sharpe_ratio(rs_all)
+    fmt = lambda v: f"{v:+.2f}" if v is not None else "n/d"
+    print(f"Sharpe R: IN={fmt(sh_in)} OUT={fmt(sh_out)} ALL={fmt(sh_all)} (n>=5 o n/d)")
+    n_trials = len(res)  # proxy documentado: n senales evaluadas (sin matriz de trials)
+    if sh_out is None:
+        print(f"DSR OUT=n/d (n_trials={n_trials} como proxy: n senales evaluadas; T={len(rs_out)})")
+    else:
+        mu_o = statistics.mean(rs_out)
+        sd_o = statistics.pstdev(rs_out)
+        skew_o = sum((x - mu_o) ** 3 for x in rs_out) / len(rs_out) / (sd_o ** 3) if sd_o else 0.0
+        kurt_o = sum((x - mu_o) ** 4 for x in rs_out) / len(rs_out) / (sd_o ** 4) if sd_o else 3.0
+        dsr = deflated_sharpe(sh_out, len(rs_out), skew_o, kurt_o, n_trials)
+        txt = f"{dsr:.2f}" if dsr is not None else "n/d"
+        print(f"DSR OUT={txt} (n_trials={n_trials} como proxy: n senales evaluadas; T={len(rs_out)})")
+    if atr_pcts:
+        atr_medio = statistics.mean(atr_pcts)
+        costo = costo_bps(atr_medio)
+        umbral_medio = max(0.002, atr_medio * 0.5)
+        costo_r = costo / (umbral_medio * 10000.0)
+        print(f"Con costos ~{costo:.1f}bps (ATR medio {atr_medio * 100:.2f}%) "
+              f"el expectancy cae ~{costo_r:.2f}R por trade (informativo).")
 
 
 if __name__ == "__main__":
