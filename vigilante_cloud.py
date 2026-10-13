@@ -1349,7 +1349,7 @@ def liquidez(kl, last):
     return None
 
 
-def mensaje_pila(zonas, last, sops, ress):
+def mensaje_pila(zonas, last, sops, ress, h1=None):
     """Texto claro de la zona PILAS mas cercana (o (None, None) si esta lejos).
     Incluye el encajonamiento piso/techo para no confundir (ayer: short bueno
     entre dos zonas). sops/ress: soportes y resistencias ({precio})."""
@@ -1366,15 +1366,28 @@ def mensaje_pila(zonas, last, sops, ress):
         ctx = ""
         if debajo and encima:
             ctx = f" Estás entre 🛡 {fmt_miles(debajo[0])} y 🧲 {fmt_miles(encima[0])}."
+        adv = ""
+        try:
+            if isinstance(h1, dict):
+                er = h1.get("er")
+                rsi = h1.get("rsi", 50)
+                if zp["precio"] > last and h1.get("tend") == "ALCISTA" and (
+                        (er is not None and er >= 0.4) or rsi >= 60):
+                    adv = " Va contra momentum 1H: tamaño pequeño o espera."
+                elif zp["precio"] <= last and h1.get("tend") == "BAJISTA" and (
+                        (er is not None and er >= 0.4) or rsi <= 40):
+                    adv = " Va contra momentum 1H: tamaño pequeño o espera."
+        except Exception:
+            pass
         if zp["precio"] <= last:
             inv = (sops[0]["precio"] if sops else zp["precio"])
             return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                     f"({razones}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
-                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}", str(zp["precio"]))
+                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}", str(zp["precio"]))
         inv = (ress[0]["precio"] if ress else zp["precio"])
         return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                 f"({razones}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
-                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}", str(zp["precio"]))
+                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}", str(zp["precio"]))
     except Exception:
         return None, None
 
@@ -2510,7 +2523,7 @@ def main():
         pila = None
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
-            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"])
+            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"], h1)
             if texto and est.get("pilas", {}).get(key) != hoy:
                 pila = texto
                 est.setdefault("pilas", {})[key] = hoy
