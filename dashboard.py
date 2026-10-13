@@ -888,6 +888,26 @@ FONDO_JS = ("<script>(function(){"
           "frame(0);})();</script>")
 
 
+def presion_dia(hist, hoy):
+    """Medidor honesto del día: alertas bajistas vs alcistas (por texto).
+    No predice: resume hacia dónde empujaron los avisos."""
+    try:
+        bj = al = 0
+        for h in hist or []:
+            if not isinstance(h, dict) or h.get("tipo") != "alerta":
+                continue
+            if str(h.get("t", ""))[:10] != hoy:
+                continue
+            m = str(h.get("motivo", ""))
+            if "BAJISTA" in m or "PISO" in m or "bajo mínimos" in m or "Ritmo acelerado -" in m:
+                bj += 1
+            elif "ALCISTA" in m or "TECHO" in m or "sobre máximos" in m or "Ritmo acelerado +" in m:
+                al += 1
+        return {"bajistas": bj, "alcistas": al}
+    except Exception:
+        return {"bajistas": 0, "alcistas": 0}
+
+
 def _alertas_html(est, hist, ahora_dt=None):
     COOL_H = {"fuerte": 4, "brusco": 2, "liq": 4, "ritmo": 2, "toque": 4, "diadc": 24, "ruptura": 12}
     sil = []
@@ -915,6 +935,14 @@ def _alertas_html(est, hist, ahora_dt=None):
         pass
     als = [h for h in (hist or []) if isinstance(h, dict) and h.get("tipo") == "alerta"]
     sils = (f"<p class='mini'>Silenciados (ya avisados): {'; '.join(sil)}</p>" if sil else "")
+    try:
+        hoy = (ahora_dt.strftime("%Y-%m-%d") if ahora_dt is not None
+               else datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"))
+        pr = presion_dia(hist, hoy)
+        pres_txt = (f"<p class='mini'>Presión del día: {pr['bajistas']} bajistas / {pr['alcistas']} alcistas</p>"
+                    if (pr["bajistas"] + pr["alcistas"]) > 0 else "")
+    except Exception:
+        pres_txt = ""
     if not als:
         return (f"<p class='mini'>Sin alertas en ventana — el bot sólo avisa con cambio real, "
                 f"no cada pasada.</p>{sils}")
@@ -932,7 +960,7 @@ def _alertas_html(est, hist, ahora_dt=None):
                   f"<td>{miles(h.get('precio'))}</td><td>{h.get('conf', '?')}%</td>"
                   f"<td title='{mot}'>{corto}</td></tr>")
     return (f"<div class='tscroll'><table class='ops'><thead><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr></thead>"
-            f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>{sils}"
+            f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>{sils}{pres_txt}"
             f"<p class='mini'>TECHO = estás debajo, puede devolver abajo · "
             f"PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
 
