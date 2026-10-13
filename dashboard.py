@@ -52,7 +52,10 @@ def _bias_class(bias):
 
 
 def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
-    vals = [v for v in vals if isinstance(v, (int, float))]
+    try:
+        vals = [v for v in (vals or []) if isinstance(v, (int, float))]
+    except Exception:
+        return "<p>sin datos aún</p>"
     if len(vals) < 2:
         return "<p>sin datos aún</p>"
     _uid[0] += 1
@@ -80,6 +83,12 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
             dots.append(
                 f'<circle class="alert" cx="{xs[i]:.1f}" cy="{ys[i]:.1f}" r="4.5">'
                 f"<title>alerta · pasada {i} · {vals[i]:,.0f}</title></circle>")
+    try:
+        dots.append(
+            f'<circle cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="9" fill="{color}" opacity=".18">'
+            f"<title>cierre · {vals[-1]:,.0f}</title></circle>")
+    except Exception:
+        pass
     dots.append(
         f'<circle class="last" cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="4.5">'
         f"<title>cierre · {vals[-1]:,.0f}</title></circle>")
@@ -103,6 +112,12 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
     lvls.append(f"<line x1='10' y1='{yl:.1f}' x2='{w - 62}' y2='{yl:.1f}' class='lvlpx'>"
                 f"<title>precio actual · {last:,.0f}</title></line>"
                 f"<text x='{w - 60}' y='{yl - 5:.1f}' class='lvlTxt'>{last:,.0f}</text>")
+    try:
+        _grid = "".join(
+            f"<line x1='10' y1='{h - 14 - k * (h - 34):.1f}' x2='{w - 10}' y2='{h - 14 - k * (h - 34):.1f}' stroke='#ffffff' stroke-opacity='.06' stroke-width='1'/>"
+            for k in (0.25, 0.5, 0.75))
+    except Exception:
+        _grid = ""
     return (
         f'<svg class="resp draw" viewBox="0 0 {w} {h}" preserveAspectRatio="none">'
         f"<defs><linearGradient id=\"{gid}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">"
@@ -110,13 +125,16 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
         f"<stop offset=\"1\" stop-color=\"{color}\" stop-opacity=\"0\"/></linearGradient></defs>"
         f"<path d=\"{area}\" fill=\"url(#{gid})\"/>"
         f"<polyline class=\"linea\" points=\"{pts}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/>"
-        + "".join(lvls) + "".join(dots) +
+        + _grid + "".join(lvls) + "".join(dots) +
         f"<text x=\"12\" y=\"18\" class=\"tag\">máx {hi:,.0f}</text>"
         f"<text x=\"12\" y=\"{h - 4}\" class=\"tag\">mín {lo:,.0f}</text></svg>")
 
 
 def svg_barras(vals, etiquetas, w=560, h=170):
-    pares = [(v, e) for v, e in zip(vals, etiquetas) if isinstance(v, (int, float))]
+    try:
+        pares = [(v, e) for v, e in zip(vals or [], etiquetas or []) if isinstance(v, (int, float))]
+    except Exception:
+        return "<p>sin datos aún</p>"
     if not pares:
         return "<p>sin datos aún</p>"
     n = len(pares)
@@ -141,10 +159,13 @@ def svg_barras(vals, etiquetas, w=560, h=170):
             y = bot - 2
         x = 10 + i * bw + 1.5
         cls = "b-green" if vc >= 55 else ("b-amber" if vc >= 40 else ("b-zero" if vc == 0 else "b-slate"))
-        s.append(
-            f'<rect class="bar {cls}" x="{x:.1f}" y="{y:.1f}" width="{bw - 3:.1f}" '
-            f'height="{bot - y:.1f}" rx="3" style="animation-delay:{min(i * 25, 700)}ms">'
-            f"<title>pasada {e} · confianza {v:g}</title></rect>")
+        try:
+            s.append(
+                f'<rect class="bar {cls}" x="{x:.1f}" y="{y:.1f}" width="{bw - 3:.1f}" '
+                f'height="{bot - y:.1f}" rx="3" style="animation-delay:{min(i * 25, 700)}ms">'
+                f"<title>pasada {e} · confianza {v:g}</title></rect>")
+        except Exception:
+            continue
         if n <= 12 or i % 5 == 0 or i == n - 1:
             s.append(f'<text x="{x + 2:.1f}" y="{h - 8}" class="tag">{e}</text>')
         if vc >= 55:
@@ -156,12 +177,14 @@ def svg_barras(vals, etiquetas, w=560, h=170):
 
 
 CSS = """
-:root{--bg:#000;--card:rgba(12,13,16,.88);--line:rgba(255,255,255,.09);
---txt:#e2e8f0;--mut:#94a3b8;--acc:#38bdf8;--grn:#22c55e;--amb:#f59e0b;--red:#ef4444}
+:root{--bg:#000;--card:rgba(13,15,19,.92);--card2:#0c0c0e;--line:rgba(148,163,184,.16);--line2:rgba(148,163,184,.32);
+--txt:#e8eef6;--mut:#94a3b8;--acc:#38bdf8;--grn:#22c55e;--amb:#f59e0b;--red:#ef4444;
+--radius:14px;--shadow:0 8px 28px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.04) inset}
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
 body{background:#000;
-color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:16px;
-min-height:100vh}
+color:var(--txt);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;margin:0;padding:20px 16px 32px;
+min-height:100vh;line-height:1.55;font-size:15px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 body::before,body::after{content:"";position:fixed;border-radius:50%;filter:blur(90px);
 pointer-events:none;z-index:0}
 body::before{width:44vw;height:44vw;left:-12vw;top:-14vw;
@@ -208,22 +231,23 @@ ul.pq li{border-left:3px solid #38bdf8}
 border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;align-items:start}
 .card{margin-bottom:0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;
-box-shadow:0 10px 30px #0006;backdrop-filter:blur(6px);animation:up .55s both}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,0) 120px),var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;
+box-shadow:var(--shadow);backdrop-filter:blur(8px);animation:up .55s both}
+.card:hover{border-color:var(--line2)}
 .card:nth-child(2){animation-delay:.06s}.card:nth-child(3){animation-delay:.12s}
 .card:nth-child(4){animation-delay:.18s}.card:nth-child(5){animation-delay:.24s}
 .card:nth-child(6){animation-delay:.3s}.card:nth-child(7){animation-delay:.36s}
 @keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-h2{font-size:13px;letter-spacing:.4px;text-transform:uppercase;color:#93c5fd;margin:0 0 10px}
-p{color:var(--mut);font-size:13px;margin:6px 0}
-.big{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
-.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;
-vertical-align:middle;margin-left:6px}
-.badge.alza{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
-.badge.baja{background:#450a0a;color:#fca5a5;border:1px solid #ef444455}
-.badge.lateral{background:#0a0a0a;color:#fff;border:1px solid #ffffff55}
+h2{font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:#93c5fd;margin:0 0 10px;font-weight:750}
+p{color:var(--mut);font-size:13.5px;line-height:1.6;margin:7px 0;max-width:75ch}
+.big{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.8px;line-height:1.05}
+.badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border-radius:999px;padding:4px 11px;
+vertical-align:middle;margin-left:8px;white-space:nowrap}
+.badge.alza{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.35)}
+.badge.baja{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.38)}
+.badge.lateral{background:rgba(148,163,184,.12);color:#e2e8f0;border:1px solid rgba(148,163,184,.35)}
 .pill{height:8px;border-radius:99px;background:#0c0c0e;overflow:hidden;margin-top:8px}
 .pill i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--amb),var(--grn));
 width:0;animation:fill 1.1s .2s forwards}
@@ -262,8 +286,9 @@ transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;cursor:d
 table.ops tr:hover td{background:#ffffff0d}
 .tscroll{max-height:264px;overflow-y:auto;border-radius:8px}
 .tscroll thead th{position:sticky;top:0;background:#0c0c0e;z-index:1}
-footer{color:#64748b;font-size:12px;margin:14px 2px}
-@media(max-width:480px){.big{font-size:26px}}
+footer{color:#64748b;font-size:12px;margin:16px 2px;line-height:1.5}
+@media(max-width:640px){body{padding:14px 10px 24px}.grid{grid-template-columns:minmax(0,1fr);gap:10px}.card{padding:14px 13px}table.ops th,table.ops td{padding:7px 8px;font-size:12px}.tscroll{max-height:320px}header{gap:8px}.nav{margin:0 -2px 6px;padding:8px 2px}}
+@media(max-width:480px){.big{font-size:26px;letter-spacing:-.4px}.clock{font-size:22px}.gwrap{flex-direction:column;align-items:flex-start}}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-track{background:#000}
 ::-webkit-scrollbar-thumb{background:#26262b;border-radius:99px;border:2px solid #000}
@@ -331,14 +356,15 @@ border:1px solid #ffd76a88;color:#ffe9a8;animation:brillo 3s linear infinite}
 
 .stat small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat b{font-size:15px;font-variant-numeric:tabular-nums}
-table.ops{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
-table.ops th{text-align:left;color:var(--mut);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
-table.ops td{padding:4px 6px;border-bottom:1px solid #1c1c1f;font-variant-numeric:tabular-nums}
+table.ops{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;line-height:1.45}
+table.ops th{text-align:left;color:#a9b8cc;font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.ops td{padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.1);font-variant-numeric:tabular-nums;vertical-align:top}
+table.ops tr:last-child td{border-bottom:none}
 .win{color:#4ade80;font-weight:700}.loss{color:#fca5a5;font-weight:700}
 .tagLONG{color:#4ade80;font-weight:700}.tagSHORT{color:#fca5a5;font-weight:700}
 .mini{font-size:12px;color:var(--mut)}
 .chead{all:unset;display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer;
-box-sizing:border-box;padding:2px 0 10px}
+box-sizing:border-box;padding:6px 0 12px;min-height:36px;border-radius:8px}
 .ctit{font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#93c5fd}
 .chev{color:#93c5fd;font-size:14px;transition:transform .35s ease;display:inline-block}
 .card.closed .chev{transform:rotate(-90deg)}
@@ -625,13 +651,13 @@ def _ops_html(est, ahora):
     return (f"{stats}{ab}{ce}{pe}{jo}")
 
 
-CD_JS = ("<script>(function(){var el=document.getElementById('cd');"
+CD_JS = ("<script>(function(){try{var el=document.getElementById('cd');"
           "if(!el||!el.dataset||!el.dataset.next)return;"
-          "var t=new Date(el.dataset.next).getTime();"
-          "function tk(){var d=t-Date.now();if(d<0){el.textContent='¡ahora!';return;}"
+          "var t=new Date(el.dataset.next).getTime();if(!isFinite(t))return;"
+          "function tk(){try{var d=t-Date.now();if(d<0){el.textContent='pronto';return;}"
           "var h=Math.floor(d/36e5),m=Math.floor(d%36e5/6e4),s=Math.floor(d%6e4/1e3);"
-          "el.textContent=h+'h '+m+'m '+s+'s';}"
-          "tk();setInterval(tk,1000);})();</script>")
+          "el.textContent=h+'h '+m+'m '+s+'s';}catch(e){}}"
+          "try{tk();}catch(e){}setInterval(function(){try{tk();}catch(e){}},1000);}catch(e){}})();</script>")
 
 UI_JS = ("<script>(function(){"
           "var KEY='vig_cards_v1';"
@@ -645,13 +671,13 @@ UI_JS = ("<script>(function(){"
           "var sh=c.classList.contains('closed');b.setAttribute('aria-expanded',String(!sh));"
           "var s=load();s[b.dataset.c]=sh?'0':'1';save(s);});});"
           "var tgl=document.getElementById('plegar');"
-          "if(tgl){tgl.addEventListener('click',function(){"
+          "if(tgl){try{var _s0=load();var _cs=document.querySelectorAll('.card');var _ao=Array.prototype.some.call(_cs,function(c){return !c.classList.contains('closed');});tgl.textContent=_ao?'Desplegar todo':'Plegar todo';}catch(e){}tgl.addEventListener('click',function(){try{"
           "var cards=document.querySelectorAll('.card');"
           "var anyOpen=Array.prototype.some.call(cards,function(c){return !c.classList.contains('closed');});"
           "var s={};cards.forEach(function(c){var id=c.id.replace('c-','');"
           "if(anyOpen){c.classList.add('closed');s[id]='0';}else{c.classList.remove('closed');s[id]='1';}"
           "var b=c.querySelector('.chead');if(b)b.setAttribute('aria-expanded',String(!anyOpen));});"
-          "save(s);tgl.textContent=anyOpen?'Desplegar todo':'Plegar todo';});}"
+          "save(s);tgl.textContent=anyOpen?'Desplegar todo':'Plegar todo';}catch(e){}});}"
           "var AC=null;"
           "function tono(f,t0,dd){try{var o=AC.createOscillator(),g=AC.createGain();o.type='sine';"
           "o.frequency.value=f;o.connect(g);g.connect(AC.destination);var t=AC.currentTime+t0;"
@@ -736,7 +762,7 @@ UI_JS = ("<script>(function(){"
           "var snd=document.getElementById('sonido');"
           "function paint(){if(snd)snd.textContent=on?'Sonido on':'Sonido off';}"
           "paint();if(on){try{suena(false);}catch(e){}}"
-          "if(!quietM){try{rafM=requestAnimationFrame(latir);}catch(e){}}"
+          "try{var _so=false;try{_so=localStorage.getItem('vig_sound')!=='1';}catch(e){_so=true;}if(rafM){try{cancelAnimationFrame(rafM);}catch(e){}rafM=0;}if(!quietM&&!_so){try{rafM=requestAnimationFrame(latir);}catch(e){}}else{try{latir();}catch(e){}}}catch(e){}"
           "if(snd){snd.addEventListener('click',function(){on=!on;"
           "try{localStorage.setItem('vig_sound',on?'1':'0');}catch(e){}paint();suena(!on);});}"
           "})();</script>")
@@ -845,7 +871,7 @@ def _tfs_html(snap):
             f"<p class='mini'>Curvas en vivo (Binance) · RSI/MACD del último parte.</p>")
 
 
-TF_JS = ("<script>(function(){"          "var boxes=document.querySelectorAll('svg.spark[data-tf]');"
+TF_JS = ("<script>(function(){try{"          "if(!window.fetch)return;var boxes=document.querySelectorAll('svg.spark[data-tf]');"
           "if(!boxes.length)return;"
           "function col(t){var b=document.body.dataset.bias||'';return b==='ALZA'?'#4ade80':(b==='BAJA'?'#fca5a5':'#f1f5f9');}"
           "boxes.forEach(function(svg){"
@@ -863,10 +889,10 @@ TF_JS = ("<script>(function(){"          "var boxes=document.querySelectorAll('s
           "var last=cs[cs.length-1];"
           "var lx=194,ly=50-((last-lo)/rg)*44;"
           "svg.innerHTML+='<circle cx=\"'+lx.toFixed(1)+'\" cy=\"'+ly.toFixed(1)+'\" r=\"3\" fill=\"'+c+'\"/>';"
-          "}).catch(function(){svg.style.display='none';});"
-          "});})();</script>")
+          "}).catch(function(){try{svg.style.display='none';}catch(e){}});"
+          "});}catch(e){}})();</script>")
 
-VIVO_JS = ("<script>(function(){"
+VIVO_JS = ("<script>(function(){try{"
           "var el=document.getElementById('pvivo');if(!el)return;"
           "var ant=0,cur=0,tmr=0;"
           "function fmt(x){try{return Number(x).toLocaleString('de-DE',{maximumFractionDigits:0});}catch(e){return x;}}"
@@ -880,12 +906,12 @@ VIVO_JS = ("<script>(function(){"
           "else{cur=p;el.textContent=fmt(p);}"
           "if(ant>0){el.className=p>ant?'sub':(p<ant?'baj':'');}"
           "ant=p;}).catch(function(){});}"
-          "tic();setInterval(tic,10000);"
+          "try{tic();}catch(e){}setInterval(function(){try{if(!document.hidden)tic();}catch(e){}},10000);"
           "var ed=document.getElementById('edad');"
           "if(ed&&ed.dataset&&ed.dataset.t){var t0=new Date(ed.dataset.t).getTime();"
           "function ve(){var s=Math.max(0,Math.floor((Date.now()-t0)/1000));"
           "var m=Math.floor(s/60);ed.textContent=m>0?(m+' min '+('0'+(s%60)).slice(-2)+' s'):(s+' s');}"
-          "ve();setInterval(ve,1000);}"
+          "try{ve();}catch(e){}setInterval(function(){try{ve();}catch(e){}},1000);}}catch(e){}"
           "})();</script>")
 
 FONDO_JS = ("<script>(function(){"
@@ -896,7 +922,7 @@ FONDO_JS = ("<script>(function(){"
           "var px=raw.map(function(x){return parseFloat(x);}).filter(function(x){return x>0;});"
           "var bias=document.body.dataset.bias||'?';"
           "var conf=document.body.dataset.conf||'?';"
-          "var run=document.body.dataset.run||'?';"
+          "var run=document.body.dataset.run||'?';var _al='?',_gr='?';try{_al=document.body.dataset.alertas||'?';_gr=document.body.dataset.grade||'?';}catch(e){}"
           "function size(){var d=Math.min(window.devicePixelRatio||1,1.5);"
           "cv.width=Math.floor(innerWidth*d);cv.height=Math.floor(innerHeight*d);"
           "cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';"
@@ -925,7 +951,7 @@ FONDO_JS = ("<script>(function(){"
           "ctx.beginPath();ctx.arc(x,y,2.5+p*5,0,6.29);ctx.fill();"
           "ctx.fillStyle='rgba(224,242,254,0.20)';"
           "ctx.beginPath();ctx.arc(x,y,2,0,6.29);ctx.fill();}"
-          "var msgs=[bias+' '+conf+'%','run '+run,'BTCUSDT'];"
+          "var msgs=[bias+' '+conf+'% · G'+_gr,'run '+run+' · '+_al+' al','BTCUSDT'];"
           "function textos(t){ctx.font='12px ui-monospace,monospace';"
           "msgs.forEach(function(m,i){"
           "var sp=H()+80;"
@@ -935,7 +961,7 @@ FONDO_JS = ("<script>(function(){"
           "ctx.fillText(m,x,y);});}"
           "function frame(t){if(document.hidden){requestAnimationFrame(frame);return;}"
           "ctx.clearRect(0,0,W(),H());grid();var m=linea();punto(m,t);textos(t);"
-          "if(!quiet)requestAnimationFrame(frame);}"
+          "try{var _so2=true;try{_so2=localStorage.getItem('vig_sound')!=='1';}catch(e){}if(quiet||_so2){}else if(!document.hidden){setTimeout(function(){try{requestAnimationFrame(frame);}catch(e){}},500);}}catch(e){}}"
           "frame(0);})();</script>")
 
 
@@ -1292,7 +1318,7 @@ def _banner_html(est, hist, ahora_dt):
         return ""
     if not (0 <= mins < 45):
         return ""
-    hace = f"hace {int(mins)} min" if mins >= 1 else "ahora mismo"
+    hace = f"hace {int(mins)} min" if mins >= 1 else "hace menos de 1 min"
     b = str(ult.get("bias", "?")).upper()
     cls = "alza" if b == "ALZA" else ("baja" if b == "BAJA" else "lateral")
     return (f"<div class='card flash' id='c-ultima'><div class='cbody'><div class='cinner'>"
@@ -1366,9 +1392,9 @@ def build_dashboard(est, hist):
             dist_txt = f" · SOP a −{abs(ds):.2f}% · RES a +{abs(dr):.2f}%"
     except Exception:
         nvs, dist_txt = [], ""
-    hero = (f"<div class='big'>{miles(precio)}<span class='badge {_bias_class(bias)}'>{bias} {conf}%</span></div>"
+    hero = (f"<div class='big'>{miles(precio)}<span class='badge {_bias_class(bias)}'>{_esc(bias)} {_esc(conf)}%</span></div>"
             f"<div class='pill'><i style='--w:{conf_w}%'></i></div>"
-            f"<div class='sub'>{delta_txt} · {rango_txt} · <span class='cdot'></span>{n_alertas} alertas en ventana{dist_txt}{emp}</div>")
+            f"<div class='sub'>{_esc(delta_txt)} · {_esc(rango_txt)} · <span class='cdot'></span>{n_alertas} alertas en ventana{_esc(dist_txt)}{_esc(emp)}</div>")
     curva = (f"{svg_linea(px, marcas=marcas, niveles=nvs)}"
              f"<p><span style='color:#4ade80'>─ soporte</span> · "
              f"<span style='color:#fca5a5'>─ resistencia</span> (origen al pasar el mouse).</p>")
@@ -1388,7 +1414,7 @@ def build_dashboard(est, hist):
     except Exception:
         _fest, _ftxt = ("s/d", "")
     _fuente = f"fuente: {_fest} ({_ftxt})" if _ftxt else "fuente: s/d"
-    act_b = (f"<p>{len(hist)} pasadas guardadas · run {est.get('runs', '?')}</p>"
+    act_b = (f"<p>{len(hist)} pasadas guardadas · run {_esc(est.get('runs', '?'))}</p>"
              f"<p>Sesión NY 13–20 UTC · avisos sólo con cambio real.</p>"
              f"<p>{_esc(_fuente)}</p>")
     ban = _banner_html(est, ult, ahora_dt)
@@ -1429,6 +1455,7 @@ def build_dashboard(est, hist):
     tarjetas.append(_card("banco", "Banco papel", banco_b))
     tarjetas.append(_card("prec", "Precisión", prec_b))
     tarjetas.append(_sec("Sistema", "s-sistema"))
+    tarjetas.append(_card("frescura", "Frescura", f"<p>{_esc(_fuente)}</p><p class='mini'>vivo hasta 15 min · tibio hasta 60 min · viejo despues · s/d sin latido</p>"))
     tarjetas.append(_card("act", "Actividad", act_b))
     grid = "".join(tarjetas)
     fpx = ",".join(str(int(v)) for v in px[-30:] if v) or ""
@@ -1452,12 +1479,12 @@ def build_dashboard(est, hist):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
 <style>{CSS}</style></head><body data-bias="{_esc(bias)}" data-conf="{_esc(conf)}" data-alertas="{n_alertas}" data-run="{_esc(est.get("runs", "?"))}" data-px="{fpx}" data-grade="{_esc(grade)}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
-<header><h1><span class="logo">V</span>Vigilante BTC</h1>
-<span class="saludo">{_esc(_saludo(ahora_dt))}</span>
-<span class="live"><span class="dot"></span>actualizado {_esc(ahora)} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
-<span class="live"><span class="dot"></span>próxima pasada ~{_esc(prox_txt)}</span>
-<span class="live"><span class="dot"></span>datos de hace <b id="edad" data-t="{_esc(ahora_iso)}">…</b></span>
-<span class="live"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
+<header id="hdr"><h1><span class="logo">V</span>Vigilante BTC</h1>
+<span class="saludo" id="hdr-saludo">{_esc(_saludo(ahora_dt))}</span>
+<span class="live" id="hdr-act"><span class="dot"></span>actualizado {_esc(ahora)} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
+<span class="live" id="hdr-prox"><span class="dot"></span>próxima pasada ~{_esc(prox_txt)}</span>
+<span class="live" id="hdr-edad"><span class="dot"></span>datos de hace {f'<b id="edad" data-t="{_esc(ahora_iso)}">…</b>' if hay_dato else '<b id="edad">sin datos aún</b>'}</span>
+<span class="live" id="hdr-vivo"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">Sonido off</button><span id="motor"></span></header>
 <div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>
