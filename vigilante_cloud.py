@@ -2105,6 +2105,74 @@ def tabla_calibracion(eval_log):
         return None
 
 
+RUNBOOK_URL = "https://github.com/LuiferX/vigilante-btc/blob/main/README.md"
+DASH_URL = "https://luiferx.github.io/vigilante-btc/"
+
+
+def tca_linea(arrival, px, fee_bps=20.0):
+    """TCA casero solo-texto: drift vs precio de decisión + fees. Puro, sin red."""
+    try:
+        if arrival is None or px is None:
+            return "TCA: arrival s/d (sin referencia previa)"
+        arrival, px = float(arrival), float(px)
+        if arrival <= 0 or px <= 0:
+            return "TCA: arrival s/d (sin referencia previa)"
+        drift = (px - arrival) / arrival * 10000
+        return ("TCA: arrival %s | ahora %s | drift %+.1f bps | fees ~%.0fbps ida-vuelta (spot)"
+                % (fmt_miles(arrival), fmt_miles(px), drift, float(fee_bps)))
+    except Exception:
+        return "TCA: arrival s/d (sin referencia previa)"
+
+
+def linea_runbook():
+    """Una línea con runbook + página + comando de diagnóstico. Puro."""
+    return ("Runbook: %s | Page: %s | diag: gh run view --repo LuiferX/vigilante-btc"
+            % (RUNBOOK_URL, DASH_URL))
+
+
+def validar_velas(candles, intervalo_min=60):
+    """Validador puro: integridad OHLC + continuidad. No toca red ni umbrales."""
+    try:
+        velas = [c for c in (candles or []) if isinstance(c, dict)]
+        malas, gaps = 0, 0
+        prev_t = None
+        for c in velas:
+            try:
+                o, h, l, cc = float(c["o"]), float(c["h"]), float(c["l"]), float(c["c"])
+                t = c["t"]
+            except Exception:
+                malas += 1
+                continue
+            if not (h >= max(o, cc) and l <= min(o, cc) and h >= l):
+                malas += 1
+            if prev_t is not None and t is not None:
+                try:
+                    dt = (t - prev_t).total_seconds() / 60
+                    if dt > intervalo_min * 1.5:
+                        gaps += 1
+                except Exception:
+                    pass
+            prev_t = t
+        return {"ok": bool(velas) and malas == 0 and gaps == 0,
+                "n": len(velas), "malas": malas, "gaps": gaps}
+    except Exception:
+        return {"ok": False, "n": 0, "malas": 0, "gaps": 0}
+
+
+def latido_tarde(ultimo_run_iso, ahora_iso, max_min=15):
+    """Watchdog puro: True si el último run supera max_min. Sin efectos."""
+    try:
+        t0 = datetime.datetime.fromisoformat(ultimo_run_iso)
+        t1 = datetime.datetime.fromisoformat(ahora_iso)
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=datetime.timezone.utc)
+        if t1.tzinfo is None:
+            t1 = t1.replace(tzinfo=datetime.timezone.utc)
+        return (t1 - t0).total_seconds() / 60 > max_min
+    except Exception:
+        return False
+
+
 def evaluar_mfe(est, ahora, velas=None):
     """Evalua pendientes vencidas (>=8h) por MFE/MAE sobre velas 1H:
     exito si el objetivo 2R se toca antes que el stop 1R.
@@ -2441,6 +2509,14 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     else:
         L.append("  (sin eventos fuertes esta semana)")
     L.append("Rangos ±% = ref. histórica. No es asesoramiento financiero.")
+    try:
+        L.append(tca_linea(extras.get("arrival"), t["last"]))
+    except Exception:
+        pass
+    try:
+        L.append(linea_runbook())
+    except Exception:
+        pass
     return "\n".join(L)
 
 
@@ -2708,6 +2784,7 @@ def main():
         est["ultima_conf"] = dirb["confianza"]
         est["ultimo_precio"] = round(t["last"])
         est["ultimo_run"] = ahora.isoformat()
+        est["latido"] = ahora.isoformat()
         if enviar and tipo == "alerta":
             est["ultima_alerta"] = {"t": ahora.isoformat(), "motivo": motivo,
                                     "precio": round(t["last"]), "bias": dirb["bias"],
@@ -2901,6 +2978,7 @@ def main():
             if evs:
                 memoria.append("mañana vigilo: " + ", ".join(e["titulo"] for e in evs[:2]))
         extras = {"intro": intro,
+                  "arrival": est.get("ultimo_precio"),
                   "narrativa": narrar(dirb, h1, h4, d1, res, sup, t["last"]),
                   "memoria": memoria,
                   "plan": plan_entrada(dirb, niv, evs, ahora),
