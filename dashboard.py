@@ -937,7 +937,11 @@ def _alertas_html(est, hist, ahora_dt=None):
     except Exception:
         pass
     als = [h for h in (hist or []) if isinstance(h, dict) and h.get("tipo") == "alerta"]
-    sils = (f"<p class='mini'>Silenciados (ya avisados): {'; '.join(sil)}</p>" if sil else "")
+    sils = ""
+    if sil:
+        vis = "; ".join(sil[:3])
+        mas = f" (+{len(sil) - 3} más)" if len(sil) > 3 else ""
+        sils = f"<p class='mini' title='{'; '.join(sil)}'>Silenciados: {vis}{mas}</p>"
     try:
         hoy = (ahora_dt.strftime("%Y-%m-%d") if ahora_dt is not None
                else datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"))
@@ -964,8 +968,7 @@ def _alertas_html(est, hist, ahora_dt=None):
                   f"<td title='{mot}'>{corto}</td></tr>")
     return (f"<div class='tscroll'><table class='ops'><thead><tr><th>Hora</th><th>Sesgo</th><th>Precio</th><th>Conf</th><th>Motivo</th></tr></thead>"
             f"{filas}</table></div><p class='mini'>Últimas {min(len(als), 8)} de {len(als)} en ventana.</p>{sils}{pres_txt}"
-            f"<p class='mini'>TECHO = estás debajo, puede devolver abajo · "
-            f"PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.</p>")
+            f"<p class='mini' title='TECHO = estás debajo, puede devolver abajo · PISO = estás encima, puede devolver arriba · se anula SOLO con cierre 1H más allá.'>TECHO / PISO: se anulan con cierre 1H más allá.</p>")
 
 
 def _porque_html(snap):
@@ -1373,6 +1376,9 @@ def build_dashboard(est, hist):
         seg, prox_txt = 120, "?"
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="120">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
 <style>{CSS}</style></head><body data-bias="{bias}" data-conf="{conf}" data-alertas="{n_alertas}" data-run="{est.get("runs", "?")}" data-px="{fpx}" data-grade="{grade}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
@@ -1387,7 +1393,7 @@ def build_dashboard(est, hist):
 <div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>
 <div class="grid">
 {grid}
-</div><footer>Análisis probabilístico. No es asesoramiento financiero. v34. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
+</div><footer>Análisis probabilístico. No es asesoramiento financiero. v35. · hoy {runs_hoy} pasadas · {al_hoy} alertas</footer>
 </div>
 <script>var RL={seg};setInterval(function(){{var el=document.getElementById('recarga');
 if(window.__musica){{if(el)el.textContent='♪';RL=120;}}
