@@ -1,0 +1,71 @@
+name: Vigilia latido
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vigilia
+  cancel-in-progress: false
+
+jobs:
+  vigilia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar latido
+        run: |
+          git fetch origin estado --quiet
+          python3 - <<'PY'
+          import json
+          import subprocess
+          import sys
+          from datetime import datetime, timezone
+
+          try:
+              raw = subprocess.check_output(
+                  ["git", "show", "origin/estado:estado.json"],
+                  text=True,
+                  stderr=subprocess.STDOUT,
+              )
+          except subprocess.CalledProcessError as e:
+              print("FALLO: no se pudo leer origin/estado:estado.json")
+              print(e.output if hasattr(e, "output") else e)
+              sys.exit(1)
+
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as e:
+              print(f"FALLO: estado.json no es JSON valido: {e}")
+              sys.exit(1)
+
+          latido = data.get("latido") or data.get("ultimo_run")
+          if not latido:
+              print("FALLO: falta el dato 'latido' (o 'ultimo_run') en estado.json")
+              sys.exit(1)
+
+          texto = str(latido).strip().replace("Z", "+00:00")
+          try:
+              ts = datetime.fromisoformat(texto)
+              if ts.tzinfo is None:
+                  ts = ts.replace(tzinfo=timezone.utc)
+          except ValueError:
+              print(f"FALLO: formato de fecha no valido: {latido!r}")
+              sys.exit(1)
+
+          ahora = datetime.now(timezone.utc)
+          edad_min = (ahora - ts).total_seconds() / 60
+          print(f"latido hace {edad_min:.1f}min (valor: {latido})")
+
+          if edad_min > 20:
+              print(f"FALLO: latido demasiado antiguo ({edad_min:.1f}min > 20min)")
+              sys.exit(1)
+
+          print("OK: latido vigente")
+          PY
