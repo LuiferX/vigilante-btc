@@ -1,0 +1,26 @@
+[Unit]
+Description=Vigilante oyente — comandos cada 1 min (comandos.py o poll)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=vigilante
+Group=vigilante
+WorkingDirectory=/opt/vigilante
+Environment=PYTHONIOENCODING=utf-8
+Environment=VIGILANTE_REPO=/opt/vigilante
+Environment=VIGILANTE_ENV=/etc/vigilante/env
+# Si existe comandos.py lo usa; si no, repite el poll normal.
+ExecStart=/bin/bash -c 'set -a; [ -f /etc/vigilante/env ] && . /etc/vigilante/env; set +a; cd /opt/vigilante; if [ -f comandos.py ]; then PYTHONIOENCODING=utf-8 /usr/bin/python3 comandos.py; else /bin/bash /opt/vigilante/deploy/oracle/poll-vigilante.sh; fi'
+Restart=on-failure
+RestartSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/vigilante
+
+[Install]
+WantedBy=multi-user.target
