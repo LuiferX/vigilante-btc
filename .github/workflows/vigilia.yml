@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: vigilia
@@ -16,17 +17,33 @@ jobs:
   vigilia:
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+      edad_min: ${{ steps.check.outputs.edad_min }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Comprobar latido
+        id: check
         run: |
           git fetch origin estado --quiet
           python3 - <<'PY'
           import json
+          import os
           import subprocess
-          import sys
           from datetime import datetime, timezone
+
+          out_path = os.environ.get("GITHUB_OUTPUT", "")
+
+          def emit(ok, edad):
+              with open(out_path, "a", encoding="utf-8") as fh:
+                  fh.write(f"ok={ok}\n")
+                  fh.write(f"edad_min={edad}\n")
+
+          def fallo(msg, edad="-1"):
+              print(f"FALLO: {msg}")
+              emit("false", edad)
+              raise SystemExit(0)
 
           try:
               raw = subprocess.check_output(
@@ -35,20 +52,17 @@ jobs:
                   stderr=subprocess.STDOUT,
               )
           except subprocess.CalledProcessError as e:
-              print("FALLO: no se pudo leer origin/estado:estado.json")
-              print(e.output if hasattr(e, "output") else e)
-              sys.exit(1)
+              print(getattr(e, "output", e))
+              fallo("no se pudo leer origin/estado:estado.json")
 
           try:
               data = json.loads(raw)
           except json.JSONDecodeError as e:
-              print(f"FALLO: estado.json no es JSON valido: {e}")
-              sys.exit(1)
+              fallo(f"estado.json no es JSON valido: {e}")
 
           latido = data.get("latido") or data.get("ultimo_run")
           if not latido:
-              print("FALLO: falta el dato 'latido' (o 'ultimo_run') en estado.json")
-              sys.exit(1)
+              fallo("falta el dato 'latido' (o 'ultimo_run') en estado.json")
 
           texto = str(latido).strip().replace("Z", "+00:00")
           try:
@@ -56,16 +70,89 @@ jobs:
               if ts.tzinfo is None:
                   ts = ts.replace(tzinfo=timezone.utc)
           except ValueError:
-              print(f"FALLO: formato de fecha no valido: {latido!r}")
-              sys.exit(1)
+              fallo(f"formato de fecha no valido: {latido!r}")
 
           ahora = datetime.now(timezone.utc)
           edad_min = (ahora - ts).total_seconds() / 60
           print(f"latido hace {edad_min:.1f}min (valor: {latido})")
 
           if edad_min > 20:
-              print(f"FALLO: latido demasiado antiguo ({edad_min:.1f}min > 20min)")
-              sys.exit(1)
+              print(f"latido demasiado antiguo ({edad_min:.1f}min > 20min)")
+              emit("false", f"{edad_min:.1f}")
+              raise SystemExit(0)
 
           print("OK: latido vigente")
+          emit("true", f"{edad_min:.1f}")
           PY
+
+      - name: Exigir latido vigente
+        if: always()
+        run: |
+          echo "ok=${{ steps.check.outputs.ok }} edad_min=${{ steps.check.outputs.edad_min }}"
+          test "${{ steps.check.outputs.ok }}" = "true"
+
+  avisar:
+    needs: vigilia
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Avisar con issue unica
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OK: ${{ needs.vigilia.outputs.ok }}
+          EDAD: ${{ needs.vigilia.outputs.edad_min }}
+        run: |
+          set -euo pipefail
+          TITULO='[vigilia] latido atrasado'
+          echo "ok=${OK:-} edad_min=${EDAD:-} "
+          gh issue list --state open --search "$TITULO in:title" --json number,title,updatedAt --limit 50 > /tmp/issues.json
+          python3 - <<'PY' > /tmp/hallazgo.txt
+          import json
+          titulo = "[vigilia] latido atrasado"
+          with open("/tmp/issues.json", encoding="utf-8") as fh:
+              items = json.load(fh)
+          num = ""
+          updated = ""
+          for it in items:
+              if it.get("title") == titulo:
+                  num = str(it.get("number", ""))
+                  updated = str(it.get("updatedAt", ""))
+                  break
+          print(f"{num}\t{updated}")
+          PY
+          NUM="$(cut -f1 /tmp/hallazgo.txt)"
+          UPDATED_AT="$(cut -f2 /tmp/hallazgo.txt)"
+          if [ "${OK:-}" = "true" ]; then
+            if [ -n "$NUM" ]; then
+              gh issue comment "$NUM" --body "Recuperado: el latido vuelve a estar vigente (edad_min=${EDAD:-desconocida}). Cierro este aviso."
+              gh issue close "$NUM"
+            else
+              echo "Latido ok y sin issue abierta: nada que hacer."
+            fi
+            exit 0
+          fi
+          if [ -z "$NUM" ]; then
+            cat > /tmp/cuerpo.md <<EOF
+          El latido esta atrasado (edad_min=${EDAD:-desconocida}, umbral 20min).
+
+          Runbook:
+          - Revisar el workflow programado (cron cada 15min) y su ultima ejecucion.
+          - Comprobar la rama 'estado' y el fichero 'estado.json' (campos 'latido' / 'ultimo_run').
+          - Verificar el emisor del latido y relanzarlo si hace falta.
+
+          Enlaces:
+          - Accion que falla: Vigilia latido
+          - Fichero vigilado: estado.json en rama estado
+          EOF
+            echo "- Acciones del repositorio: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> /tmp/cuerpo.md
+            gh issue create --title "$TITULO" --body-file /tmp/cuerpo.md
+          else
+            ANTIG_MIN="$(UPDATED_AT="$UPDATED_AT" python3 -c 'import os; from datetime import datetime, timezone; u=os.environ.get("UPDATED_AT","").strip().replace("Z","+00:00"); ts=datetime.fromisoformat(u); now=datetime.now(timezone.utc); print(int((now-ts).total_seconds()//60))')"
+            echo "Issue abierta #$NUM actualizada hace ${ANTIG_MIN}min."
+            if [ "$ANTIG_MIN" -gt 30 ]; then
+              gh issue comment "$NUM" --body "Sigue atrasado (edad_min=${EDAD:-desconocida}). Actualizacion de seguimiento (maximo un comentario cada 30min)."
+            else
+              echo "Comentario reciente: no se comenta para evitar spam."
+            fi
+          fi
