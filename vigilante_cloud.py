@@ -533,9 +533,9 @@ def niveles(h1, h4, d1, w1, pd, pw, precio):
 
 
 def direccion(h1, h4, d1, w1):
-    w4, wd, ws = 1.5, 2.0, 2.0
+    w4, wd, ws = 1.5, 2.0, 1.0
     s = h1["score"] * 1.0 + h4["score"] * w4 + d1["score"] * wd + w1["score"] * ws
-    norm = s / 32.5
+    norm = s / 27.5
     bias = "ALZA" if norm >= 0.25 else ("BAJA" if norm <= -0.25 else "LATERAL")
     return {"bias": bias, "score": round(norm, 2), "confianza": round(abs(norm) * 100)}
 
