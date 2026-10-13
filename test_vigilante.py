@@ -500,6 +500,13 @@ t("ruptura avisa", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza":
 t("ruptura serrucho", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb5, _ahX,
     None, None, "tendencia", False, "", None, None, None, 90, 90, None,
     "ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)")[2] == "nada")
+_eb6 = dict(eb)
+t("ruptura detalla", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb6, _ahX,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, None,
+    "ruptura BAJISTA confirmada bajo 82.000 (cierre 1H 20:00 en 81.900, 0.12% debajo)")[2] == "alerta")
+t("ruptura serrucho2", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb6, _ahX,
+    None, None, "tendencia", False, "", None, None, None, 90, 90, None,
+    "ruptura ALCISTA confirmada sobre 82.000 (cierre 1H 21:00 en 82.100, 0.12% encima)")[2] == "nada")
 t("dash card", _db._card("x", "Título", "cuerpo").count("chead") == 1)
 _sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
               "h4": {"tend": "bajista", "rsi": 30, "macd": -1},
