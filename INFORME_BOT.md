@@ -83,6 +83,8 @@ próximos eventos con escenarios) + `PLAN` (gatillo = cierre 1H, stop, objetivo 
 
 - Banco virtual $10.000 · abre con señales 35%+ · riesgo 1% (0.5% tras 3 pérdidas seguidas,
   Half-Kelly acotado [0.25%, 2%] cuando haya 10+ cerradas) · Sharpe por operación en la página (n≥5).
+- **Perfil XLX:** banco 100 USDT · lev 60x · riesgo 1% · SL por niveles VÁLIDO solo dentro de la
+  liquidación estimada (si no, no abre) · cierres LIQ pierden el margen (~notional/60).
 - Frenos: −10% desde pico · −3% en el día. Cierres por SL/TP en 1H.
 - Tu diario (`/opere…/cerrar`) va aparte: tus operaciones reales, tu responsabilidad.
 - **Estado hoy:** sin estrenar (mercado lateral, conf máx ~31 < 35). Cuando opere, sale en la página.
