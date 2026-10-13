@@ -1721,6 +1721,18 @@ def sesion_bucket(hora):
     return "noche"
 
 
+def etiquetar_senal(senti, hora, dcvd):
+    """Tags solo-medición para validar señales en papel (funding/OI/CVD/sesión).
+    Puro, sin red, NO decide nada: solo etiqueta para futuro PF por régimen."""
+    try:
+        s = senti if isinstance(senti, dict) else {}
+        return {"funding": s.get("funding"), "taker": s.get("taker"),
+                "sesion": sesion_bucket(hora) if isinstance(hora, int) else "?",
+                "cvd_div": dcvd if isinstance(dcvd, str) else ("sí" if dcvd else "no")}
+    except Exception:
+        return {"funding": None, "taker": None, "sesion": "?", "cvd_div": "no"}
+
+
 def auto_stats(eval_log):
     """Auto-aprendizaje: en que sesion rinden mejor las senales (min 10 evaluadas)."""
     if len(eval_log) < 10:
@@ -1936,7 +1948,8 @@ def linea_estudio(est, titulo):
 
 def preaviso(est, evs, ahora, hoy=None):
     """Aviso único 15–60 min antes de un evento High (con su historial medido).
-    Devuelve texto o None. Marca por evento para no repetir en el día."""
+    Devuelve texto o None. Puro: NO marca; la marca la pone marcar_preaviso()
+    solo tras envío real (evita perder el aviso si no hay señal principal)."""
     try:
         if hoy is None:
             hoy = ahora.strftime("%Y-%m-%d")
@@ -1953,13 +1966,41 @@ def preaviso(est, evs, ahora, hoy=None):
             if (est.get("preavisos", {}) or {}).get(key) == hoy:
                 continue
             stu = linea_estudio(est, e.get("titulo", ""))
-            est.setdefault("preavisos", {})[key] = hoy
             return (f"⚠️ {e['titulo']} en {cuenta_regresiva(e['cuando'], ahora)}"
                     + (f" ({stu})" if stu else "") +
                     ": cierro la boca ±30 min (blackout). Cuida el apalancamiento.")
         return None
     except Exception:
         return None
+
+
+def marcar_preaviso(est, evs, ahora, hoy=None):
+    """Marca el preaviso como enviado (solo tras envío real). Jamás lanza."""
+    try:
+        try:
+            if hoy is None:
+                hoy = ahora.strftime("%Y-%m-%d")
+        except Exception:
+            return False
+        marcado = False
+        for e in evs or []:
+            try:
+                if e.get("impact") != "High":
+                    continue
+                dt = (e["cuando"] - ahora).total_seconds() / 60
+            except Exception:
+                continue
+            if not (15 <= dt <= 60):
+                continue
+            try:
+                key = str(e["cuando"]) + "|" + str(e.get("titulo", ""))
+                est.setdefault("preavisos", {})[key] = hoy
+                marcado = True
+            except Exception:
+                continue
+        return marcado
+    except Exception:
+        return False
 
 
 def blackout(evs, ahora):
@@ -2291,7 +2332,20 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
         return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
-        return True, pila, "alerta"
+        try:
+            try:
+                _mm = re.search(r"de\s+([\d.]+)", str(pila))
+                _zz = _mm.group(1).replace(".", "") if _mm else str(pila)[:80]
+                _pk = "pila:" + str(_zz)
+            except Exception:
+                _pk = "pila:?"
+            if enfriar(est, _pk, 4, ahora):
+                return True, pila, "alerta"
+        except Exception:
+            try:
+                return True, pila, "alerta"
+            except Exception:
+                pass
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
@@ -2845,6 +2899,10 @@ def main():
                 else:
                     print(f"  ignorado {cm['texto']} (chat {cm['chat']})")
 
+        try:
+            _tags = etiquetar_senal(senti, ahora.hour, dcvd)
+        except Exception:
+            _tags = {}
         est["snapshot"] = {
             "t": ahora.isoformat(),
             "precio": t["last"], "chg": t["chg"], "hi": t["hi"], "lo": t["lo"],
@@ -2869,11 +2927,36 @@ def main():
                         "iman": liqmap.get("iman")} if isinstance(liqmap, dict) else None),
             "evstudy": {f: {"avg": round(sum(a) / len(a), 2), "n": len(a)}
                         for f, a in ((est.get("ev_study", {}) or {}).items()) if a},
+            "tags": _tags,
         }
         guardar_estado(est, hist)
         forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
         if forzar:
             motivo, tipo, enviar = "Detalle pedido", "alerta", True
+        # FIX BUG1: envío centralizado del preaviso High 15-60min.
+        # Debe salir aunque no haya señal principal (enviar=False).
+        # La marca preavisos solo se pone tras envío real, nunca al calcularlo.
+        try:
+            if aviso_previo and not es_dup:
+                try:
+                    send_telegram(aviso_previo)
+                except Exception:
+                    pass
+                try:
+                    marcar_preaviso(est, evs, ahora)
+                    try:
+                        guardar_estado(est, hist)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                try:
+                    print("Pre-evento enviado")
+                except Exception:
+                    pass
+                aviso_previo = None
+        except Exception:
+            pass
         if not enviar:
             print(f"Sin alerta ({motivo}). Estado e historial guardados.")
             return
@@ -3003,9 +3086,7 @@ def main():
                   "poc": poc,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
-        if aviso_previo and not es_dup:
-            send_telegram(aviso_previo)
-            print("Pre-evento enviado")
+        # (preaviso ya enviado de forma centralizada arriba, incluso sin señal principal)
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
