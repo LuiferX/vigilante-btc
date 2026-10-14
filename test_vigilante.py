@@ -689,7 +689,7 @@ t("dash alza sucia no rompe", isinstance(_db.build_dashboard({"alza": ["a", None
 t("dash prox medianoche dia siguiente", _db._prox_pasada(datetime.datetime(2026, 10, 13, 23, 50, tzinfo=datetime.timezone.utc)).day == 14)
 t("telegram retry existe", "for intento in range(3)" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
 # --- Bloque seguro 3x10 (TDD): TCA + validador/gaps + purge/DSR + latido/runbook + frescura ---
-# Nota CI: este bloque exige backtest.partir_purgado/puerta_trials (mismo push).
+# Nota CI: este bloque exige backtest.partir_purgado/puerta_trials/pf_por_grupo (mismo push).
 t("tca linea drift", "Ref" in v.tca_linea(83000, 83207.5) and "83.000" in v.tca_linea(83000, 83207.5) and "%" in v.tca_linea(83000, 83207.5))
 t("tca linea sin arrival", "s/d" in v.tca_linea(None, 83000))
 t("tca linea sin cero", "s/d" in v.tca_linea(0, 83000))
