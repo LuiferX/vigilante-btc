@@ -346,7 +346,12 @@ msg = v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1
                     tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV,
                     {"bias": "LATERAL", "confianza": 10}, "prox", {"funding": None, "oi": None, "taker": None},
                     {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "alerta", [], [], ah, ex)
-t("build veredicto", "VEREDICTO" in msg and "MERCADO" in msg and "CONTEXTO" in msg)
+t("build corto alerta", "mot" in msg and "Piso" in msg and "Techo" in msg and "MERCADO" not in msg and len(msg.splitlines()) <= 10)
+msg2 = v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1H", "lateral", 0),
+                    tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV,
+                    {"bias": "LATERAL", "confianza": 10}, "prox", {"funding": None, "oi": None, "taker": None},
+                    {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "manana", [], [], ah, ex)
+t("build veredicto", "VEREDICTO" in msg2 and "MERCADO" in msg2 and "CONTEXTO" in msg2)
 import dashboard as _db
 _h = [{"precio": 83000 + i * 10, "conf": 20, "bias": "LATERAL", "tipo": "nada"} for i in range(5)]
 _h[2]["tipo"] = "alerta"
@@ -685,7 +690,7 @@ t("dash prox medianoche dia siguiente", _db._prox_pasada(datetime.datetime(2026,
 t("telegram retry existe", "for intento in range(3)" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
 # --- Bloque seguro 3x10 (TDD): TCA + validador/gaps + purge/DSR + latido/runbook + frescura ---
 # Nota CI: este bloque exige backtest.partir_purgado/puerta_trials (mismo push).
-t("tca linea drift", "bps" in v.tca_linea(83000, 83207.5) and "83.000" in v.tca_linea(83000, 83207.5))
+t("tca linea drift", "Ref" in v.tca_linea(83000, 83207.5) and "83.000" in v.tca_linea(83000, 83207.5) and "%" in v.tca_linea(83000, 83207.5))
 t("tca linea sin arrival", "s/d" in v.tca_linea(None, 83000))
 t("tca linea sin cero", "s/d" in v.tca_linea(0, 83000))
 _vv = [{"t": datetime.datetime(2026, 10, 13, i, tzinfo=datetime.timezone.utc),
@@ -757,6 +762,15 @@ def _ledger_tmp():
     return ok1 and tot["dir"] == [1, 1] and tot["zon"] == [1, 0] and _ent.cargar_claves(p) == {"dir|2026-10-13T00:00", "zon|2026-10-13T06:00"}
 te("ledger ida y vuelta", _ledger_tmp)
 te("ledger ledger evaluar", lambda: isinstance(_ev.leer_ledger("no_existe_xyz.jsonl"), tuple) and _ev.leer_ledger("no_existe_xyz.jsonl") == ({}, 0))
+te("magnitud vacia", lambda: _ev.magnitud([]) is None)
+te("magnitud neta", lambda: (_ev.magnitud([0.5] * 12) or {}).get("med_net", 0) > 0)
+te("magnitud costos matan", lambda: (_ev.magnitud([0.1] * 12) or {}).get("med_net", 0) < 0)
+te("oos zon sintetico", lambda: (_ev._oos_tmp() or {}).get("n_test", 0) == 35)
+te("oos zon captura", lambda: (_ev._oos_tmp() or {}).get("med_net", -99) == 5.0)
+t("pf sesion agrupa", _bt.pf_por_grupo([{"motivo": "x NY y", "hit": 1, "r": 2}] * 4 + [{"motivo": "noche z", "hit": 0, "r": -1}] * 4 + [{"motivo": "otro", "hit": 1, "r": 2}] * 2, "sesion")["NY"]["n"] == 4)
+t("pf grade defecto", _bt.pf_por_grupo([{"hit": 1, "r": 2}], "grade")["?"]["n"] == 1)
+t("pf grupo metricas", _bt.pf_por_grupo([{"motivo": "NY", "hit": 1, "r": 2}] * 4, "sesion")["NY"]["pf"] == float("inf"))
+t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
 t("sharpe none si n<5", _bt.sharpe_ratio([2, -1, 2]) is None)
 t("sharpe positivo", _bt.sharpe_ratio([2, -1, 2, 2, -1, 2, -1, -1, 2, 2]) > 0)
 t("sharpe plano none", _bt.sharpe_ratio([1.0] * 6) is None)
