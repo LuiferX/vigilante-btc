@@ -2151,18 +2151,18 @@ DASH_URL = "https://luiferx.github.io/vigilante-btc/"
 
 
 def tca_linea(arrival, px, fee_bps=20.0):
-    """TCA casero solo-texto: drift vs precio de decisión + fees. Puro, sin red."""
+    """Costo en cristiano: de dónde viene el precio y cuánto te come operar. Puro."""
     try:
         if arrival is None or px is None:
-            return "TCA: arrival s/d (sin referencia previa)"
+            return "Ref s/d (sin precio previo)"
         arrival, px = float(arrival), float(px)
         if arrival <= 0 or px <= 0:
-            return "TCA: arrival s/d (sin referencia previa)"
-        drift = (px - arrival) / arrival * 10000
-        return ("TCA: arrival %s | ahora %s | drift %+.1f bps | fees ~%.0fbps ida-vuelta (spot)"
-                % (fmt_miles(arrival), fmt_miles(px), drift, float(fee_bps)))
+            return "Ref s/d (sin precio previo)"
+        mov = (px - arrival) / arrival * 100
+        return ("Ref %s → ahora %s (%+.2f%%) · operar te cuesta ~%.2f%% ida+vuelta"
+                % (fmt_miles(arrival), fmt_miles(px), mov, float(fee_bps) / 100))
     except Exception:
-        return "TCA: arrival s/d (sin referencia previa)"
+        return "Ref s/d (sin precio previo)"
 
 
 def linea_runbook():
@@ -2379,6 +2379,36 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         accion = f"busca cierre 1H BAJO {fmt_miles(sup['precio'])}"
     else:
         accion = f"espera ruptura {fmt_miles(sup['precio'])}-{fmt_miles(res['precio'])}"
+    if tipo == "alerta":
+        # Parte CORTO: solo lo que se lee (motivo + veredicto + accion + niveles).
+        try:
+            C = []
+            C.append("🚨 " + motivo)
+            C.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {extras.get('grade', '?')} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
+            C.append(f"🎯 {accion}")
+            C.append(f"Piso {fmt_miles(sup['precio'])} · Techo {fmt_miles(res['precio'])}")
+            if extras.get("fflag"):
+                C.append("⚠️ " + str(extras["fflag"]))
+            if extras.get("mov_ny") is not None:
+                try:
+                    C.append(f"NY {extras['mov_ny']:+.2f}% desde apertura")
+                except Exception:
+                    pass
+            vistos = {accion}
+            for p in (extras.get("plan", []) or [])[:2]:
+                try:
+                    if str(p) not in vistos:
+                        vistos.add(str(p))
+                        C.append("• " + str(p))
+                except Exception:
+                    pass
+            try:
+                C.append(tca_linea(extras.get("arrival"), t["last"]))
+            except Exception:
+                pass
+            return "\n".join(C)
+        except Exception:
+            pass
 
     icono_tipo = {"alerta": "🚨", "preny": "📊", "manana": "☀️", "madrugada": "🌙", "noche": "🌙"}.get(tipo, "🤖")
     L = []
