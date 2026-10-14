@@ -239,6 +239,30 @@ def puerta_trials(n_trials, mejor_sharpe):
     return f"ok: n={n_trials} sharpe={mejor_sharpe} suficiente para evaluar"
 
 
+def pf_por_grupo(res, clave):
+    """PF por grupo (sesion o grade). Pura/informativa.
+
+    Si clave=="sesion": agrupa por sesion buscando NY|Asia|Londres|noche
+    en motivo (si no aparece, "s/d"). Si clave=="grade": agrupa por
+    grade (grade o "?"). Devuelve {grupo: metricas(sub)}.
+    """
+    grupos = {}
+    for x in res:
+        if clave == "sesion":
+            motivo = str(x.get("motivo", "") or "")
+            g = "s/d"
+            for ses in ("NY", "Asia", "Londres", "noche"):
+                if ses in motivo:
+                    g = ses
+                    break
+        elif clave == "grade":
+            g = x.get("grade") or "?"
+        else:
+            g = "s/d"
+        grupos.setdefault(g, []).append(x)
+    return {g: metricas(sub) for g, sub in grupos.items()}
+
+
 def main():
     hist = cargar_historial()
     senales = [h for h in hist if h.get("bias") in ("ALZA", "BAJA")
@@ -311,6 +335,19 @@ def main():
         costo_r = costo / (umbral_medio * 10000.0)
         print(f"Con costos ~{costo:.1f}bps (ATR medio {atr_medio * 100:.2f}%) "
               f"el expectancy cae ~{costo_r:.2f}R por trade (informativo).")
+    # --- PF por grupo (informativo, no cambia regla 2R ni corte IN/OOS) ---
+    print("PF por sesion:")
+    for g, m in pf_por_grupo(res, "sesion").items():
+        if m["n"] >= 4:
+            print(f"  {g}: n={m['n']} acierto={m['pct']}% PF={m['pf']}")
+        else:
+            print(f"  {g}: pocos (n={m['n']})")
+    print("PF por grado:")
+    for g, m in pf_por_grupo(res, "grade").items():
+        if m["n"] >= 4:
+            print(f"  {g}: n={m['n']} acierto={m['pct']}% PF={m['pf']}")
+        else:
+            print(f"  {g}: pocos (n={m['n']})")
 
 
 if __name__ == "__main__":
