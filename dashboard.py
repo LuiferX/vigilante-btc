@@ -1467,7 +1467,7 @@ def _duelo_html(snap):
         fo = (f"<div class='fighter'><span class='fmono o'>O</span><div class='fname'>Osos</div>"
               f"<div class='fpow'>{po:.0f}</div>"
               f"<div class='rsibar'><i style='width:{po:.0f}%;background:#ef4444'></i></div>{dw}</div>"
-              if po is not None else plz.format(c='o', l='O', n='Osos'))
+              if po is not None else plz.format(c='o', l='O', n='Osos · cinta sin ballenas' if isinstance(bal, dict) else 'Osos'))
         tk = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
         dt = f"<div class='tmeta'>taker buy/sell {tk if tk is not None else 's/d'}</div>"
         ft = (f"<div class='fighter'><span class='fmono t'>T</span><div class='fname'>Toros</div>"
