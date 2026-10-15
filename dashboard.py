@@ -14,8 +14,10 @@ _uid = [0]
 
 def _num(x, default=0):
     try:
+        if isinstance(x, bool):
+            return default
         v = float(x)
-        if v != v:  # NaN
+        if v != v or v in (float("inf"), float("-inf")):
             return default
         return v
     except Exception:
@@ -37,13 +39,21 @@ def _esc(x):
 
 def miles(x):
     try:
-        return f"{float(x):,.0f}".replace(",", ".")
+        if isinstance(x, bool):
+            return "?"
+        v = float(x)
+        if v != v or v in (float("inf"), float("-inf")):
+            return "?"
+        return f"{v:,.0f}".replace(",", ".")
     except Exception:
         return "?"
 
 
 def _bias_class(bias):
-    b = (bias or "").upper()
+    try:
+        b = str(bias or "").upper()
+    except Exception:
+        return "lateral"
     if b == "ALZA":
         return "alza"
     if b == "BAJA":
@@ -53,7 +63,10 @@ def _bias_class(bias):
 
 def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
     try:
-        vals = [v for v in (vals or []) if isinstance(v, (int, float))]
+        if not isinstance(color, str) or len(color) not in (4, 7) or not color.startswith("#"):
+            color = "#38bdf8"
+        vals = [float(v) for v in (vals or []) if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        vals = [v for v in vals if v == v and v not in (float("inf"), float("-inf"))]
     except Exception:
         return "<p>sin datos aún</p>"
     if len(vals) < 2:
@@ -64,8 +77,12 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
     nvs = []
     for nv in (niveles or []):
         try:
+            if isinstance((nv or {}).get("precio"), bool):
+                continue
             p = float((nv or {}).get("precio"))
-            nvs.append((p, str((nv or {}).get("etiqueta", "")), str((nv or {}).get("kind", ""))))
+            if p != p or p in (float("inf"), float("-inf")):
+                continue
+            nvs.append((p, _esc((nv or {}).get("etiqueta", "")), str((nv or {}).get("kind", ""))))
         except Exception:
             continue
     if nvs:
@@ -132,7 +149,14 @@ def svg_linea(vals, w=560, h=160, color="#38bdf8", marcas=None, niveles=None):
 
 def svg_barras(vals, etiquetas, w=560, h=170):
     try:
-        pares = [(v, e) for v, e in zip(vals or [], etiquetas or []) if isinstance(v, (int, float))]
+        pares = []
+        for v, e in zip(vals or [], etiquetas or []):
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            fv = float(v)
+            if fv != fv or fv in (float("inf"), float("-inf")):
+                continue
+            pares.append((fv, _esc(e)))
     except Exception:
         return "<p>sin datos aún</p>"
     if not pares:
@@ -432,27 +456,27 @@ def _contexto_html(snap):
                 erc = f" · ER {float(d['er']):.2f}"
         except Exception:
             pass
-        chips.append(f"<span class='chip'><b>{lbl}</b> {t} · RSI {r}{erc}</span>")
+        chips.append(f"<span class='chip'><b>{lbl}</b> {_esc(t)} · RSI {_esc(r)}{_esc(erc)}</span>")
     fg = snap.get("fg") or {}
     senti = snap.get("senti") or {}
-    chips.append(f"<span class='chip'>Miedo <b>{fg.get('valor', '?')}</b> {fg.get('etiqueta', '')}</span>")
+    chips.append(f"<span class='chip'>Miedo <b>{_esc(fg.get('valor', '?'))}</b> {_esc(fg.get('etiqueta', ''))}</span>")
     fund = senti.get("funding", None)
-    chips.append(f"<span class='chip'>funding <b>{fund if fund is not None else 's/d'}</b></span>")
+    chips.append(f"<span class='chip'>funding <b>{_esc(fund if fund is not None else 's/d')}</b></span>")
     pres = snap.get("pres") or {}
     if pres.get("txt"):
-        chips.append(f"<span class='chip'>News {pres.get('txt')}</span>")
+        chips.append(f"<span class='chip'>News {_esc(pres.get('txt'))}</span>")
     niv = snap.get("niv") or {}
     try:
         sop = (niv.get("sop") or [{}])[0].get("precio", "?")
         res = (niv.get("res") or [{}])[0].get("precio", "?")
-        chips.append(f"<span class='chip'>SOP <b>{sop}</b> · RES <b>{res}</b></span>")
+        chips.append(f"<span class='chip'>SOP <b>{_esc(sop)}</b> · RES <b>{_esc(res)}</b></span>")
     except Exception:
         pass
     evs = snap.get("evs") or []
     if evs:
         e0 = evs[0]
-        chips.append(f"<span class='chip'>Evt {e0.get('titulo', '?')}</span>")
-    return (f"<p>Régimen <b style='color:#e2e8f0'>{reg}</b> · grado <b style='color:#e2e8f0'>{grade}</b></p>"
+        chips.append(f"<span class='chip'>Evt {_esc(e0.get('titulo', '?'))}</span>")
+    return (f"<p>Régimen <b style='color:#e2e8f0'>{_esc(reg)}</b> · grado <b style='color:#e2e8f0'>{_esc(grade)}</b></p>"
             f"<div class='kv'>{''.join(chips)}</div>")
 
 
@@ -597,7 +621,7 @@ def _ops_html(est, ahora):
         f"</div><p class='mini'>{freno_txt} · papel opera señales 35%+ (invisible, sin avisos){uc_txt}</p>")
     if abiertas:
         filas = "".join(
-            f"<tr><td class='tag{o.get('dir', '')}'>{o.get('dir', '?')}</td>"
+            f"<tr><td class='tag{_esc(o.get('dir', ''))}'>{_esc(o.get('dir', '?'))}</td>"
             f"<td>{miles(o.get('entrada'))}</td><td>{miles(o.get('stop'))}</td>"
             f"<td>{miles(o.get('tp'))}</td><td>{miles(o.get('riesgo'))}</td></tr>"
             for o in abiertas[-6:])
@@ -616,9 +640,9 @@ def _ops_html(est, ahora):
                 ft = str(c.get("t", ""))[5:16].replace("T", " ")
             except Exception:
                 pass
-            filas += (f"<tr><td class='tag{c.get('dir', '')}'>{c.get('dir', '?')}</td>"
-                      f"<td>{res}</td><td class='{cls}'>{pnl:+.0f}</td>"
-                      f"<td class='{cls}'>{_num(c.get('r')):+.2f}R</td><td>{ft}</td></tr>")
+            filas += (f"<tr><td class='tag{_esc(c.get('dir', ''))}'>{_esc(c.get('dir', '?'))}</td>"
+                      f"<td>{_esc(res)}</td><td class='{cls}'>{pnl:+.0f}</td>"
+                      f"<td class='{cls}'>{_num(c.get('r')):+.2f}R</td><td>{_esc(ft)}</td></tr>")
         ce = (f"<p class='mini'>Últimas cerradas ({n})</p>"
               f"<table class='ops'><tr><th>Dir</th><th>Fin</th><th>PnL</th><th>R</th><th>Fecha</th></tr>{filas}</table>")
     else:
@@ -626,14 +650,14 @@ def _ops_html(est, ahora):
               "y el mercado viene lateral. Cuando opere, aquí verás cada cierre.</p>")
     if pend:
         lp = "".join(
-            f"<span class='chip'><b>{p.get('bias', '?')}</b> {p.get('conf', '?')}% @ {miles(p.get('precio'))} "
-            f"{_hace(p.get('t', ''), ahora)}</span>" for p in pend[-6:])
+            f"<span class='chip'><b>{_esc(p.get('bias', '?'))}</b> {_esc(p.get('conf', '?'))}% @ {miles(p.get('precio'))} "
+            f"{_esc(_hace(p.get('t', ''), ahora))}</span>" for p in pend[-6:])
         pe = f"<p class='mini'>En seguimiento ({len(pend)} — se evalúan a 8h)</p><div class='kv'>{lp}</div>"
     else:
         pe = "<p class='mini'>En seguimiento: 0 — no hay señales esperando evaluación.</p>"
     if journal:
         lj = "".join(
-            f"<span class='chip'><b>{j.get('dir', '?')}</b> {j.get('res', '?')} "
+            f"<span class='chip'><b>{_esc(j.get('dir', '?'))}</b> {_esc(j.get('res', '?'))} "
             f"{_num(j.get('r')):+.2f}R</span>" for j in journal[-5:])
         jo = f"<p class='mini'>Mi diario ({len(journal)})</p><div class='kv'>{lj}</div>"
     else:
@@ -642,7 +666,7 @@ def _ops_html(est, ahora):
     simc = [o for o in (est.get("sim_cerradas", []) or []) if isinstance(o, dict)]
     if sims or simc:
         ls = "".join(
-            f"<span class='chip'><b>{o.get('dir', '?')}</b> {miles(o.get('entrada'))} "
+            f"<span class='chip'><b>{_esc(o.get('dir', '?'))}</b> {miles(o.get('entrada'))} "
             f"SL {miles(o.get('stop'))}</span>" for o in sims[-4:])
         w = sum(1 for x in simc if _num(x.get("r")) > 0)
         jo += (f"<p class='mini'><span class='simtag'>SIM</span>Simuladas: {len(sims)} abiertas, {len(simc)} cerradas ({w} ganadas)</p>"
@@ -787,8 +811,13 @@ def _gauge_reloj_html(est, hist, ahora_dt):
                 continue
     if not isinstance(v, (int, float)):
         return ""
-    v = max(0, min(100, v))
-    et = (fg or {}).get("etiqueta", "")
+    try:
+        if isinstance(v, bool) or v != v or v in (float("inf"), float("-inf")):
+            return ""
+    except Exception:
+        return ""
+    v = max(0, min(100, float(v)))
+    et = _esc((fg or {}).get("etiqueta", ""))
     col = "#ef4444" if v < 25 else ("#f59e0b" if v < 45 else ("#facc15" if v < 55 else ("#4ade80" if v < 75 else "#22c55e")))
     L = 188.5
     off = L * (1 - v / 100)
@@ -805,7 +834,7 @@ def _gauge_reloj_html(est, hist, ahora_dt):
     try:
         for h in (hist or [])[-30:]:
             fv = (h or {}).get("fg")
-            if isinstance(fv, (int, float)):
+            if isinstance(fv, (int, float)) and not isinstance(fv, bool) and fv == fv and fv not in (float("inf"), float("-inf")):
                 fgh.append(fv)
     except Exception:
         fgh = []
@@ -861,10 +890,10 @@ def _tfs_html(snap):
             mar = "●"
         bloques.append(
             f"<div class='tf'><div class='thead'><span class='tfn'>{lbl}</span>"
-            f"<span class='tend {cls}'>{tend}</span></div>"
+            f"<span class='tend {cls}'>{_esc(tend)}</span></div>"
             f"<svg class='spark' data-tf='{iv}' viewBox='0 0 200 56' preserveAspectRatio='none'>"
             f"<text x='6' y='32' class='tag'>cargando…</text></svg>"
-            f"{rbar}<div class='tmeta'>RSI {rsi} · MACD {mar}</div></div>")
+            f"{rbar}<div class='tmeta'>RSI {_esc(rsi)} · MACD {mar}</div></div>")
     if not bloques:
         return ""
     return (f"<div class='tfgrid'>{''.join(bloques)}</div>"
@@ -1080,7 +1109,7 @@ def _porque_html(snap):
         pts.append(f"Régimen: {snap.get('regimen')} · grado {snap.get('grade', '?')}")
     if not pts:
         return ""
-    return "<ul class='pq'>" + "".join(f"<li>{p}</li>" for p in pts) + "</ul>"
+    return "<ul class='pq'>" + "".join(f"<li>{_esc(p)}</li>" for p in pts) + "</ul>"
 
 
 def _fam(titulo):
@@ -1134,8 +1163,8 @@ def _liqmap_html(snap):
     banner = ""
     try:
         if im.get("lado"):
-            banner = (f"<p class='mini'>Imán de stops: <b style='color:#e2e8f0'>{im['lado'].upper()}</b> "
-                      f"({im.get('pct', '?')}%)</p>")
+            banner = (f"<p class='mini'>Imán de stops: <b style='color:#e2e8f0'>{_esc(str(im['lado']).upper())}</b> "
+                      f"({_esc(im.get('pct', '?'))}%)</p>")
     except Exception:
         pass
     return (f"{banner}<p class='mini'>Arriba</p>{lado(lm.get('arriba'), '#f87171')}"
@@ -1154,7 +1183,10 @@ def _macro_html(snap, ahora_dt):
         if not isinstance(e, dict):
             continue
         try:
-            cu = datetime.datetime.fromisoformat(e.get("cuando", ""))
+            _cs = e.get("cuando", "")
+            if isinstance(_cs, str) and _cs.endswith("Z"):
+                _cs = _cs[:-1] + "+00:00"
+            cu = datetime.datetime.fromisoformat(_cs)
             if cu.tzinfo is None:
                 cu = cu.replace(tzinfo=datetime.timezone.utc)
             if cu >= ahora_dt:
@@ -1187,8 +1219,8 @@ def _macro_html(snap, ahora_dt):
                 stu = f" suele ±{st['avg']}% (n={st['n']})"
         except Exception:
             pass
-        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td title='{full}'>{tit}{stu}</td>"
-                  f"<td><span class='badge {cls}'>{imp}</span></td><td>{cuad}</td></tr>")
+        filas += (f"<tr><td>{cu.strftime('%d %H:%M')}</td><td title=\"{_esc(full)}\">{_esc(tit)}{_esc(stu)}</td>"
+                  f"<td><span class='badge {cls}'>{_esc(imp)}</span></td><td>{_esc(cuad)}</td></tr>")
     return (f"<table class='ops'><tr><th>Día/hora</th><th>Evento</th><th>Impacto</th><th>Falta</th></tr>"
             f"{filas}</table><p class='mini'>±30 min de eventos High: sin señales (blackout).</p>")
 
@@ -1200,14 +1232,19 @@ def _duelo_html(snap):
     taker = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
     pw = None
     try:
-        if bal and (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) > 0:
-            pw = float(bal.get("buys", 0)) / (float(bal.get("buys", 0)) + float(bal.get("sells", 0))) * 100
+        if bal and not isinstance(bal.get("buys"), bool) and not isinstance(bal.get("sells"), bool):
+            _b = float(bal.get("buys", 0))
+            _s = float(bal.get("sells", 0))
+            if _b == _b and _s == _s and _b not in (float("inf"), float("-inf")) and _s not in (float("inf"), float("-inf")) and (_b + _s) > 0:
+                pw = _b / (_b + _s) * 100
     except Exception:
         pw = None
     pt = None
     try:
-        if taker is not None:
-            pt = max(0, min(100, (float(taker) - 0.7) / 0.6 * 100))
+        if taker is not None and not isinstance(taker, bool):
+            _t = float(taker)
+            if _t == _t and _t not in (float("inf"), float("-inf")):
+                pt = max(0, min(100, (_t - 0.7) / 0.6 * 100))
     except Exception:
         pt = None
     if pw is None and pt is None:
@@ -1251,7 +1288,7 @@ def _duelo_html(snap):
     diff = pw_d - pt_d
     if abs(diff) >= 15:
         wwin = diff > 0
-        banner = ("VICTORIA DE LAS BALLENAS — " + str((bal or {}).get("txt", "")) if wwin
+        banner = ("VICTORIA DE LAS BALLENAS — " + _esc((bal or {}).get("txt", "")) if wwin
                   else "VICTORIA DE LOS TOROS — la compra agresiva manda")
         cw, cl = ("winner", "loser") if wwin else ("loser", "winner")
     else:
@@ -1269,7 +1306,7 @@ def _duelo_html(snap):
         det_w = "<div class='tmeta'>sin prints ≥5 BTC en la cinta</div>"
     else:
         det_w = "<div class='tmeta'>cinta de ballenas s/d aún</div>"
-    det_t = f"<div class='tmeta'>taker buy/sell {taker if taker is not None else 's/d'}</div>"
+    det_t = f"<div class='tmeta'>taker buy/sell {_esc(taker if taker is not None else 's/d')}</div>"
     return (
         f"<div class='duel'>"
         f"<div class='fighter {cw}'><span class='fmono b'>B</span><div class='fname'>Ballenas</div>"
@@ -1348,23 +1385,29 @@ def build_dashboard(est, hist):
     px = [_num(h.get("precio")) for h in ult]
     cf = [h.get("conf", 0) for h in ult]
     marcas = [i for i, h in enumerate(ult) if h.get("tipo") == "alerta"]
-    alza = [v for v in (est.get("alza") or []) if isinstance(v, (int, float))]
-    baja = [v for v in (est.get("baja") or []) if isinstance(v, (int, float))]
-    pa = f"{round(sum(alza) / len(alza) * 100)}% ({sum(alza)}/{len(alza)})" if len(alza) >= 5 else "s/d"
-    pb = f"{round(sum(baja) / len(baja) * 100)}% ({sum(baja)}/{len(baja)})" if len(baja) >= 5 else "s/d"
+    alza = [v for v in (est.get("alza") or []) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float("inf"), float("-inf"))]
+    baja = [v for v in (est.get("baja") or []) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float("inf"), float("-inf"))]
+    try:
+        pa = f"{round(sum(alza) / len(alza) * 100)}% ({int(sum(alza))}/{len(alza)})" if len(alza) >= 5 else "s/d"
+    except Exception:
+        pa = "s/d"
+    try:
+        pb = f"{round(sum(baja) / len(baja) * 100)}% ({int(sum(baja))}/{len(baja)})" if len(baja) >= 5 else "s/d"
+    except Exception:
+        pb = "s/d"
     banco = est.get("banco")
     eq = [100.0]
     for c in est.get("paper_cerradas", []) or []:
         try:
-            eq.append(eq[-1] + float((c or {}).get("pnl", 0)))
+            eq.append(eq[-1] + _num((c or {}).get("pnl", 0), 0))
         except Exception:
             continue
     eq_txt = f"{miles(banco)} USDT" if banco is not None else "100 USDT (sin empezar)"
     bias = _txt(est.get("ultimo_bias"))
     _conf = est.get("ultima_conf")
     conf = _conf if isinstance(_conf, (int, float)) else "?"
-    conf_w = max(0, min(100, _conf)) if isinstance(_conf, (int, float)) else 0
-    precio = (ult[-1].get("precio", 0) if ult else 0) or 0
+    conf_w = max(0, min(100, float(_conf))) if isinstance(_conf, (int, float)) and not isinstance(_conf, bool) and _conf == _conf and _conf not in (float("inf"), float("-inf")) else 0
+    precio = _num((ult[-1].get("precio", 0) if ult else 0), 0)
     emp = " · empate total de marcos" if isinstance(_conf, (int, float)) and _conf == 0 and bias == "LATERAL" else ""
     if len(px) >= 2 and px[0]:
         d = px[-1] - px[0]
@@ -1458,7 +1501,10 @@ def build_dashboard(est, hist):
     tarjetas.append(_card("frescura", "Frescura", f"<p>{_esc(_fuente)}</p><p class='mini'>vivo hasta 15 min · tibio hasta 60 min · viejo despues · s/d sin latido</p>"))
     tarjetas.append(_card("act", "Actividad", act_b))
     grid = "".join(tarjetas)
-    fpx = ",".join(str(int(v)) for v in px[-30:] if v) or ""
+    try:
+        fpx = ",".join(str(int(v)) for v in px[-30:] if isinstance(v, (int, float)) and v == v and v not in (float("inf"), float("-inf")) and v) or ""
+    except Exception:
+        fpx = ""
     snap_g = est.get("snapshot") or {}
     grade = snap_g.get("grade", "?") if isinstance(snap_g, dict) else "?"
     max_cls = " alerta-max" if grade == "A" else ""
