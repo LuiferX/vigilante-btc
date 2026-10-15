@@ -755,6 +755,118 @@ def _kpis_papel_html(est):
         return "<p class='mini'>sin operaciones aún</p>"
 
 
+def _seguimiento_html(est, ahora_dt):
+    """En seguimiento: pendientes con cuenta atrás a 8h. Puro, jamás rompe."""
+    try:
+        pend = [p for p in ((est or {}).get("pendientes") or []) if isinstance(p, dict)]
+        if not pend:
+            return "<p class='mini'>sin pendientes — no hay señales esperando evaluación.</p>"
+        try:
+            ahora = ahora_dt
+            if ahora is None:
+                ahora = datetime.datetime.now(datetime.timezone.utc)
+            if ahora.tzinfo is None:
+                ahora = ahora.replace(tzinfo=datetime.timezone.utc)
+        except Exception:
+            return "<p class='mini'>sin pendientes — no hay señales esperando evaluación.</p>"
+        filas = []
+        for p in pend[-6:]:
+            try:
+                bias = _esc(p.get("bias", "?"))
+                conf = _esc(p.get("conf", "?"))
+                px = miles(p.get("precio"))
+                s = str(p.get("t", "") or "")
+                s2 = s[:-1] + "+00:00" if s.endswith("Z") else s
+                t0 = datetime.datetime.fromisoformat(s2)
+                if t0.tzinfo is None:
+                    t0 = t0.replace(tzinfo=datetime.timezone.utc)
+                venc = t0 + datetime.timedelta(hours=8)
+                rest = (venc - ahora).total_seconds()
+                trans = (ahora - t0).total_seconds()
+                pct = max(0, min(100, trans / (8 * 3600) * 100))
+                if rest <= 0:
+                    txt = "vencida, evaluando"
+                else:
+                    try:
+                        txt = _hace(ahora.isoformat(), venc).replace("hace", "vence en")
+                    except Exception:
+                        txt = ""
+                    if not txt:
+                        dh = rest / 3600
+                        txt = f"vence en {dh:.1f}h" if dh >= 1 else f"vence en {int(rest // 60)}min"
+                filas.append(
+                    f"<div class='tmeta'><b style='color:#e2e8f0'>{bias}</b> {conf}% @ {px} · {_esc(txt)}</div>"
+                    f"<div class='rsibar'><i style='width:{pct:.0f}%;background:#38bdf8'></i></div>")
+            except Exception:
+                continue
+        if not filas:
+            return "<p class='mini'>sin pendientes — no hay señales esperando evaluación.</p>"
+        return (f"<p class='mini'>En seguimiento ({len(pend)} — se evalúan a 8h)</p>"
+                f"{''.join(filas)}")
+    except Exception:
+        return "<p class='mini'>sin pendientes — no hay señales esperando evaluación.</p>"
+
+
+def _calibracion_html(est):
+    """Calibración: Brier + n + cubetas desde snapshot o est. Puro, jamás rompe."""
+    try:
+        log = None
+        try:
+            if isinstance(est, dict):
+                log = est.get("eval_log")
+                if not log:
+                    snap = est.get("snapshot")
+                    if isinstance(snap, dict):
+                        log = snap.get("eval_log")
+        except Exception:
+            log = None
+        log = [e for e in (log or []) if isinstance(e, dict)]
+        if len(log) < 5:
+            return "<p class='mini'>sin datos aún (mínimo 5 evaluadas).</p>"
+        tab = None
+        try:
+            fn = globals().get("tabla_calibracion")
+            if callable(fn):
+                tab = fn(log)
+        except Exception:
+            tab = None
+        if not isinstance(tab, dict):
+            try:
+                br = sum(((float(e.get("conf", 50)) / 100) - float(e.get("r", 0))) ** 2 for e in log) / len(log)
+                cubs = {}
+                for e in log:
+                    c = float(e.get("conf", 50))
+                    k = "40s" if c < 50 else ("50s" if c < 60 else "60+")
+                    a, b = cubs.get(k, [0, 0])
+                    cubs[k] = [a + 1, b + float(e.get("r", 0))]
+                tab = {"n": len(log), "brier": round(br, 3),
+                       "cubetas": {k: (nn, round(100 * w / nn)) for k, (nn, w) in sorted(cubs.items())}}
+            except Exception:
+                return "<p class='mini'>sin datos aún (mínimo 5 evaluadas).</p>"
+        try:
+            n = int(tab.get("n", len(log)))
+            br = float(tab.get("brier", 0))
+        except Exception:
+            return "<p class='mini'>sin datos aún (mínimo 5 evaluadas).</p>"
+        cubs = tab.get("cubetas") if isinstance(tab.get("cubetas"), dict) else {}
+        chips = []
+        try:
+            for k in sorted(cubs.keys()):
+                vv = cubs[k]
+                if isinstance(vv, (list, tuple)) and len(vv) == 2:
+                    chips.append(f"<span class='chip'><b>{_esc(k)}</b> {_esc(vv[1])}% ({_esc(vv[0])})</span>")
+                else:
+                    chips.append(f"<span class='chip'>{_esc(k)}: {_esc(vv)}</span>")
+        except Exception:
+            chips = []
+        det = f"<div class='kv'>{''.join(chips)}</div>" if chips else ""
+        return (f"<div class='stats'><div class='stat'><small>Brier</small><b>{_esc(round(br, 3))}</b></div>"
+                f"<div class='stat'><small>Evaluadas</small><b>{_esc(n)}</b></div></div>{det}"
+                f"<p class='mini'>Brier 0 perfecto · 0.25 inútil. Cubeta: acierto (n).</p>")
+    except Exception:
+        return "<p class='mini'>sin datos aún (mínimo 5 evaluadas).</p>"
+
+
 CD_JS = ("<script>(function(){try{var el=document.getElementById('cd');"
           "if(!el||!el.dataset||!el.dataset.next)return;"
           "var t=new Date(el.dataset.next).getTime();if(!isFinite(t))return;"
@@ -1583,17 +1695,27 @@ def build_dashboard(est, hist):
     tarjetas.append(_sec("Dinero papel", "s-dinero"))
     tarjetas.append(_card("ops", "Operaciones papel", ops))
     try:
+        _seg = _seguimiento_html(est, ahora_dt)
+    except Exception:
+        _seg = "<p class='mini'>sin pendientes — no hay señales esperando evaluación.</p>"
+    tarjetas.append(_card("seg", "En seguimiento", _seg))
+    tarjetas.append(_card("banco", "Banco papel", banco_b))
+    try:
         _kpis = _kpis_papel_html(est)
     except Exception:
         _kpis = "<p class='mini'>sin operaciones aún</p>"
     tarjetas.append(_card("kpis", "Dinero papel: KPIs", _kpis))
+    tarjetas.append(_card("prec", "Precisión", prec_b))
+    try:
+        _cal = _calibracion_html(est)
+    except Exception:
+        _cal = "<p class='mini'>sin datos aún (mínimo 5 evaluadas).</p>"
+    tarjetas.append(_card("calib", "Calibración", _cal))
     try:
         _som = _sombra_html(est)
     except Exception:
         _som = "<p class='mini'>sin evaluaciones aún</p>"
     tarjetas.append(_card("sombra", "Sombra (aprende de todo)", _som))
-    tarjetas.append(_card("banco", "Banco papel", banco_b))
-    tarjetas.append(_card("prec", "Precisión", prec_b))
     tarjetas.append(_sec("Sistema", "s-sistema"))
     tarjetas.append(_card("frescura", "Frescura", f"<p>{_esc(_fuente)}</p><p class='mini'>vivo hasta 15 min · tibio hasta 60 min · viejo despues · s/d sin latido</p>"))
     tarjetas.append(_card("act", "Actividad", act_b))
