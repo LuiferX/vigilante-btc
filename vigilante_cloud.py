@@ -1335,11 +1335,43 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     except Exception:
         return None
     if banco <= 20:
+        # REBORN medido: las abiertas se liquidan a `precio` y se registran
+        # en paper_cerradas (res=REBORN) antes de resetear. Antes se vaciaban
+        # sin rastro: perdida silenciosa de PnL y de historia.
+        try:
+            _px_rb = float(precio)
+        except Exception:
+            _px_rb = None
+        if _px_rb and _px_rb > 0:
+            try:
+                _cerr = est.get("paper_cerradas", [])
+                for _o in (est.get("paper_abiertas") or []):
+                    try:
+                        _ent = float(_o.get("entrada"))
+                        _tam = float(_o.get("tam"))
+                        _ri = float(_o.get("riesgo") or 0)
+                        if _o.get("dir") == "SHORT":
+                            _pnl = round((_ent - _px_rb) * _tam, 2)
+                        else:
+                            _pnl = round((_px_rb - _ent) * _tam, 2)
+                        _cerr.append({"dir": _o.get("dir", "?"), "res": "REBORN",
+                                       "pnl": _pnl,
+                                       "r": round(_pnl / _ri, 2) if _ri else 0,
+                                       "t": ahora.isoformat()})
+                    except Exception:
+                        continue
+                est["paper_cerradas"] = _cerr[-100:]
+            except Exception:
+                pass
         banco = PAPER_BANCO
         est["banco"] = banco
         est["banco_pico"] = banco
         est["paper_dia"] = {"fecha": ahora.strftime("%Y-%m-%d"), "pnl": 0.0}
         est["paper_abiertas"] = []
+        try:
+            est.pop("paper_ult", None)
+        except Exception:
+            pass
     pico = float(est.get("banco_pico", banco))
     if banco > pico:
         pico = banco
@@ -1387,7 +1419,7 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     pos = {"dir": dire, "entrada": entrada, "stop": stop, "tp": round(tp),
            "tam": tam, "riesgo": round(dist_stop * tam, 2), "lev": PAPER_LEV,
            "liq": liq, "t": ahora.isoformat()}
-    if len(est.get("paper_abiertas", []) or []) >= 5:
+    if len(est.get("paper_abiertas", []) or []) >= MAX_PAPER_ABIERTAS:
         return None
     est["paper_abiertas"] = est.get("paper_abiertas", []) + [pos]
     return pos
@@ -2402,8 +2434,8 @@ def _podar_estado(est):
         if isinstance(est.get("preavisos"), dict) and len(est["preavisos"]) > 100:
             est["preavisos"] = dict(list(est["preavisos"].items())[-100:])
         for k, n in (("pend_todo", MAX_PEND_TODO), ("eval_todo", MAX_EVAL_TODO),
-                     ("pend_sombra", 100), ("eval_sombra", 200),
-                     ("pendientes", 100), ("eval_log", 200),
+                     ("pend_sombra", MAX_PEND_TODO), ("eval_sombra", MAX_EVAL_TODO),
+                     ("pendientes", MAX_PEND_TODO), ("eval_log", MAX_EVAL_TODO),
                      ("paper_abiertas", MAX_PAPER_ABIERTAS), ("ops", MAX_OPS),
                      ("journal", 50), ("sim_cerradas", 20), ("paper_cerradas", 100)):
             v = est.get(k)
@@ -2558,7 +2590,12 @@ def evaluar_mfe(est, ahora, velas=None):
             nuevas.append(p)
             continue
         entry = p["precio"]
-        risk = p.get("risk") or max(entry * UMBRAL_MOV, 1)
+        try:
+            risk = float(p.get("risk") or 0)
+        except Exception:
+            risk = 0.0
+        if not (risk > 0):
+            risk = max(entry * UMBRAL_MOV, 1)
         if p["bias"] == "ALZA":
             tp, sl = entry + 2 * risk, entry - risk
         elif p["bias"] == "BAJA":
@@ -2673,7 +2710,12 @@ def evaluar_todo(est, ahora, velas=None):
                     continue
             except Exception:
                 continue
-            risk = p.get("risk") or max(entry * UMBRAL_MOV, 1)
+            try:
+                risk = float(p.get("risk") or 0)
+            except Exception:
+                risk = 0.0
+            if not (risk > 0):
+                risk = max(entry * UMBRAL_MOV, 1)
             try:
                 ventana = [v for v in velas if t0 < v["t"] <= t0 + datetime.timedelta(hours=8)]
             except Exception:
@@ -2681,9 +2723,15 @@ def evaluar_todo(est, ahora, velas=None):
             try:
                 mfe = mae = 0.0
                 toca_tp = toca_sl = False
+                # MFE/MAE direccionales (favor/contra), igual que sombra/mfe:
+                # antes ambos se calculaban en sentido ALZA tambien para BAJA.
                 for v in ventana:
-                    mfe = max(mfe, (v["h"] - entry) / entry)
-                    mae = max(mae, (entry - v["l"]) / entry)
+                    if p["bias"] == "BAJA":
+                        mfe = max(mfe, (entry - v["l"]) / entry)
+                        mae = max(mae, (v["h"] - entry) / entry)
+                    else:
+                        mfe = max(mfe, (v["h"] - entry) / entry)
+                        mae = max(mae, (entry - v["l"]) / entry)
                 ru = risk / entry
                 if p["bias"] == "ALZA":
                     tp, sl = entry + 2 * risk, entry - risk
@@ -2747,7 +2795,7 @@ def abrir_sombra(est, bias, conf, precio, umbral, ahora):
         ps.append({"t": ahora.isoformat(), "precio": round(precio),
                    "bias": bias, "conf": conf,
                    "risk": round(umbral * precio, 1)})
-        est["pend_sombra"] = ps[-100:]
+        est["pend_sombra"] = ps[-MAX_PEND_TODO:]
         est["sombra_ult"] = {"dir": bias, "t": ahora.isoformat()}
         return True
     except Exception:
@@ -2783,7 +2831,12 @@ def evaluar_sombra(est, ahora, velas=None):
                     continue
             except Exception:
                 continue
-            risk = p.get("risk") or max(entry * UMBRAL_MOV, 1)
+            try:
+                risk = float(p.get("risk") or 0)
+            except Exception:
+                risk = 0.0
+            if not (risk > 0):
+                risk = max(entry * UMBRAL_MOV, 1)
             if p["bias"] == "ALZA":
                 tp, sl = entry + 2 * risk, entry - risk
             elif p["bias"] == "BAJA":
@@ -2827,10 +2880,10 @@ def evaluar_sombra(est, ahora, velas=None):
                 log = est.get("eval_sombra", [])
                 log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
                             "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4)})
-                est["eval_sombra"] = log[-200:]
+                est["eval_sombra"] = log[-MAX_EVAL_TODO:]
             except Exception:
                 continue
-        est["pend_sombra"] = nuevas[-100:]
+        est["pend_sombra"] = nuevas[-MAX_PEND_TODO:]
     except Exception:
         pass
 
