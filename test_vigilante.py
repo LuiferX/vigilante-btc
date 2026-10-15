@@ -253,6 +253,18 @@ t("puede bajo no", v.puede_papel({}, "ALZA", 34, AH2) is False)
 t("puede lateral no", v.puede_papel({}, "LATERAL", 80, AH2) is False)
 t("puede dup no", v.puede_papel({"paper_ult": {"dir": "ALZA", "t": AH2.isoformat()}}, "ALZA", 60, AH2) is False)
 t("puede otro si", v.puede_papel({"paper_ult": {"dir": "BAJA", "t": AH2.isoformat()}}, "ALZA", 60, AH2) is True)
+_ayer3 = (AH2 - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+t("perdon dia1 no", v.perdon_bloqueo({"banco": 74.0}, AH2) is False)
+_ep = {"banco": 74.33, "banco_pico": 100.0, "bloq_pico": {"fecha": _ayer3, "dias": 2}}
+t("perdon dia3 si", v.perdon_bloqueo(_ep, AH2) is True and _ep["banco_pico"] == 74.33)
+_ea = {"banco": 90.0, "banco_pico": 100.0, "bloq_pico": {"fecha": _ayer3, "dias": 2},
+       "paper_dia": {"fecha": AH2.strftime("%Y-%m-%d"), "pnl": 0.0}, "paper_cerradas": []}
+_pa = v.abrir_papel(_ea, EB, NV2, 83000, AH2)
+t("papel perdon abre", _pa is not None and _ea["banco_pico"] == 90.0)
+t("papel liq cara no", v.abrir_papel({"banco": 100.0, "banco_pico": 100.0,
+    "paper_dia": {"fecha": AH2.strftime("%Y-%m-%d"), "pnl": 0.0}, "paper_cerradas": []},
+    EB, {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 82900, "origen": "S"}]},
+    83000, AH2) is None)
 kl10 = [{"h": 83500, "l": 83000, "c": 83200} for _ in range(10)]
 oL = [{"dir": "LONG", "entrada": 83000, "stop": 82500, "tp": 83400, "tam": 0.2, "riesgo": 100.0, "t": "x"}]
 ab, ci = v.journal_check(oL, kl10, 83300)
