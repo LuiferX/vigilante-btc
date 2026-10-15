@@ -238,7 +238,7 @@ NV2 = {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio
 AH2 = datetime.datetime.now(datetime.timezone.utc)
 EB = {"bias": "ALZA", "confianza": 60}
 p = v.abrir_papel({"banco": 10000.0}, EB, NV2, 83000, AH2)
-t("papel abre", p and p["dir"] == "LONG" and p["riesgo"] == 100.0 and abs(p["tam"] - 100.0 / 200) < 0.001 and p["lev"] == 60)
+t("papel abre", p and p["dir"] == "LONG" and p["riesgo"] == 100.0 and abs(p["tam"] - 100.0 / 200) < 0.001 and p["lev"] == 50)
 t("papel lateral no", v.abrir_papel({}, {"bias": "LATERAL"}, NV2, 83000, AH2) is None)
 t("papel stop cero no", v.abrir_papel({"banco": 10000.0}, EB, {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 83000, "origen": "S"}]}, 83000, AH2) is None)
 t("papel kill drawdown", v.abrir_papel({"banco": 9000.0, "banco_pico": 10000.0}, EB, NV2, 83000, AH2) is None)
@@ -408,13 +408,13 @@ t("snap voy", "LONG" in scmd("/voy")[0])
 t("snap diario", "Diario" in scmd("/diario")[0])
 t("snap papel", "Papel" in scmd("/papel")[0])
 t("snap otro", "Comandos" in scmd("/otro")[0])
-t("xlx default", (lambda p: p is not None and p["riesgo"] == 1.0 and p["lev"] == 60 and "liq" in p)(
+t("xlx default", (lambda p: p is not None and p["riesgo"] == 1.0 and p["lev"] == 50 and "liq" in p)(
     v.abrir_papel({}, {"bias": "ALZA", "confianza": 60},
                   {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 82800, "origen": "S"}]},
                   83000, AH2)))
 t("xlx stop lejos no", v.abrir_papel(
     {}, {"bias": "ALZA", "confianza": 60},
-    {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 80000, "origen": "S"}]},
+    {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 74000, "origen": "S"}]},
     83000, AH2) is None)
 _XO = {"dir": "LONG", "entrada": 83000, "stop": 82500, "tp": 84000, "tam": 0.002, "riesgo": 1.0,
        "lev": 60, "liq": 81755}
@@ -779,6 +779,52 @@ t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 
 t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+
+
+def _vcm(o, h, l, c):
+    return {"t": datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc), "o": o, "h": h, "l": l, "c": c, "v": 1.0}
+_ahq = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+_plm = [_vcm(81000, 81100, 80900, 81050)] * 5
+t("mecha martillo claro", (lambda r: r and r["dir"] == "ALZA" and r["nivel"] == 80226
+    and r["ratio"] == 0.826 and r["fuerza"] == "fuerte")(
+    v.mecha_rechazo(_plm + [_vcm(81640, 81814, 80226, 81538)])))
+t("mecha sin mecha", v.mecha_rechazo(_plm + [_vcm(81000, 81500, 80500, 81200)]) is None)
+t("mecha cuerpo grande", v.mecha_rechazo(_plm + [_vcm(80000, 81600, 79900, 81500)]) is None)
+t("mecha vela vieja", v.mecha_rechazo([_vcm(81640, 81814, 80226, 81538)] + _plm) is None)
+_ebm = {}
+_rm = v.decidir_alerta(81538, {"soportes": [{"precio": 80226}], "resistencias": [{"precio": 82000}]},
+    {"bias": "ALZA", "confianza": 50}, _ebm, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None,
+    {"dir": "ALZA", "nivel": 80226, "mid": 80882, "fuerza": "fuerte"}, (80176, 1.0, False))
+t("mecha alerta con sl", _rm[0] is True and "RECHAZO ALZA" in _rm[1] and "SL" in _rm[1])
+t("mecha pide sesgo", v.decidir_alerta(81538, {"soportes": [{"precio": 80226}], "resistencias": [{"precio": 82000}]},
+    {"bias": "BAJA", "confianza": 50}, {}, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None,
+    {"dir": "ALZA", "nivel": 80226, "mid": 80882, "fuerza": "fuerte"}, (80176, 1.0, False))[2] == "nada")
+_aht = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+_nivp = {"soportes": [{"precio": 82800}], "resistencias": [{"precio": 83200}]}
+t("papel 50x abre sano", v.abrir_papel({}, {"bias": "ALZA", "confianza": 50}, _nivp, 83000, _aht) is not None)
+_nivl = {"soportes": [{"precio": 74000}], "resistencias": [{"precio": 83200}]}
+t("papel liqui antes no abre", v.abrir_papel({}, {"bias": "ALZA", "confianza": 50}, _nivl, 83000, _aht) is None)
+_nivm = {"soportes": [{"precio": 78000}], "resistencias": [{"precio": 83200}]}
+t("papel mitad liqui no abre", v.abrir_papel({}, {"bias": "ALZA", "confianza": 50}, _nivm, 83000, _aht) is None)
+_ebr = {"banco": 15.0}
+t("papel reborn 100", v.abrir_papel(_ebr, {"bias": "ALZA", "confianza": 50}, _nivp, 83000, _aht) is not None and _ebr["banco"] == 100.0)
+_ebr2 = {"banco": 70.0}
+t("papel no reborn 70", v.abrir_papel(_ebr2, {"bias": "ALZA", "confianza": 50}, _nivp, 83000, _aht) is not None and _ebr2["banco"] == 70.0)
+t("todo abre lateral", v.abrir_todo({}, "LATERAL", 9, 83000, 0.002, _aht) is True)
+t("todo abre sesgo", v.abrir_todo({}, "ALZA", 50, 83000, 0.002, _aht) is True)
+t("todo rechaza raro", v.abrir_todo({}, "?", 50, 83000, 0.002, _aht) is False)
+_est_t = {}
+v.abrir_todo(_est_t, "LATERAL", 9, 83000, 0.002, _aht)
+t("todo dedup 1h", v.abrir_todo(_est_t, "LATERAL", 9, 83100, 0.002, _aht) is False)
+_vq = [{"t": _aht - datetime.timedelta(hours=9 - i), "h": 83000 + 10, "l": 83000 - 10, "c": 83000} for i in range(10)]
+_est_tq = {"pend_todo": [{"t": (_aht - datetime.timedelta(hours=10)).isoformat(), "precio": 83000, "bias": "LATERAL", "conf": 9, "risk": 166.0}]}
+v.evaluar_todo(_est_tq, _aht, _vq)
+t("todo lateral quieto acierta", len(_est_tq.get("eval_todo", [])) == 1 and _est_tq["eval_todo"][0]["r"] == 1)
+_vqm = [{"t": _aht - datetime.timedelta(hours=9 - i), "h": 83000 + 400, "l": 83000 - 400, "c": 83000} for i in range(10)]
+_est_tm = {"pend_todo": [{"t": (_aht - datetime.timedelta(hours=10)).isoformat(), "precio": 83000, "bias": "LATERAL", "conf": 9, "risk": 166.0}]}
+v.evaluar_todo(_est_tm, _aht, _vqm)
+t("todo lateral movido falla", len(_est_tm.get("eval_todo", [])) == 1 and _est_tm["eval_todo"][0]["r"] == 0)
+t("todo no toca vivo", _est_tm.get("eval_log", []) == [] and _est_tm.get("alza", []) == [])
 _estk = {"paper_cerradas": [{"pnl": 50, "r": 1.0}, {"pnl": -20, "r": -0.5}, {"pnl": 30, "r": 0.8}, {"pnl": -10, "r": -0.3}]}
 _hk = _db._kpis_papel_html(_estk)
 t("kpis con datos", "Profit factor" in _hk and "Expectancy" in _hk and "Mejor" in _hk and "Racha actual" in _hk)
