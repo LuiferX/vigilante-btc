@@ -2376,6 +2376,8 @@ def evaluar_mfe(est, ahora, velas=None):
             t0 = datetime.datetime.fromisoformat(p["t"])
         except Exception:
             continue
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=datetime.timezone.utc)
         if (ahora - t0).total_seconds() / 3600 < EVAL_HORAS:
             nuevas.append(p)
             continue
@@ -2483,6 +2485,8 @@ def evaluar_sombra(est, ahora, velas=None):
                 t0 = datetime.datetime.fromisoformat(p["t"])
             except Exception:
                 continue
+            if t0.tzinfo is None:
+                t0 = t0.replace(tzinfo=datetime.timezone.utc)
             if (ahora - t0).total_seconds() / 3600 < EVAL_HORAS:
                 nuevas.append(p)
                 continue
@@ -3259,6 +3263,17 @@ def main():
             cools_antes = dict(est.get("cools") or {})
         except Exception:
             cools_antes = {}
+        _snap_run = est.get("ultimo_run")
+        _snap_lat = est.get("latido")
+        _snap_preny = est.get("ultimo_preny")
+        _snap_man = est.get("ultimo_resumen")
+        _snap_noc = est.get("ultimo_resumen_noche")
+        _snap_mad = est.get("ultimo_madrugada")
+        try:
+            import copy as _cp
+            _snap_ual = _cp.deepcopy(est.get("ultima_alerta"))
+        except Exception:
+            _snap_ual = est.get("ultima_alerta")
         enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
@@ -3407,6 +3422,18 @@ def main():
         if es_dup and not forzar:
             try:
                 est["cools"] = cools_antes
+                if _snap_run is None:
+                    est.pop("ultimo_run", None)
+                else:
+                    est["ultimo_run"] = _snap_run
+                if _snap_lat is None:
+                    est.pop("latido", None)
+                else:
+                    est["latido"] = _snap_lat
+                est["ultimo_preny"] = _snap_preny
+                est["ultimo_resumen"] = _snap_man
+                est["ultimo_resumen_noche"] = _snap_noc
+                est["ultimo_madrugada"] = _snap_mad
                 guardar_estado(est, hist)
             except Exception:
                 pass
@@ -3539,6 +3566,17 @@ def main():
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
+        if not ok:
+            try:
+                est["cools"] = cools_antes
+                est["ultimo_preny"] = _snap_preny
+                est["ultimo_resumen"] = _snap_man
+                est["ultimo_resumen_noche"] = _snap_noc
+                est["ultimo_madrugada"] = _snap_mad
+                est["ultima_alerta"] = _snap_ual
+                guardar_estado(est, hist)
+            except Exception:
+                pass
         if ok:
             hist[-1]["enviado"] = True
             est["vistas"] = (est.get("vistas", []) + [n["titulo"] for n in notis])[-30:]
