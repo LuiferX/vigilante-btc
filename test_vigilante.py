@@ -336,6 +336,7 @@ mix = [tr(100, 10, True)] * 3 + [tr(100, 6, False)]
 b = v.ballenas(mix)
 t("ballenas", b["ns"] == 3 and b["sells"] == 30 and "distribuyendo" in b["txt"])
 t("ballenas vacia", v.ballenas([tr(100, 1, False)])["txt"] == "sin prints de ballenas")
+t("ballenas sin red", v.ballenas([]) is None)
 c = v.cvd([tr(100, 10, False)] * 10 + [tr(99, 10, False)] * 10)
 t("cvd signo", c["cvd"] > 0)
 d1 = [tr(100 + i * 0.05, 1, False) for i in range(200)] + [tr(110 + i * 0.05, 1, True) for i in range(200)]
@@ -552,6 +553,9 @@ t("dash duelo toro", "VICTORIA DE LOS OSOS" in _db._duelo_html(
     {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
      'senti': {'taker': 0.75}}))
 t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
+t("dash duelo cinta vacia", "cinta sin ballenas" in _db._duelo_html(
+    {"bal": {"nb": 0, "ns": 0, "buys": 0, "sells": 0, "big": 0, "txt": "sin prints de ballenas"},
+     "senti": {"taker": 0.794}}))
 t("duelo caso vivo osos", "VICTORIA DE LOS OSOS" in _db._duelo_html(
     {'bal': {'nb': 0, 'ns': 1, 'buys': 0.0, 'sells': 6.7, 'big': 6.7, 'txt': 'x'},
      'senti': {'taker': 0.794}}))
