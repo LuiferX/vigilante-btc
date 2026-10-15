@@ -835,6 +835,9 @@ t("mecha alerta con sl", _rm[0] is True and "RECHAZO ALZA" in _rm[1] and "SL" in
 t("mecha pide sesgo", v.decidir_alerta(81538, {"soportes": [{"precio": 80226}], "resistencias": [{"precio": 82000}]},
     {"bias": "BAJA", "confianza": 50}, {}, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None,
     {"dir": "ALZA", "nivel": 80226, "mid": 80882, "fuerza": "fuerte"}, (80176, 1.0, False))[2] == "nada")
+t("mecha rango calla", v.decidir_alerta(81538, {"soportes": [{"precio": 80226}], "resistencias": [{"precio": 82000}]},
+    {"bias": "ALZA", "confianza": 50}, {}, _ahq, None, None, "rango", False, "", None, None, None, 55, 40, None, None, None, None, None,
+    {"dir": "ALZA", "nivel": 80226, "mid": 80882, "fuerza": "fuerte"}, (80176, 1.0, False))[2] == "nada")
 _aht = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
 _nivp = {"soportes": [{"precio": 82800}], "resistencias": [{"precio": 83200}]}
 t("papel 50x abre sano", v.abrir_papel({}, {"bias": "ALZA", "confianza": 50}, _nivp, 83000, _aht) is not None)
