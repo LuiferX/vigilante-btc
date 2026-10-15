@@ -226,6 +226,11 @@ def plan_entrada(dirb, niv, evs, ahora):
 ESTADO_FILE = "estado.json"
 HIST_FILE = "historial.jsonl"
 MAX_HIST = 1500
+MAX_PEND_TODO = 100
+MAX_EVAL_TODO = 200
+MAX_PAPER_ABIERTAS = 5
+MAX_OPS = 20
+MAX_DELTAS = 25
 EVAL_HORAS = 8
 UMBRAL_MOV = 0.002
 UMBRAL_CONF_FUERTE = 55
@@ -521,6 +526,10 @@ def sl_estructura(entry, dire, ref, atr_val):
         elif dire == "BAJA":
             sl = ref + buf
         else:
+            return None
+        if dire == "ALZA" and sl >= entry:
+            return None
+        if dire == "BAJA" and sl <= entry:
             return None
         dist = abs(entry - sl) / entry * 100 if entry > 0 else 99
         return (round(sl), round(dist, 2), dist > 1.5)
@@ -1063,9 +1072,15 @@ def responder_comando(cmd, ctx):
             e, s, tp = float(parts[2]), float(parts[3]), float(parts[4])
         except Exception:
             return ("Números inválidos.", False)
-        if not (e > 0 and s > 0 and tp > 0):
-            return ("Precios deben ser > 0.", False)
+        if not (e > 0 and s > 0 and tp > 0 and e != s):
+            return ("Revisa precios (stop distinto de entrada).", False)
+        if d == "LONG" and not (s < e):
+            return ("En LONG el stop va bajo la entrada.", False)
+        if d == "SHORT" and not (s > e):
+            return ("En SHORT el stop va sobre la entrada.", False)
         ops = est.get("ops") or []
+        if len(ops) >= MAX_OPS:
+            return ("Tienes 20 operaciones abiertas (máximo). Cierra con /cerrar.", False)
         ops.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
         est["ops"] = ops
         return ((f"Registrada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}). "
@@ -1315,11 +1330,16 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     - SL mas alla de la liquidacion estimada (60x): no abre (te liquidarian antes)"""
     if dirb["bias"] not in ("ALZA", "BAJA"):
         return None
-    banco = float(est.get("banco", PAPER_BANCO))
+    try:
+        banco = float(est.get("banco", PAPER_BANCO))
+    except Exception:
+        return None
     if banco <= 20:
         banco = PAPER_BANCO
         est["banco"] = banco
         est["banco_pico"] = banco
+        est["paper_dia"] = {"fecha": ahora.strftime("%Y-%m-%d"), "pnl": 0.0}
+        est["paper_abiertas"] = []
     pico = float(est.get("banco_pico", banco))
     if banco > pico:
         pico = banco
@@ -1358,10 +1378,17 @@ def abrir_papel(est, dirb, niv, precio, ahora):
         return None
     if dist_stop > 0.5 * abs(precio - liq):
         return None
+    entrada = round(precio)
+    dist_stop = abs(entrada - stop)
+    if dist_stop <= 0:
+        return None
+    liq = round(entrada * (1 - 1.0 / PAPER_LEV)) if dire == "LONG" else round(entrada * (1 + 1.0 / PAPER_LEV))
     tam = (banco * riesgo_pct) / dist_stop
-    pos = {"dir": dire, "entrada": round(precio), "stop": stop, "tp": round(tp),
-           "tam": round(tam, 4), "riesgo": round(banco * riesgo_pct, 2), "lev": PAPER_LEV,
+    pos = {"dir": dire, "entrada": entrada, "stop": stop, "tp": round(tp),
+           "tam": tam, "riesgo": round(dist_stop * tam, 2), "lev": PAPER_LEV,
            "liq": liq, "t": ahora.isoformat()}
+    if len(est.get("paper_abiertas", []) or []) >= 5:
+        return None
     est["paper_abiertas"] = est.get("paper_abiertas", []) + [pos]
     return pos
 
@@ -1372,8 +1399,8 @@ def cierre_papel(o, ref_h, ref_l, last):
     try:
         lev = float(o.get("lev") or PAPER_LEV)
         ent, tam = float(o["entrada"]), float(o["tam"])
-        liq = float(o.get("liq") or (ent * (1 - 0.9 / lev) if o["dir"] == "LONG"
-                                     else ent * (1 + 0.9 / lev)))
+        liq = float(o.get("liq") or (ent * (1 - 1.0 / lev) if o["dir"] == "LONG"
+                                     else ent * (1 + 1.0 / lev)))
         if o["dir"] == "LONG":
             if ref_l <= liq or last <= liq:
                 return liq, "LIQ", round(-(tam * ent) / lev, 2)
@@ -2365,14 +2392,26 @@ def cargar_estado():
 
 
 def _podar_estado(est):
-    """Poda cools/pilas/preavisos para que estado.json no crezca sin cota."""
+    """Poda con cota dura todo lo que crece por pasada."""
     try:
         if isinstance(est.get("cools"), dict) and len(est["cools"]) > 200:
-            est["cools"] = dict(list(est["cools"].items())[-200:])
+            est["cools"] = dict(sorted(est["cools"].items(),
+                key=lambda kv: str(kv[1] or ""))[-200:])
         if isinstance(est.get("pilas"), dict) and len(est["pilas"]) > 200:
             est["pilas"] = dict(list(est["pilas"].items())[-200:])
         if isinstance(est.get("preavisos"), dict) and len(est["preavisos"]) > 100:
             est["preavisos"] = dict(list(est["preavisos"].items())[-100:])
+        for k, n in (("pend_todo", MAX_PEND_TODO), ("eval_todo", MAX_EVAL_TODO),
+                     ("pend_sombra", 100), ("eval_sombra", 200),
+                     ("pendientes", 100), ("eval_log", 200),
+                     ("paper_abiertas", MAX_PAPER_ABIERTAS), ("ops", MAX_OPS),
+                     ("journal", 50), ("sim_cerradas", 20), ("paper_cerradas", 100)):
+            v = est.get(k)
+            if isinstance(v, list) and len(v) > n:
+                est[k] = v[-n:]
+        d = est.get("deltas")
+        if isinstance(d, dict) and len(d) > MAX_DELTAS:
+            est["deltas"] = dict(list(d.items())[-MAX_DELTAS:])
     except Exception:
         pass
     return est
@@ -2427,6 +2466,12 @@ DASH_URL = "https://luiferx.github.io/vigilante-btc/"
 def tca_linea(arrival, px, fee_bps=20.0):
     """Costo en cristiano: de dónde viene el precio y cuánto te come operar. Puro."""
     try:
+        _fee = float(fee_bps)
+        if not (0 < _fee < 100):
+            return "Ref s/d (sin precio previo)"
+    except Exception:
+        return "Ref s/d (sin precio previo)"
+    try:
         if arrival is None or px is None:
             return "Ref s/d (sin precio previo)"
         arrival, px = float(arrival), float(px)
@@ -2434,7 +2479,7 @@ def tca_linea(arrival, px, fee_bps=20.0):
             return "Ref s/d (sin precio previo)"
         mov = (px - arrival) / arrival * 100
         return ("Ref %s → ahora %s (%+.2f%%) · operar te cuesta ~%.2f%% ida+vuelta"
-                % (fmt_miles(arrival), fmt_miles(px), mov, float(fee_bps) / 100))
+                % (fmt_miles(arrival), fmt_miles(px), mov, _fee / 100))
     except Exception:
         return "Ref s/d (sin precio previo)"
 
@@ -2591,7 +2636,7 @@ def abrir_todo(est, bias, conf, precio, umbral, ahora):
         ps.append({"t": ahora.isoformat(), "precio": round(precio),
                    "bias": bias, "conf": conf,
                    "risk": round(umbral * precio, 1)})
-        est["pend_todo"] = ps[-500:]
+        est["pend_todo"] = ps[-MAX_PEND_TODO:]
         est["todo_ult"] = {"dir": bias, "t": ahora.isoformat()}
         return True
     except Exception:
@@ -2635,25 +2680,43 @@ def evaluar_todo(est, ahora, velas=None):
                 continue
             try:
                 mfe = mae = 0.0
+                toca_tp = toca_sl = False
                 for v in ventana:
                     mfe = max(mfe, (v["h"] - entry) / entry)
                     mae = max(mae, (entry - v["l"]) / entry)
+                ru = risk / entry
                 if p["bias"] == "ALZA":
-                    hit = 1 if mfe >= 2 * risk / entry else 0
+                    tp, sl = entry + 2 * risk, entry - risk
+                    for v in ventana:
+                        if v["l"] <= sl:
+                            toca_sl = True
+                            break
+                        if v["h"] >= tp:
+                            toca_tp = True
+                            break
+                    hit = 1 if toca_tp else 0
                 elif p["bias"] == "BAJA":
-                    hit = 1 if mae >= 2 * risk / entry else 0
+                    tp, sl = entry - 2 * risk, entry + risk
+                    for v in ventana:
+                        if v["h"] >= sl:
+                            toca_sl = True
+                            break
+                        if v["l"] <= tp:
+                            toca_tp = True
+                            break
+                    hit = 1 if toca_tp else 0
                 else:
-                    hit = 1 if (mfe < 2 * risk / entry and mae < 2 * risk / entry) else 0
+                    hit = 1 if (mfe < 2 * ru and mae < 2 * ru) else 0
                 if not ventana:
                     nuevas.append(p)
                     continue
                 log = est.get("eval_todo", [])
                 log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
                             "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4)})
-                est["eval_todo"] = log[-500:]
+                est["eval_todo"] = log[-MAX_EVAL_TODO:]
             except Exception:
                 continue
-        est["pend_todo"] = nuevas[-500:]
+        est["pend_todo"] = nuevas[-MAX_PEND_TODO:]
     except Exception:
         pass
 
@@ -2782,7 +2845,17 @@ def gestion_sl(op, last, atr_h1, regimen):
         s = float(op["stop"])
         last = float(last)
         atr = float(atr_h1)
-        risk = abs(e - s)
+        try:
+            risk = float((op or {}).get("risk0") or abs(e - s))
+        except Exception:
+            risk = abs(e - s)
+        if not (risk > 0):
+            try:
+                if not (op or {}).get("risk0") and abs(e - s) > 0:
+                    op["risk0"] = abs(e - s)
+                    risk = abs(e - s)
+            except Exception:
+                pass
         if not (risk > 0) or not (atr > 0):
             return (None, None, None)
         if d == "LONG":
@@ -2812,11 +2885,17 @@ def gestion_sl(op, last, atr_h1, regimen):
 
 def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
-    res = niv["resistencias"][0]
-    sup = niv["soportes"][0]
-    dist_res = (res["precio"] - precio) / precio if res["precio"] > 0 else 1
-    dist_sup = (precio - sup["precio"]) / precio if precio > 0 else 1
-    bias, conf = dirb["bias"], dirb["confianza"]
+    try:
+        res = niv["resistencias"][0]
+        sup = niv["soportes"][0]
+        bias, conf = dirb["bias"], float(dirb["confianza"])
+    except Exception:
+        return False, "estado incompleto", "nada"
+    try:
+        dist_res = (res["precio"] - precio) / precio if res["precio"] > 0 else 1
+        dist_sup = (precio - sup["precio"]) / precio if precio > 0 else 1
+    except Exception:
+        dist_res, dist_sup = 1, 1
     prev = est.get("ultimo_bias", "?")
     if forzado:
         return True, forzado, "alerta"
@@ -2930,8 +3009,12 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         # Parte CORTO: solo lo que se lee (motivo + veredicto + accion + niveles).
         try:
             C = []
-            C.append("🚨 " + motivo)
-            C.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {extras.get('grade', '?')} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
+            _mot = str(motivo or "").strip()
+            if not _mot:
+                return ""
+            C.append("🚨 " + _mot)
+            _grade = extras.get('grade') or "?"
+            C.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {_grade} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
             C.append(f"🎯 {accion}")
             C.append(f"Piso {fmt_miles(sup['precio'])} · Techo {fmt_miles(res['precio'])}")
             if extras.get("fflag"):
@@ -2948,15 +3031,19 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
             except Exception:
                 pass
             vistos = {accion}
-            for p in (extras.get("plan", []) or [])[:2]:
+            for p in (extras.get("plan") or [])[:2]:
                 try:
-                    if str(p) not in vistos:
-                        vistos.add(str(p))
-                        C.append("• " + str(p))
+                    _ps = str(p or "").strip()
+                    if not _ps or _ps in vistos:
+                        continue
+                    vistos.add(_ps)
+                    C.append("• " + _ps)
                 except Exception:
                     pass
             try:
-                C.append(tca_linea(extras.get("arrival"), t["last"]))
+                _tca = tca_linea(extras.get("arrival"), t["last"])
+                if _tca and "s/d" not in _tca:
+                    C.append(_tca)
             except Exception:
                 pass
             return "\n".join(C)
@@ -2969,7 +3056,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     icono_tipo = {"alerta": "🚨", "preny": "📊", "manana": "☀️", "madrugada": "🌙", "noche": "🌙"}.get(tipo, "🤖")
     L = []
     L.append(icono_tipo + " " + motivo)
-    L.append("💬 " + extras.get("intro", ""))
+    L.append("💬 " + str(extras.get("intro") or "").strip())
     L.append("━━━━━ 🧭 VEREDICTO ━━━━━")
     L.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {extras.get('grade', '?')} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
     L.append(f"🎯 {accion}")
@@ -2980,25 +3067,38 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append(f"🧭 MARCOS: {dirb['bias']} ({dirb['confianza']}%) · régimen {extras.get('regimen', '?')} · ADX 4H {h4.get('adx', '?')}")
     L.append("  " + "  ".join(f"{x['tf']}{icon.get(x['tend'], '🟡')}(s{x['score']:+d})" for x in (h1, h4, d1, w1)))
     L.append("")
-    L.append("📖 " + extras.get("narrativa", ""))
+    L.append("📖 " + str(extras.get("narrativa") or "").strip())
     L.append("")
     s_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["soportes"])
     r_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["resistencias"])
     L.append(f"🟢 SOPORTES: {s_txt}")
     L.append(f"🔴 RESISTENCIAS: {r_txt}")
     for m in (extras.get("memoria") or [])[:3]:
-        L.append("🧠 " + m)
+        _m = str(m or "").strip()
+        if _m:
+            L.append("🧠 " + _m)
     if extras.get("fflag"):
         L.append("⚠️ Funding extremo: " + extras["fflag"])
     L.append("")
     if extras.get("mov_ny") is not None:
-        L.append(f"🕯 NY: {extras['mov_ny']:+.2f}% desde la apertura")
-    for n in extras.get("nuevas", [])[:2]:
-        L.append(f"🆕 [{n['score']}] {n['titulo']}")
-    L.append("")
-    L.append("🎯 PLAN (qué esperar para entrar):")
-    for p in (extras.get("plan") or []):
-        L.append("   • " + p)
+        try:
+            L.append(f"🕯 NY: {float(extras['mov_ny']):+.2f}% desde la apertura")
+        except Exception:
+            pass
+    for n in (extras.get("nuevas") or [])[:2]:
+        if not isinstance(n, dict):
+            continue
+        _t = str(n.get("titulo") or "").strip()
+        if not _t:
+            continue
+        L.append(f"🆕 [{n.get('score', '?')}] {_t}")
+    _plan = [str(p or "").strip() for p in (extras.get("plan") or [])]
+    _plan = [p for p in _plan if p]
+    if _plan:
+        L.append("")
+        L.append("🎯 PLAN (qué esperar para entrar):")
+        for p in _plan:
+            L.append("   • " + p)
     L.append("")
     if dirb["bias"] == "ALZA":
         L.append(f"⏱ Objetivo SOBRE {fmt_miles(res['precio'])} a ~{horas_res} h | ⏰ {prox} | 4H en {h4['cierreEnMin']} min")
@@ -3093,7 +3193,9 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     if lm and cambio(est, "liqmap", str(lm.get("arriba")) + str(lm.get("abajo")), 0):
         arrib = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("arriba", [])[:2])
         abaj = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("abajo", [])[:2])
-        L.append(f"🌊 LIQUIDEZ: arriba {arrib or '—'} / abajo {abaj or '—'}")
+        if arrib or abaj:
+            L.append(f"🌊 LIQUIDEZ: arriba {arrib or '—'} / abajo {abaj or '—'}")
+            hubo = True
         im = lm.get("iman") or {}
         if im.get("lado"):
             L.append(f"   → imán de stops: {im['lado'].upper()} ({im.get('pct', '?')}%)")
@@ -3130,12 +3232,12 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append("📰 NOTICIAS NUEVAS (no vistas):")
     _vistas = extras.get("vistas") or []
     _notis = notis or []
-    frescas = [n for n in _notis if isinstance(n, dict) and n.get("titulo") not in _vistas][:3]
+    frescas = [n for n in _notis if isinstance(n, dict) and str(n.get("titulo") or "").strip() and n.get("titulo") not in _vistas][:3]
     if frescas:
         for n in frescas:
             icono = '🔴' if n['score'] >= 9 else '🟡'
             L.append(f"  {icono} [{n['score']}] {n['titulo']}")
-            L.append(f"     → {explicar_noticia(n['tags'])} · impacto {impacto_noticia(n['score'])}")
+            L.append(f"     → {explicar_noticia(n.get('tags') or [])} · impacto {impacto_noticia(n.get('score') or 0)}")
     else:
         L.append("  (sin noticias nuevas desde tu último parte)")
     L.append("")
@@ -3152,14 +3254,24 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         L.append("  (sin eventos fuertes esta semana)")
     L.append("Rangos ±% = ref. histórica. No es asesoramiento financiero.")
     try:
-        L.append(tca_linea(extras.get("arrival"), t["last"]))
+        _tca = tca_linea(extras.get("arrival"), t["last"])
+        if _tca and "s/d" not in _tca:
+            L.append(_tca)
     except Exception:
         pass
     try:
         L.append(linea_runbook())
     except Exception:
         pass
-    return "\n".join(L)
+    try:
+        _out = []
+        for _ln in L:
+            if _ln == "" and _out and _out[-1] == "":
+                continue
+            _out.append(_ln)
+        return "\n".join(_out)
+    except Exception:
+        return "\n".join(L)
 
 
 def trocear(texto, limite=3900):
@@ -3212,7 +3324,7 @@ def send_telegram(text):
     except Exception:
         return False
     if not partes:
-        return True
+        return False
     for i, parte in enumerate(partes):
         txt = parte if i == 0 else "(sigue) " + parte
         try:
@@ -3462,6 +3574,10 @@ def main():
                         continue
                     _r, _acc, _nsl = gestion_sl(_o, t["last"], _atr1, regimen)
                     if _acc == "BE":
+                        try:
+                            _o["risk0"] = abs(float(_o["entrada"]) - float(_o["stop"]))
+                        except Exception:
+                            pass
                         _o["be_done"] = True
                         _o["stop"] = _nsl
                         gestion_txt = (f"🔒 BE: {_o.get('dir')} {fmt_miles(_o.get('entrada'))} → {fmt_miles(t['last'])} "
