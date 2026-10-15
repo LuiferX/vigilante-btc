@@ -81,13 +81,16 @@ def explicar_noticia(tags):
     return ' + '.join(EXPLICA[t] for t in tags[:2])
 
 
-def noticias(limit=5):
+def noticias(limit=5, _presupuesto_s=40):
     titulos = []
+    _t0_notis = time.monotonic()
     for f in FEEDS:
         try:
+            if time.monotonic() - _t0_notis > _presupuesto_s:
+                break
             req = urllib.request.Request(f, headers={"User-Agent": "vigilante-cloud/3.0"})
             with urllib.request.urlopen(req, timeout=12) as r:
-                raw = r.read()
+                raw = r.read(512 * 1024)
             root = ET.fromstring(raw)
             n = 0
             for el in root.iter():
@@ -242,7 +245,7 @@ DEDUP_HORAS = 4          # misma direccion en 4 h = 1 sola senal (sin duplicados
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
 MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 FUNDING_EXTREMO = 0.05   # |funding| >= 0.05% = un lado recargado (lectura contrarian)
-UMBRAL_BRUSCO = 1.0      # +/-1% en 1h = movimiento brusco (ballenas/noticias)
+UMBRAL_BRUSCO = 0.7      # +/-0.7% en 1h = movimiento brusco (replay techo 10d: avisa ~2h antes, 1.3/dia)
 UMBRAL_RITMO = 0.6       # +/-0.6% en 30min = ritmo acelerado (pesca desplomes que no llegan a 1%/1h)
 UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
@@ -662,6 +665,17 @@ def pivots(interval, label):
         return None
 
 
+GRID_NIVELES = 500  # rejilla fija: max14/min14 caminan cada hora; sin snap cada pasada es un "nivel nuevo" y re-dispara cooldowns
+
+
+def snap_nivel(v):
+    """Ancla un nivel a la rejilla para que tenga identidad estable entre pasadas."""
+    try:
+        return int(round(float(v) / GRID_NIVELES) * GRID_NIVELES)
+    except Exception:
+        return v
+
+
 def niveles(h1, h4, d1, w1, pd, pw, precio):
     sups, ress = [], []
     cands = [
@@ -676,7 +690,7 @@ def niveles(h1, h4, d1, w1, pd, pw, precio):
     for o, v in cands:
         if v is None or v <= 0:
             continue
-        v = round(v)
+        v = snap_nivel(v)
         dup = lambda arr: any(abs(x["precio"] - v) < 20 for x in arr)
         if v < precio:
             if not dup(sups):
@@ -1800,7 +1814,7 @@ def zonas_pilas(pw, d1, w1, last, ima):
     for v, o in cands:
         if not v:
             continue
-        v = round(v)
+        v = snap_nivel(v)
         hall = None
         for z in zonas:
             if abs(z["precio"] - v) < 25:
@@ -2975,7 +2989,13 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         except Exception:
             rkey = "ruptura:?"
         if enfriar(est, rkey, 12, ahora):
-            return True, rup, "alerta"
+            try:
+                _rb = "ALCISTA" in rup
+                _contra = (_rb and bias == "BAJA") or (not _rb and bias == "ALZA")
+            except Exception:
+                _contra = False
+            _aviso = " (ojo: sesgo en contra, no perseguir)" if _contra else ""
+            return True, rup + _aviso, "alerta"
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
         lado = "max" if "sobre" in liq else "min"
