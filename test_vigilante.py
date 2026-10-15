@@ -866,6 +866,10 @@ _hk = _db._kpis_papel_html(_estk)
 t("kpis con datos", "Profit factor" in _hk and "Expectancy" in _hk and "Mejor" in _hk and "Racha actual" in _hk)
 t("kpis vacio no rompe", "sin operaciones" in _db._kpis_papel_html({}) and "Dinero papel: KPIs" in _db.build_dashboard({}, []))
 t("sombra tarjeta", "En cola" in _db._sombra_html({"eval_sombra": [{"r": 1}], "pend_sombra": [{"r": 0}]}) and "sin evaluaciones" in _db._sombra_html({}) and "Sombra (aprende de todo)" in _db.build_dashboard({"eval_sombra": [{"r": 1}]}, []))
+t("seg countdown", "vence en 3" in _db._seguimiento_html({"pendientes": [{"bias": "ALZA", "conf": 60, "precio": 83000, "t": (ah - datetime.timedelta(hours=5)).isoformat()}]}, ah) and "sin pendientes" in _db._seguimiento_html({}, ah))
+t("calib brier cubetas", "Brier" in _db._calibracion_html({"eval_log": [{"conf": 60, "r": 1}] * 3 + [{"conf": 40, "r": 0}] * 3}) and "sin datos" in _db._calibracion_html({}) and isinstance(_db._calibracion_html({"pendientes": "<script>"}), str))
+t("dash seg+calib", "En seguimiento" in _db.build_dashboard({"pendientes": [{"bias": "ALZA", "conf": 60, "precio": 83000, "t": ah.isoformat()}], "eval_log": [{"conf": 60, "r": 1}] * 5}, []) and "Calibraci" in _db.build_dashboard({"eval_log": [{"conf": 60, "r": 1}] * 5}, []))
+t("dash orden dinero", (lambda h: h.index('c-ops') < h.index('c-seg') < h.index('c-banco') < h.index('c-kpis') < h.index('c-prec') < h.index('c-calib') < h.index('c-sombra'))(_db.build_dashboard({"runs": 1}, [])))
 t("lado un solo lado", v.lado_ok("BAJA", "EYY PILAS TECHO x") is True and v.lado_ok("BAJA", "EYY PILAS PISO x") is False)
 t("lado alza piso", v.lado_ok("ALZA", "EYY PILAS PISO x") is True and v.lado_ok("ALZA", "EYY PILAS TECHO x") is False)
 t("lado lateral ambos", v.lado_ok("LATERAL", "EYY PILAS PISO x") is True and v.lado_ok("LATERAL", "EYY PILAS TECHO x") is True)
@@ -1109,6 +1113,44 @@ _eb_t1 = dict(eb, tags={"funding": 0.01, "taker": 0.2, "sesion": "NY", "cvd_div"
 _r_t0 = v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, _eb_t0, ah, None, None, "tendencia", False, "", None, None, None)
 _r_t1 = v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, _eb_t1, ah, None, None, "tendencia", False, "", None, None, None)
 t("snapshot no decide", _r_t0[2] == _r_t1[2])
+
+# ---------- economia de medicion: reborn/cotas/vectores (solo medicion) ----------
+_rb_ah = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+_rb_niv = {"soportes": [{"precio": 82800}], "resistencias": [{"precio": 83200}]}
+_rb_est = {"banco": 15.0, "banco_pico": 100.0, "paper_cerradas": [],
+           "paper_dia": {"fecha": _rb_ah.strftime("%Y-%m-%d"), "pnl": -5.0},
+           "paper_abiertas": [{"dir": "LONG", "entrada": 83000, "stop": 82800,
+                               "tp": 83200, "tam": 0.005, "riesgo": 1.0,
+                               "liq": 81340, "lev": 50, "t": "x"}]}
+_rb_pos = v.abrir_papel(_rb_est, {"bias": "ALZA", "confianza": 50}, _rb_niv, 83100, _rb_ah)
+t("reborn liquida sin perder", _rb_pos is not None and _rb_est["banco"] == 100.0
+  and any(c.get("res") == "REBORN" for c in _rb_est.get("paper_cerradas", []))
+  and len(_rb_est.get("paper_abiertas", [])) == 1
+  and abs(_rb_est["paper_cerradas"][0]["pnl"] - 0.5) < 0.01)
+_rb_est2 = {"banco": 15.0, "paper_cerradas": [],
+            "paper_abiertas": [{"dir": "LONG"}]}
+_rb_pos2 = v.abrir_papel(_rb_est2, {"bias": "ALZA", "confianza": 50}, _rb_niv, 83000, _rb_ah)
+t("reborn corrupta no tumba", _rb_pos2 is not None and _rb_est2["banco"] == 100.0
+  and len(_rb_est2.get("paper_abiertas", [])) == 1)
+t("cota paper usa constante", v.MAX_PAPER_ABIERTAS == 5
+  and v.abrir_papel({"banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [],
+                     "paper_dia": {"fecha": _rb_ah.strftime("%Y-%m-%d"), "pnl": 0.0},
+                     "paper_abiertas": [{}] * v.MAX_PAPER_ABIERTAS},
+                    {"bias": "ALZA", "confianza": 50}, _rb_niv, 83000, _rb_ah) is None)
+_vb = [{"t": _rb_ah - datetime.timedelta(hours=9 - i), "h": 83000 - 50 * i + 5,
+        "l": 83000 - 50 * i - 5, "c": 83000 - 50 * i} for i in range(10)]
+_est_tb = {"pend_todo": [{"t": (_rb_ah - datetime.timedelta(hours=10)).isoformat(),
+                          "precio": 83000, "bias": "BAJA", "conf": 50, "risk": 166.0}]}
+v.evaluar_todo(_est_tb, _rb_ah, _vb)
+t("todo baja direccional", len(_est_tb.get("eval_todo", [])) == 1
+  and _est_tb["eval_todo"][0]["r"] == 1
+  and _est_tb["eval_todo"][0]["mfe"] > _est_tb["eval_todo"][0]["mae"])
+_est_r0 = {"pendientes": [{"t": (_rb_ah - datetime.timedelta(hours=10)).isoformat(),
+                           "precio": 83000, "bias": "ALZA", "conf": 50, "risk": 0}],
+           "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(_est_r0, _rb_ah, [{"t": _rb_ah - datetime.timedelta(hours=9) + datetime.timedelta(hours=i + 1),
+                                "h": 83100, "l": 82950, "c": 83050} for i in range(3)])
+t("mfe risk cero no tumba", len(_est_r0.get("eval_log", [])) == 1)
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
