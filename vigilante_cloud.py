@@ -441,6 +441,72 @@ def detect_swings(candles, k=2):
     return highs, lows
 
 
+def swings_idx(candles, k=2):
+    """Swings con índice: [(i, máximo), ...], [(i, mínimo), ...]. Puro."""
+    try:
+        hs, ls = [], []
+        n = len(candles or [])
+        for i in range(k, n - k):
+            try:
+                if all(candles[i]["h"] >= candles[j]["h"] for j in range(i - k, i + k + 1) if j != i):
+                    hs.append((i, candles[i]["h"]))
+                if all(candles[i]["l"] <= candles[j]["l"] for j in range(i - k, i + k + 1) if j != i):
+                    ls.append((i, candles[i]["l"]))
+            except Exception:
+                continue
+        return hs, ls
+    except Exception:
+        return [], []
+
+
+def quiebre_estructura(candles):
+    """BOS/CHoCH fresco: cruce del último swing en las últimas 2 cerradas.
+    Devuelve {"dir","nivel","tipo"} o None. Puro, sin red."""
+    try:
+        n = len(candles or [])
+        if n < 10:
+            return None
+        hs, ls = swings_idx(candles)
+        if len(hs) < 2 or len(ls) < 2:
+            return None
+        c0, c1 = candles[-1]["c"], candles[-2]["c"]
+        (ih, ph), (il, pl) = hs[-1], ls[-1]
+        rompe_up = ih >= n - 8 and c1 <= ph and c0 > ph
+        rompe_dn = il >= n - 8 and c1 >= pl and c0 < pl
+        if not rompe_up and not rompe_dn:
+            return None
+        bajista = hs[-1][1] < hs[-2][1] and ls[-1][1] < ls[-2][1]
+        alcista = hs[-1][1] > hs[-2][1] and ls[-1][1] > ls[-2][1]
+        if rompe_up:
+            tipo = "CHoCH" if bajista else "BOS"
+            return {"dir": "ALZA", "nivel": ph, "tipo": tipo, "swing": pl}
+        if alcista:
+            tipo = "CHoCH"
+        else:
+            tipo = "BOS"
+        return {"dir": "BAJA", "nivel": pl, "tipo": tipo, "swing": ph}
+    except Exception:
+        return None
+
+
+def sl_estructura(entry, dire, ref, atr_val):
+    """SL tras el swing contrario + 0.2*ATR. Devuelve (sl, dist_pct, lejos). Puro."""
+    try:
+        entry = float(entry)
+        ref = float(ref)
+        buf = float(atr_val or 0) * 0.2
+        if dire == "ALZA":
+            sl = ref - buf
+        elif dire == "BAJA":
+            sl = ref + buf
+        else:
+            return None
+        dist = abs(entry - sl) / entry * 100 if entry > 0 else 99
+        return (round(sl), round(dist, 2), dist > 1.5)
+    except Exception:
+        return None
+
+
 def structure(candles):
     highs, lows = detect_swings(candles)
     hh = hl = None
@@ -2478,7 +2544,45 @@ def evaluar_sombra(est, ahora, velas=None):
         pass
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None):
+def gestion_sl(op, last, atr_h1, regimen):
+    """Gestion real de una op abierta: (R, accion, nuevo_sl).
+    BE si R>=+1 con SL en perdida; TRAIL (+1R trabado) si R>=+1.5,
+    paso minimo 0.25*ATR y NO en rango. Puro, sin red."""
+    try:
+        d = (op or {}).get("dir")
+        e = float(op["entrada"])
+        s = float(op["stop"])
+        last = float(last)
+        atr = float(atr_h1)
+        risk = abs(e - s)
+        if not (risk > 0) or not (atr > 0):
+            return (None, None, None)
+        if d == "LONG":
+            r = (last - e) / risk
+            en_perdida = s < e
+            if r >= 1.0 and en_perdida and not op.get("be_done"):
+                return (round(r, 2), "BE", round(e))
+            if r >= 1.5 and regimen != "rango":
+                cand = e + risk
+                if cand - s >= 0.25 * atr:
+                    return (round(r, 2), "TRAIL", round(cand))
+        elif d == "SHORT":
+            r = (e - last) / risk
+            en_perdida = s > e
+            if r >= 1.0 and en_perdida and not op.get("be_done"):
+                return (round(r, 2), "BE", round(e))
+            if r >= 1.5 and regimen != "rango":
+                cand = e - risk
+                if s - cand >= 0.25 * atr:
+                    return (round(r, 2), "TRAIL", round(cand))
+        else:
+            return (None, None, None)
+        return (round(r, 2), None, None)
+    except Exception:
+        return (None, None, None)
+
+
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -2488,6 +2592,8 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     prev = est.get("ultimo_bias", "?")
     if forzado:
         return True, forzado, "alerta"
+    if gestion:
+        return True, gestion, "alerta"
     if bloqueo:
         return False, f"blackout ({motivo_bloq})", "nada"
     if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= umbral_cambio and enfriar(
@@ -2541,6 +2647,15 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 return True, pila, "alerta"
             except Exception:
                 pass
+    if isinstance(qb, dict) and qb.get("dir") in ("ALZA", "BAJA") and bias == qb["dir"] and conf >= UMBRAL_CONF_SENAL:
+        try:
+            if enfriar(est, "qb:" + qb["dir"], 4, ahora):
+                verbo = "COMPRA" if qb["dir"] == "ALZA" else "VENTA"
+                extra = f" · SL {fmt_miles(sl[0])}" if isinstance(sl, (list, tuple)) else ""
+                lejos = " (SL lejos, tamaño pequeño)" if isinstance(sl, (list, tuple)) and len(sl) > 2 and sl[2] else ""
+                return True, f"{verbo} {qb.get('tipo', 'BOS')} sobre {fmt_miles(qb.get('nivel', precio))}{extra}{lejos}", "alerta"
+        except Exception:
+            pass
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
@@ -3026,6 +3141,14 @@ def main():
         liq = liquidez(kl_h1, t["last"])
         poc = punto_control(kl_h1)
         rup = ruptura(kl_h1, niv["soportes"][0]["precio"], niv["resistencias"][0]["precio"])
+        try:
+            qb = quiebre_estructura(kl_h1)
+        except Exception:
+            qb = None
+        try:
+            sl = sl_estructura(t["last"], (qb or {}).get("dir"), (qb or {}).get("swing"), h1.get("atr")) if qb else None
+        except Exception:
+            sl = None
         pila = None
         pila_key = None
         try:
@@ -3065,6 +3188,36 @@ def main():
                 send_telegram(f"🔬 Simulada cerrada: {cc['dir']} {cc['res']} ({cc['r']:+.1f}R). Sin dinero, solo aprendizaje.")
                 print(f"  simulada cerrada {cc['dir']} {cc['res']}")
             est["sim_cerradas"] = sc[-20:]
+        # GESTION: BE/trailing de ops abiertas (las del usuario, no señales).
+        gestion_txt = None
+        try:
+            _atr1 = h1.get("atr")
+            for _llave in ("ops", "sim_abiertas"):
+                _lista = est.get(_llave, [])
+                if not isinstance(_lista, list):
+                    continue
+                for _o in _lista:
+                    if not isinstance(_o, dict):
+                        continue
+                    _r, _acc, _nsl = gestion_sl(_o, t["last"], _atr1, regimen)
+                    if _acc == "BE":
+                        _o["be_done"] = True
+                        _o["stop"] = _nsl
+                        gestion_txt = (f"🔒 BE: {_o.get('dir')} {fmt_miles(_o.get('entrada'))} → {fmt_miles(t['last'])} "
+                                       f"({_r:+.1f}R). Mueve SL a {fmt_miles(_nsl)} (entrada).")
+                        break
+                    if _acc == "TRAIL":
+                        if _o.get("trail_lock") == _nsl:
+                            continue
+                        _o["trail_lock"] = _nsl
+                        _o["stop"] = _nsl
+                        gestion_txt = (f"🔒 TRAIL: {_o.get('dir')} {fmt_miles(_o.get('entrada'))} → {fmt_miles(t['last'])} "
+                                       f"({_r:+.1f}R). Traba +1R en {fmt_miles(_nsl)}.")
+                        break
+                if gestion_txt:
+                    break
+        except Exception:
+            gestion_txt = None
         # PAPEL XLX: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
         abiertas_p = []
         for o in est.get("paper_abiertas", []):
@@ -3106,7 +3259,7 @@ def main():
             cools_antes = dict(est.get("cools") or {})
         except Exception:
             cools_antes = {}
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -3116,6 +3269,10 @@ def main():
 
         est["ultimo_bias"] = dirb["bias"]
         est["ultima_conf"] = dirb["confianza"]
+        try:
+            precio_ant = est.get("ultimo_precio")
+        except Exception:
+            precio_ant = None
         est["ultimo_precio"] = round(t["last"])
         est["ultimo_run"] = ahora.isoformat()
         est["latido"] = ahora.isoformat()
@@ -3206,6 +3363,8 @@ def main():
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
+            "qb": qb if isinstance(qb, dict) else None,
+            "sl": list(sl) if isinstance(sl, (list, tuple)) else None,
             "dom": dom if isinstance(dom, dict) else None,
             "liqmap": ({"arriba": liqmap.get("arriba", [])[:5],
                         "abajo": liqmap.get("abajo", [])[:5],
@@ -3351,7 +3510,7 @@ def main():
             if evs:
                 memoria.append("mañana vigilo: " + ", ".join(e["titulo"] for e in evs[:2]))
         extras = {"intro": intro,
-                  "arrival": est.get("ultimo_precio"),
+                  "arrival": precio_ant if isinstance(precio_ant, (int, float)) else est.get("ultimo_precio"),
                   "narrativa": narrar(dirb, h1, h4, d1, res, sup, t["last"]),
                   "memoria": memoria,
                   "plan": plan_entrada(dirb, niv, evs, ahora),
