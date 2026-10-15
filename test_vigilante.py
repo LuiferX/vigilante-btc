@@ -542,6 +542,11 @@ t("dash duelo toro", "VICTORIA DE LOS TOROS" in _db._duelo_html(
     {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
      'senti': {'taker': 1.35}}))
 t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
+t("duelo debil no corona", "Pelea pareja" in _db._duelo_html(
+    {'bal': {'nb': 0, 'ns': 1, 'buys': 0.0, 'sells': 6.7, 'big': 6.7, 'txt': 'x'},
+     'senti': {'taker': 0.794}}) and "VICTORIA" not in _db._duelo_html(
+    {'bal': {'nb': 0, 'ns': 1, 'buys': 0.0, 'sells': 6.7, 'big': 6.7, 'txt': 'x'},
+     'senti': {'taker': 0.794}}))
 _d1 = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 _d2 = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
 _ev = [{"titulo": "A", "cuando": _d1 + "T08:30:00+00:00", "impact": "High"},
@@ -779,6 +784,8 @@ t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 
 t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+t("spread regla", v.regla_spread(2) == "market ok" and v.regla_spread(4) == "mejor limit" and v.regla_spread(8) == "pausa" and v.regla_spread(None) == "s/d" and v.regla_spread("x") == "s/d")
+t("spread linea", "Spread 1.5bps" in v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1H", "lateral", 0), tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV, {"bias": "LATERAL", "confianza": 10}, "p", {"funding": None, "oi": None, "taker": None, "spread": 1.5}, {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "alerta", [], [], ah, dict(ex, arrival=83000)))
 
 
 def _vcm(o, h, l, c):
