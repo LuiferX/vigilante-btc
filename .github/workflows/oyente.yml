@@ -1,6 +1,8 @@
 name: Oyente
 
 on:
+  schedule:
+    - cron: '*/5 * * * *'   # respaldo si cron-job.org falla (misma frecuencia que vigilante)
   workflow_dispatch:
 
 permissions:
