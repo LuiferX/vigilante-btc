@@ -542,9 +542,11 @@ t("dash duelo toro", "VICTORIA DE LOS TOROS" in _db._duelo_html(
     {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
      'senti': {'taker': 1.35}}))
 t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
-_ev = [{"titulo": "A", "cuando": "2026-10-14T08:30:00+00:00", "impact": "High"},
-       {"titulo": "B", "cuando": "2026-10-14T08:30:00+00:00", "impact": "High"},
-       {"titulo": "C", "cuando": "2026-10-15T08:30:00+00:00", "impact": "Low"}]
+_d1 = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+_d2 = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+_ev = [{"titulo": "A", "cuando": _d1 + "T08:30:00+00:00", "impact": "High"},
+       {"titulo": "B", "cuando": _d1 + "T08:30:00+00:00", "impact": "High"},
+       {"titulo": "C", "cuando": _d2 + "T08:30:00+00:00", "impact": "Low"}]
 t("dash macro grupo", "A +1" in _db._macro_html({"evs": _ev}, _ah))
 _gg = _db._gauge_reloj_html({"snapshot": {"fg": {"valor": 66, "etiqueta": "Codicia"}}}, [], _ah)
 t("dash gauge", "Codicia" in _gg and "66" in _gg and "Bogot" in _gg)
@@ -769,8 +771,131 @@ te("oos zon sintetico", lambda: (_ev._oos_tmp() or {}).get("n_test", 0) == 35)
 te("oos zon captura", lambda: (_ev._oos_tmp() or {}).get("med_net", -99) == 5.0)
 t("pf sesion agrupa", _bt.pf_por_grupo([{"motivo": "x NY y", "hit": 1, "r": 2}] * 4 + [{"motivo": "noche z", "hit": 0, "r": -1}] * 4 + [{"motivo": "otro", "hit": 1, "r": 2}] * 2, "sesion")["NY"]["n"] == 4)
 t("pf grade defecto", _bt.pf_por_grupo([{"hit": 1, "r": 2}], "grade")["?"]["n"] == 1)
-t("pf grupo metricas", _bt.pf_por_grupo([{"motivo": "NY", "hit": 1, "r": 2}] * 4, "sesion")["NY"]["pf"] == float("inf"))
+t("pf grupo metricas", _bt.pf_por_grupo([{"motivo": "NY", "hit": 1, "r": 2}] * 4, "sesion")["NY"]["pf"] is None)
+t("pf todo-gana honesto", _bt.metricas([{"hit": 1, "r": 2}] * 4)["pf"] is None)
+t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 0, tzinfo=datetime.timezone.utc), "c": 99.0},
+    {"t": datetime.datetime(2026, 1, 1, 3, 0, tzinfo=datetime.timezone.utc), "c": 100.0}],
+    datetime.datetime(2026, 1, 1, 3, 30, tzinfo=datetime.timezone.utc)) == 99.0)
+t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
+    datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+t("num inf->def", _db._num(float("inf"), 0) == 0 and _db._num(float("-inf"), 0) == 0 and _db._num(True, 7) == 7 and _db._num(5, 0) == 5)
+t("miles inf/nan", _db.miles(float("inf")) == "?" and _db.miles(float("nan")) == "?")
+t("svg inf sin nan", "nan" not in _db.svg_linea([1, float("inf"), 3]) and "nan" not in _db.svg_linea([10, float("nan"), 30]))
+t("svg color", "<script>" not in _db.svg_linea([1, 2, 3], color='"><script>'))
+t("svg niveles xss", "<img" not in _db.svg_linea([10, 20, 30], niveles=[{"precio": 25, "etiqueta": "<img>", "kind": "res"}]))
+t("barras nan/xss", "<script>" not in _db.svg_barras([60, 10], ["<script>", "b"]) and "nan" not in _db.svg_barras([float("nan"), 60], ["a", "b"]))
+t("alza nan/inf no rompe", isinstance(_db.build_dashboard({"alza": [float("nan")] * 5, "runs": 1}, []), str) and isinstance(_db.build_dashboard({"alza": [float("inf")] * 5, "runs": 1}, []), str))
+t("fpx inf no rompe", isinstance(_db.build_dashboard({"runs": 1}, [{"precio": float("inf"), "conf": 10}] * 3), str))
+t("ctx escapa", "<script>" not in _db._contexto_html({"regimen": "<script>", "grade": "x", "tf": {}, "fg": {}, "senti": {}}))
+t("duelo xss/nan", "<script>" not in _db._duelo_html({"bal": {"buys": 60.0, "sells": 10.0, "nb": 8, "ns": 2, "big": 1, "txt": "<script>"}, "senti": {"taker": 1.0}}) and "nan" not in _db._duelo_html({"bal": {"buys": float("inf"), "sells": 10, "nb": 1, "ns": 1}, "senti": {"taker": float("nan")}}))
+t("gauge inf vacio", _db._gauge_reloj_html({"fg": {"valor": float("inf"), "etiqueta": "<b>"}}, [], datetime.datetime.now(datetime.timezone.utc)) == "")
+t("macro comilla/Z", "CPI" in _db._macro_html({"evs": [{"titulo": "CPI", "cuando": "2026-10-13T15:00:00Z", "impact": "High"}]}, datetime.datetime(2026, 10, 13, 14, 0, tzinfo=datetime.timezone.utc)) and "onload='" not in _db._macro_html({"evs": [{"titulo": "CPI 'onload='x", "cuando": "2026-10-14T08:30:00+00:00", "impact": "High"}]}, datetime.datetime(2026, 10, 13, 14, 0, tzinfo=datetime.timezone.utc)))
+t("tfs/porque xss", "<script>" not in _db._tfs_html({"tf": {"h1": {"tend": "<script>", "rsi": 1}, "h4": {"tend": "t", "rsi": 1}, "d1": {"tend": "t", "rsi": 1}, "w1": {"tend": "t", "rsi": 1}}}) and "<script>" not in (_db._porque_html({"regimen": "<script>", "grade": "x", "tf": {}}) or ""))
+t("cmd niv vacio no tumba", v.responder_comando({"chat": 111, "texto": "/precio", "full": "/precio", "nombre": "T"}, dict(CTX, niv={"resistencias": [], "soportes": []}))[0].startswith("Niveles"))
+t("cmd arroba bot", v.responder_comando({"chat": 111, "texto": "/precio@MiBot", "full": "/precio@MiBot hola", "nombre": "T"}, CTX)[0].startswith("BTC ahora"))
+t("cmd sin nombre no tumba", isinstance(v.responder_comando({"chat": 111, "texto": "/otro", "full": "/otro"}, CTX)[0], str))
+t("cmd op corrupta no tumba", isinstance(v.responder_comando({"chat": 111, "texto": "/voy", "full": "/voy", "nombre": "T"}, dict(CTX, est=dict(CTX["est"], ops=[{"dir": "LONG"}])))[0], str))
+t("cmd papel banco malo no tumba", "Papel" in v.responder_comando({"chat": 111, "texto": "/papel", "full": "/papel", "nombre": "T"}, dict(CTX, est=dict(CTX["est"], banco="abc")))[0])
+t("cmd noti None no tumba", isinstance(v.responder_comando({"chat": 111, "texto": "/noticias", "full": "/noticias", "nombre": "T"}, dict(CTX, notis=None))[0], str))
+t("trocear respeta palabra", all(len(p) <= 3900 for p in v.trocear("a" * 3890 + " " + "b" * 100)) and "b" in v.trocear("a" * 3890 + " " + "b" * 100)[-1])
+t("trocear vacio seguro", v.trocear(None) == [] and v.trocear("") == [])
+t("build plan None no tumba", isinstance(v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1H", "lateral", 0), tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV, {"bias": "LATERAL", "confianza": 10}, "p", {"funding": None, "oi": None, "taker": None}, {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "manana", [], [], ah, dict(ex, plan=None, memoria=None, vistas=None)), str))
+t("send None no tumba run", v.send_telegram(None) in (True, False))
+t("ajeno sin chat_id no fuga", v.responder_comando({"chat": 999, "texto": "/precio", "full": "/precio", "nombre": "T"}, CTX) == (None, False))
+try:
+    _of = v.fetch
+    v.fetch = lambda *a, **k: {"code": -1000}
+    try:
+        v.klines("1h", 5)
+        t("klines dict error", False)
+    except ValueError:
+        t("klines dict error", True)
+    v.fetch = lambda *a, **k: [[1, "2", "3", "4", "5"]]
+    try:
+        v.klines("1h", 5)
+        t("klines fila corta", False)
+    except ValueError:
+        t("klines fila corta", True)
+finally:
+    v.fetch = _of
+try:
+    _of2 = v.fetch
+    v.fetch = lambda *a, **k: {"x": 1}
+    try:
+        v.ticker24()
+        t("ticker exige claves", False)
+    except ValueError:
+        t("ticker exige claves", True)
+finally:
+    v.fetch = _of2
+t("cb prem none", "if last else None" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
+t("offset str sana", (lambda _r: isinstance(_r, tuple) and isinstance(_r[1], int))(v.leer_comandos("5")))
+t("poda existe", hasattr(v, "_podar_estado") and len(v._podar_estado({"cools": {str(i): "x" for i in range(300)}})["cools"]) <= 200)
+_zp = [{"precio": 83850, "razones": ["r"]}]
+_tx, _ky = v.mensaje_pila(_zp, 83700, [{"precio": 82973}], [{"precio": 83850}],
+    {"tend": "lateral", "rsi": 50, "er": 0.2, "z": 0}, {"adx": 25}, 12)
+t("pila vive con h4", _tx is not None and _tx.startswith("EYY PILAS") and _ky == "83850")
+_est_p = {}
+_r1 = v.decidir_alerta(83700, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "LATERAL", "confianza": 10}, _est_p, _ah, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)
+t("pila alerta una vez", _r1[0] is True and _r1[2] == "alerta")
+_r2 = v.decidir_alerta(83700, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "LATERAL", "confianza": 10}, _est_p, _ah, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)
+t("pila repetida calla", _r2[2] == "nada")
+_ebf = {"ultimo_bias": "LATERAL", "cools": {}}
+_nv = {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 90000}]}
+t("fuerte avisa 1ra", v.decidir_alerta(85000, _nv, {"bias": "ALZA", "confianza": 70}, _ebf, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[0] is True)
+_ebf["ultimo_bias"] = "ALZA"
+t("fuerte sella 2da", v.decidir_alerta(85000, _nv, {"bias": "ALZA", "confianza": 70}, _ebf, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[2] == "nada")
+_ebc = {"ultimo_bias": "ALZA", "cools": {}}
+t("cambio avisa", v.decidir_alerta(85000, _nv, {"bias": "BAJA", "confianza": 70}, _ebc, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[0] is True)
+_ebc["ultimo_bias"] = "BAJA"
+t("cambio no repite", v.decidir_alerta(85000, _nv, {"bias": "BAJA", "confianza": 70}, _ebc, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[2] == "nada")
+t("toque lateral avisa", v.decidir_alerta(82500, {"soportes": [{"precio": 82400}], "resistencias": [{"precio": 90000}]},
+    {"bias": "LATERAL", "confianza": 50}, {}, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[1].startswith("Tocando"))
+_ebl = {}
+t("liq nivel1 avisa", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ah, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.199 X", None, 55, 40, None, None)[0] is True)
+t("liq nivel2 avisa", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ah, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.500 Y", None, 55, 40, None, None)[0] is True)
+t("liq mismo nivel calla", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ah, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.500 Y", None, 55, 40, None, None)[2] == "nada")
+_ah0 = datetime.datetime(2026, 10, 14, tzinfo=datetime.timezone.utc)
+t("sombra abre sin piso", v.abrir_sombra({}, "ALZA", 5, 83000, 0.002, _ah0) is True)
+t("sombra rechaza lateral", v.abrir_sombra({}, "LATERAL", 90, 83000, 0.002, _ah0) is False)
+_est_s = {}
+v.abrir_sombra(_est_s, "BAJA", 12, 83000, 0.002, _ah0)
+t("sombra dedup 4h", v.abrir_sombra(_est_s, "BAJA", 40, 83100, 0.002, _ah0) is False)
+t("sombra otra dir si", v.abrir_sombra(_est_s, "ALZA", 40, 83100, 0.002, _ah0) is True)
+t("sombra precio cero no", v.abrir_sombra({}, "ALZA", 40, 0, 0.002, _ah0) is False)
+t("sombra precio malo no", v.abrir_sombra({}, "BAJA", 40, "abc", 0.002, _ah0) is False)
+
+
+def _veneno_tmp():
+    import datetime as _dt
+    ah = _dt.datetime(2026, 10, 14, tzinfo=_dt.timezone.utc)
+
+    def _velas(base, n=10):
+        out = []
+        for i in range(n):
+            c = base + 50 * i
+            out.append({"t": ah - _dt.timedelta(hours=9 - i), "h": c + 30, "l": c - 30, "c": c})
+        return out
+    est = {"pend_sombra": [{"t": (ah - _dt.timedelta(hours=10)).isoformat(), "precio": 0, "bias": "ALZA", "conf": 5, "risk": 1},
+                           {"t": (ah - _dt.timedelta(hours=10)).isoformat(), "precio": 83000, "bias": "ALZA", "conf": 5, "risk": 166.0}]}
+    v.evaluar_sombra(est, ah, _velas(83000))
+    return len(est.get("eval_sombra", [])) == 1
+t("sombra veneno no bloquea", _veneno_tmp())
+
+
+def _velas_sombra(base, n=10, sube=True):
+    out = []
+    for i in range(n):
+        c = base + (50 * i if sube else -50 * i)
+        out.append({"t": _ah0 - datetime.timedelta(hours=9 - i), "h": c + 30, "l": c - 30, "c": c})
+    return out
+_est_e = {"pend_sombra": [{"t": (_ah0 - datetime.timedelta(hours=10)).isoformat(), "precio": 83000, "bias": "ALZA", "conf": 8, "risk": 166.0}]}
+v.evaluar_sombra(_est_e, _ah0, _velas_sombra(83000, 10, True))
+t("sombra evalua hit", len(_est_e.get("eval_sombra", [])) == 1 and _est_e["eval_sombra"][0]["r"] == 1)
+t("sombra no toca vivo", _est_e.get("eval_log", []) == [] and _est_e.get("alza", []) == [] and _est_e.get("pendientes", []) == [])
 t("sharpe none si n<5", _bt.sharpe_ratio([2, -1, 2]) is None)
 t("sharpe positivo", _bt.sharpe_ratio([2, -1, 2, 2, -1, 2, -1, -1, 2, 2]) > 0)
 t("sharpe plano none", _bt.sharpe_ratio([1.0] * 6) is None)
