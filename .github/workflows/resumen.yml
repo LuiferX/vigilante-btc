@@ -175,13 +175,8 @@ jobs:
                   pass
               for o in hist:
                   try:
-                      if isinstance(o.get("r"), (int, float, bool)) or isinstance(o.get("hit"), (int, float, bool)):
-                          # si parece entrada de eval suelta en historial
-                          if "conf" in o or "r" in o or "hit" in o:
-                              # evita duplicar pasadas normales: solo si tiene pinta de eval
-                              # (tiene r/hit y conf o eval:true)
-                              if o.get("eval") is True or "conf" in o or "hit" in o or "r" in o:
-                                  pass
+                      if ("r" in o or "hit" in o) and ("conf" in o or o.get("eval") is True):
+                          eval_entries.append(o)
                       # factura: si el historial trae eval_log anidado
                       nested = o.get("eval_log")
                       if isinstance(nested, list):
@@ -247,8 +242,8 @@ jobs:
 
               # Brier si >=5 evals con conf y r
               brier = None
+              pares = []
               try:
-                  pares = []
                   for e in evals_rec:
                       r = norm_r(e)
                       c = get_conf(e)
