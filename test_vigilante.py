@@ -779,6 +779,58 @@ t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 
 t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+_ahq = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+t("gestion BE short", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83850}, 82600, 100.0, "tendencia")[:2] == (round((83297 - 82600) / 553, 2), "BE"))
+t("gestion BE precio", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83850}, 82600, 100.0, "tendencia")[2] == 83297)
+t("gestion BE una vez", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83297, "be_done": True}, 82600, 100.0, "tendencia")[1] is None)
+t("gestion TRAIL", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83850, "be_done": True}, 82200, 100.0, "tendencia")[1] == "TRAIL")
+t("gestion rango no trail", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83850, "be_done": True}, 82200, 100.0, "rango")[1] is None)
+t("gestion atr0 no", v.gestion_sl({"dir": "LONG", "entrada": 83000, "stop": 82800}, 83300, 0, "tendencia") == (None, None, None))
+t("gestion paso minimo", v.gestion_sl({"dir": "LONG", "entrada": 83000, "stop": 83190}, 83350, 100.0, "tendencia")[1] is None)
+_ebg = {}
+_rg = v.decidir_alerta(83200, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "LATERAL", "confianza": 10}, _ebg, _ahq, None, None, "tendencia", True, "CPI", None, None, None, 55, 40, None, None, None, None, "🔒 BE x")
+t("gestion salta blackout", _rg[0] is True and "🔒" in _rg[1])
+t("forzado gana a gestion", v.decidir_alerta(83200, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "LATERAL", "confianza": 10}, {}, _ahq, "TU ALERTA", None, "tendencia", True, "CPI", None, None, None, 55, 40, None, None, None, None, "🔒 BE x")[1] == "TU ALERTA")
+
+
+def _kl_qb(rompe="up"):
+    if rompe == "up":
+        px = [100, 102, 105, 102, 104, 108, 104, 106, 110, 107, 109, 112, 109, 120]
+    else:
+        px = [120, 118, 115, 118, 116, 112, 116, 114, 110, 113, 111, 108, 110, 100]
+    base = 83000
+    out = []
+    for i, d in enumerate(px):
+        c = base + d
+        t = datetime.datetime(2026, 10, 14, tzinfo=datetime.timezone.utc) - datetime.timedelta(hours=len(px) - i)
+        out.append({"t": t, "o": c, "h": c + 1, "l": c - 1, "c": c, "v": 10.0})
+    return out
+_qb = v.quiebre_estructura(_kl_qb())
+t("quiebre BOS up", isinstance(_qb, dict) and _qb["dir"] == "ALZA" and _qb["tipo"] == "BOS")
+_qbd = v.quiebre_estructura(_kl_qb(rompe="dn"))
+t("quiebre BOS dn", isinstance(_qbd, dict) and _qbd["dir"] == "BAJA")
+t("quiebre sin datos", v.quiebre_estructura([{"t": 1, "h": 2, "l": 1, "c": 1.5}] * 5) is None)
+t("quiebre plano none", v.quiebre_estructura([{"t": datetime.datetime(2026, 10, 14, tzinfo=datetime.timezone.utc) - datetime.timedelta(hours=20 - i),
+    "o": 83000, "h": 83010, "l": 82990, "c": 83000, "v": 1.0} for i in range(20)]) is None)
+_sl = v.sl_estructura(83000, "ALZA", 82800, 100.0)
+t("sl long", isinstance(_sl, tuple) and _sl[0] == 82780 and _sl[2] is False)
+_sls = v.sl_estructura(83000, "BAJA", 83200, 100.0)
+t("sl short", isinstance(_sls, tuple) and _sls[0] == 83220 and _sls[2] is False)
+t("sl lejos", v.sl_estructura(83000, "ALZA", 80000, 100.0)[2] is True)
+t("sl sin dir", v.sl_estructura(83000, "LATERAL", 82800, 100.0) is None)
+_ebq = {}
+_rq = v.decidir_alerta(83200, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "ALZA", "confianza": 50}, _ebq, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None,
+    {"dir": "ALZA", "nivel": 83100, "tipo": "BOS", "swing": 82900}, (82900, 0.5, False))
+t("qb compra con sl", _rq[0] is True and "COMPRA" in _rq[1] and "SL" in _rq[1])
+t("qb pide alineacion", v.decidir_alerta(83200, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "BAJA", "confianza": 50}, {}, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None,
+    {"dir": "ALZA", "nivel": 83100, "tipo": "BOS", "swing": 82900}, (82900, 0.5, False))[2] == "nada")
+t("qb pide conf", v.decidir_alerta(83200, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
+    {"bias": "ALZA", "confianza": 20}, {}, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None,
+    {"dir": "ALZA", "nivel": 83100, "tipo": "BOS", "swing": 82900}, (82900, 0.5, False))[2] == "nada")
 t("num inf->def", _db._num(float("inf"), 0) == 0 and _db._num(float("-inf"), 0) == 0 and _db._num(True, 7) == 7 and _db._num(5, 0) == 5)
 t("miles inf/nan", _db.miles(float("inf")) == "?" and _db.miles(float("nan")) == "?")
 t("svg inf sin nan", "nan" not in _db.svg_linea([1, float("inf"), 3]) and "nan" not in _db.svg_linea([10, float("nan"), 30]))
