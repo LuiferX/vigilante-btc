@@ -779,6 +779,22 @@ t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 
 t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+_estk = {"paper_cerradas": [{"pnl": 50, "r": 1.0}, {"pnl": -20, "r": -0.5}, {"pnl": 30, "r": 0.8}, {"pnl": -10, "r": -0.3}]}
+_hk = _db._kpis_papel_html(_estk)
+t("kpis con datos", "Profit factor" in _hk and "Expectancy" in _hk and "Mejor" in _hk and "Racha actual" in _hk)
+t("kpis vacio no rompe", "sin operaciones" in _db._kpis_papel_html({}) and "Dinero papel: KPIs" in _db.build_dashboard({}, []))
+t("sombra tarjeta", "En cola" in _db._sombra_html({"eval_sombra": [{"r": 1}], "pend_sombra": [{"r": 0}]}) and "sin evaluaciones" in _db._sombra_html({}) and "Sombra (aprende de todo)" in _db.build_dashboard({"eval_sombra": [{"r": 1}]}, []))
+t("lado un solo lado", v.lado_ok("BAJA", "EYY PILAS TECHO x") is True and v.lado_ok("BAJA", "EYY PILAS PISO x") is False)
+t("lado alza piso", v.lado_ok("ALZA", "EYY PILAS PISO x") is True and v.lado_ok("ALZA", "EYY PILAS TECHO x") is False)
+t("lado lateral ambos", v.lado_ok("LATERAL", "EYY PILAS PISO x") is True and v.lado_ok("LATERAL", "EYY PILAS TECHO x") is True)
+_estev = {"eval_sombra": [{"b": "ALZA", "r": 1, "conf": 45, "t": "x"}, {"b": "BAJA", "r": 0, "conf": 55, "t": "x"}, {"b": "ALZA", "r": 1, "conf": 62, "t": "x"}, {"b": "BAJA", "r": 1, "conf": 48, "t": "x"}, {"b": "ALZA", "r": 0, "conf": 70, "t": "x"}],
+          "eval_log": [{"b": "ALZA", "r": 1, "conf": 50, "t": "x"}, {"b": "BAJA", "r": 0, "conf": 55, "t": "x"}, {"b": "ALZA", "r": 1, "conf": 60, "t": "x"}, {"b": "BAJA", "r": 1, "conf": 45, "t": "x"}, {"b": "ALZA", "r": 0, "conf": 65, "t": "x"}]}
+_ctxev = dict(CTX, est=_estev)
+_rs, _ds = v.responder_comando({"chat": 111, "texto": "/sombra", "full": "/sombra", "nombre": "T"}, _ctxev)
+t("sombra cubetas", "n=5" in _rs and "Por confianza:" in _rs and _ds is False)
+_re, _de = v.responder_comando({"chat": 111, "texto": "/evals", "full": "/evals", "nombre": "T"}, _ctxev)
+t("evals brier", ("Brier" in _re) == (v.tabla_calibracion(_estev["eval_log"]) is not None) and _de is False)
+t("sombra dueño y vacios", v.responder_comando({"chat": 999, "texto": "/sombra", "full": "/sombra", "nombre": "T"}, _ctxev) == (None, False) and "sin evaluaciones" in v.responder_comando({"chat": 111, "texto": "/sombra", "full": "/sombra", "nombre": "T"}, dict(CTX, est={}))[0])
 _ahq = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
 _ahN = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
 _vn = [{"t": _ahN - datetime.timedelta(hours=9 - i), "h": 83000 + 50 * i + 30, "l": 83000 + 50 * i - 30, "c": 83000 + 50 * i} for i in range(10)]
