@@ -36,7 +36,7 @@ def cargar_historial():
         print(f"Historial real: {len(hist)} pasadas")
         return hist
     except Exception as e:  # noqa: BLE001
-        print(f"Sin historial en la nube ({e}). Modo demo con datos de ejemplo.")
+        print(f"[DEMO] Sin historial en la nube ({e}). Modo demo con datos de ejemplo.")
         ahora = datetime.datetime.now(datetime.timezone.utc)
         return [
             {"t": (ahora - datetime.timedelta(hours=30 - i)).isoformat(),
