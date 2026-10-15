@@ -785,6 +785,34 @@ t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 
 t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+_ahP = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+_nvp = {"soportes": [{"precio": 82200}], "resistencias": [{"precio": 83800}]}
+_estP = {"banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [], "paper_dia": {"fecha": _ahP.strftime("%Y-%m-%d"), "pnl": 0.0}}
+_posP = v.abrir_papel(_estP, {"bias": "ALZA", "confianza": 50}, _nvp, 83000, _ahP)
+t("papel SL es -1R exacto", abs(v.cierre_papel(_posP, 83000, 82100, 82100)[2] - -1.0) < 0.01)
+t("papel LIQ fallback igual abrir", abs((83000 * (1 - 1.0 / 50)) - v.cierre_papel({"dir": "LONG", "entrada": 83000, "tam": 0.001, "stop": 82200, "tp": 83800}, 81000, 81000, 81000)[0]) < 1)
+t("papel LIQ declara", v.cierre_papel({"dir": "LONG", "entrada": 83000, "tam": 0.00125, "stop": 82200, "tp": 83800, "liq": 81340, "lev": 50, "riesgo": 1.0}, 81000, 81000, 81000)[2] <= -2.0)
+_ebr3 = {"banco": 15.0, "banco_pico": 200.0, "paper_cerradas": [{"pnl": -1, "r": -1}], "paper_dia": {"fecha": _ahP.strftime("%Y-%m-%d"), "pnl": -5.0}, "paper_abiertas": [{"x": 1}]}
+t("reborn resetea dia y abiertas", v.abrir_papel(_ebr3, {"bias": "ALZA", "confianza": 50}, _nvp, 83000, _ahP) is not None and _ebr3["paper_dia"]["pnl"] == 0.0 and _ebr3["banco"] == 100.0 and len(_ebr3.get("paper_abiertas", [])) == 1)
+t("papel cota 5 abiertas", v.abrir_papel({"banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [], "paper_dia": {"fecha": _ahP.strftime("%Y-%m-%d"), "pnl": 0.0}, "paper_abiertas": [{}] * 5}, {"bias": "ALZA", "confianza": 50}, _nvp, 83000, _ahP) is None)
+t("banco corrupto no tumba", v.abrir_papel({"banco": "abc", "banco_pico": 100.0}, {"bias": "ALZA", "confianza": 50}, _nvp, 83000, _ahP) is None)
+_vt = [{"t": _ahP - datetime.timedelta(hours=9 - i), "h": 83000 + 50 * i + 30, "l": 83000 + 50 * i - 30, "c": 83000 + 50 * i} for i in range(10)]
+_esS = {"pend_sombra": [{"t": (_ahP - datetime.timedelta(hours=10)).isoformat(), "precio": 83000, "bias": "ALZA", "conf": 50, "risk": 166.0}]}
+_etT = {"pend_todo": [{"t": (_ahP - datetime.timedelta(hours=10)).isoformat(), "precio": 83000, "bias": "ALZA", "conf": 50, "risk": 166.0}]}
+v.evaluar_sombra(_esS, _ahP, list(_vt))
+v.evaluar_todo(_etT, _ahP, list(_vt))
+t("todo respeta stop-first", _esS["eval_sombra"][0]["r"] == _etT["eval_todo"][0]["r"])
+_opT = {"dir": "LONG", "entrada": 100000, "stop": 99000}
+_rT1 = v.gestion_sl(_opT, 101000, 800, "tendencia")
+_opT["risk0"] = abs(_opT["entrada"] - _opT["stop"])
+_opT["be_done"] = True
+_opT["stop"] = _rT1[2]
+t("trail tras BE vive", v.gestion_sl(_opT, 101500, 800, "tendencia")[1] == "TRAIL")
+t("sl invertido none", v.sl_estructura(99000, "ALZA", 99500, 300) is None)
+t("decidir niv roto", v.decidir_alerta(100000, None, {"bias": "ALZA", "confianza": 50}, {}, _ahP) == (False, "estado incompleto", "nada"))
+t("send vacio false", v.send_telegram("") is False)
+t("tca fee malo", "s/d" in v.tca_linea(84900, 85000, fee_bps=None))
+t("opere stop igual no", v.responder_comando({"chat": 111, "texto": "/opere", "full": "/opere LONG 100 100 110", "nombre": "T"}, dict(CTX, est={}))[0].startswith("Revisa"))
 t("spread regla", v.regla_spread(2) == "market ok" and v.regla_spread(4) == "mejor limit" and v.regla_spread(8) == "pausa" and v.regla_spread(None) == "s/d" and v.regla_spread("x") == "s/d")
 t("spread linea", "Spread 1.5bps" in v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1H", "lateral", 0), tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV, {"bias": "LATERAL", "confianza": 10}, "p", {"funding": None, "oi": None, "taker": None, "spread": 1.5}, {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "alerta", [], [], ah, dict(ex, arrival=83000)))
 
