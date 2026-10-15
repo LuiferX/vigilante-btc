@@ -268,6 +268,11 @@ def klines(interval, limit):
     except Exception:
         data = fetch(f"{VISION}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}", tries=2)
         FUENTE["nombre"] = "spot"
+    if not isinstance(data, list) or not data:
+        raise ValueError("klines vacías o error API")
+    data = [k for k in data if isinstance(k, (list, tuple)) and len(k) >= 6]
+    if not data:
+        raise ValueError("klines sin filas válidas")
     return [
         {
             "t": datetime.datetime.fromtimestamp(k[0] / 1000, datetime.timezone.utc),
@@ -284,11 +289,18 @@ def ticker24():
     except Exception:
         t = fetch(f"{VISION}/ticker/24hr?symbol=BTCUSDT", tries=2)
         FUENTE["nombre"] = "spot"
+    try:
+        last = float(t.get("lastPrice"))
+        chg = float(t.get("priceChangePercent"))
+        hi = float(t.get("highPrice"))
+        lo = float(t.get("lowPrice"))
+    except Exception:
+        raise ValueError("ticker24 sin claves")
     return {
-        "last": float(t["lastPrice"]),
-        "chg": float(t["priceChangePercent"]),
-        "hi": float(t["highPrice"]),
-        "lo": float(t["lowPrice"]),
+        "last": last,
+        "chg": chg,
+        "hi": hi,
+        "lo": lo,
         "vol": float(t.get("volume", 0) or 0),
     }
 
@@ -717,6 +729,10 @@ def cierre_ayer(hist, ahora):
 
 def leer_comandos(offset):
     """Lee mensajes nuevos dirigidos al bot (chat en 2 vías con retardo)."""
+    try:
+        offset = int(offset or 0)
+    except Exception:
+        offset = 0
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
         return [], offset
@@ -727,14 +743,24 @@ def leer_comandos(offset):
             data = json.load(r)
         msgs = []
         new_off = offset
-        for u in data.get("result", [])[-10:]:
-            new_off = max(new_off, u.get("update_id", 0) + 1)
-            m = u.get("message", {})
+        res = data.get("result", []) if isinstance(data, dict) else []
+        if res:
+            try:
+                new_off = max(new_off, int(res[-1].get("update_id", 0)) + 1)
+            except Exception:
+                pass
+        for u in res[-10:]:
+            try:
+                new_off = max(new_off, int(u.get("update_id", 0)) + 1)
+            except Exception:
+                pass
+            m = u.get("message") or u.get("edited_message") or {}
             txt = (m.get("text") or "").strip()
             cid = (m.get("chat") or {}).get("id")
             if txt.startswith("/"):
-                msgs.append({"chat": cid, "texto": txt.split()[0].lower(), "full": txt,
-                             "nombre": ((m.get("from") or {}).get("first_name") or "")})
+                tk = txt.split()[0].split("@")[0].lower()
+                msgs.append({"chat": cid, "texto": tk, "full": txt[:500],
+                             "nombre": str(((m.get("from") or {}).get("first_name") or ""))[:30].replace("\n", " ")})
         return msgs, new_off
     except Exception:
         return [], offset
@@ -743,17 +769,24 @@ def leer_comandos(offset):
 def responder_comando(cmd, ctx):
     """Solo responde al dueño (seguridad: verifica el chat). Devuelve (texto, dirty)."""
     chat_ok = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-    if str(cmd["chat"]) != str(chat_ok):
+    if not chat_ok or str((cmd or {}).get("chat")) != str(chat_ok):
         return None, False
-    c = cmd["texto"]
-    t = ctx["t"]
-    dirb = ctx["dirb"]
-    niv = ctx["niv"]
-    fg = ctx["fg"]
-    est = ctx["est"]
-    ahora = ctx["ahora"]
-    res = niv["resistencias"][0]
-    sup = niv["soportes"][0]
+    c = str((cmd or {}).get("texto") or "").split("@")[0].strip().lower() or "/ayuda"
+    try:
+        t = ctx["t"]
+        dirb = ctx["dirb"]
+        niv = ctx["niv"]
+        fg = ctx["fg"]
+        est = ctx["est"]
+        ahora = ctx["ahora"]
+        _rs = (niv.get("resistencias") or [])
+        _ss = (niv.get("soportes") or [])
+        if not _rs or not _ss:
+            return ("Niveles en cálculo, prueba /precio en la próxima pasada.", False)
+        res = _rs[0]
+        sup = _ss[0]
+    except Exception:
+        return ("No entiendo el estado ahora mismo, prueba en la próxima pasada.", False)
     if c == "/precio":
         return (f"BTC ahora: {fmt_miles(t['last'])} ({t['chg']:+.2f}% 24h). "
                 f"Rango del día: {fmt_miles(t['lo'])} - {fmt_miles(t['hi'])}.", False)
@@ -770,7 +803,7 @@ def responder_comando(cmd, ctx):
         tk = ctx['senti']['taker'] if ctx['senti']['taker'] is not None else "n/d"
         return (f"{fg['etiqueta']}: {fg['valor']}/100 (RSI 1D {ctx['d1']['rsi']}, funding {ff}, taker {tk}).", False)
     if c == "/noticias":
-        ns = ctx["notis"][:3]
+        ns = (ctx.get("notis") or [])[:3]
         if not ns:
             return ("Sin noticias relevantes ahora mismo.", False)
         base = "Top noticias:\n" + "\n".join(f"• [{n['score']}] {n['titulo']}" for n in ns)
@@ -805,7 +838,10 @@ def responder_comando(cmd, ctx):
         sm = ctx.get("smart")
         if not sm:
             return ("Sin datos de flujos ahora.", False)
-        return ((f"Instituciones {sm['inst']}/100 · Minoristas {sm['ret']}/100.\n" + sm["veredicto"]), False)
+        try:
+            return ((f"Instituciones {sm.get('inst', '?')}/100 · Minoristas {sm.get('ret', '?')}/100.\n" + str(sm.get("veredicto", "sin veredicto"))), False)
+        except Exception:
+            return ("Sin datos de flujos ahora.", False)
     if c == "/calidad":
         g = ctx.get("grade", "?")
         rg = ctx.get("regimen", "?")
@@ -826,7 +862,7 @@ def responder_comando(cmd, ctx):
         if not (1000 <= px <= 1000000):
             return ("Precio fuera de rango sensato (1.000–1.000.000).", False)
         d = "sube" if px >= t["last"] else "baja"
-        al = est.get("mis_alertas", [])
+        al = est.get("mis_alertas") or []
         if len(al) >= 20:
             return ("Tienes 20 alertas (máximo). Borra con /borrar.", False)
         al.append({"precio": px, "dir": d})
@@ -834,7 +870,7 @@ def responder_comando(cmd, ctx):
         verbo = "suba a" if d == "sube" else "baje a"
         return (f"Alerta creada: te aviso cuando BTC {verbo} {fmt_miles(px)}.", True)
     if c == "/alertas":
-        al = est.get("mis_alertas", [])
+        al = est.get("mis_alertas") or []
         if not al:
             return ("Sin alertas de precio. Crea con /alerta 85000.", False)
         return (("Tus alertas:\n" + "\n".join(f"• {fmt_miles(a['precio'])} ({a['dir']})" for a in al)), False)
@@ -854,22 +890,25 @@ def responder_comando(cmd, ctx):
             return ("Números inválidos.", False)
         if not (e > 0 and s > 0 and tp > 0):
             return ("Precios deben ser > 0.", False)
-        ops = est.get("ops", [])
+        ops = est.get("ops") or []
         ops.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
         est["ops"] = ops
         return ((f"Registrada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}). "
                  "Te aviso al cerrar."), True)
     if c == "/voy":
-        ops = est.get("ops", [])
+        ops = est.get("ops") or []
         if not ops:
             return ("Sin operaciones abiertas.", False)
         lines = []
-        for o in ops:
-            e, s = o["entrada"], o["stop"]
-            riesgo = abs(e - s) or 1
-            rr = (t["last"] - e) / riesgo if o["dir"] == "LONG" else (e - t["last"]) / riesgo
-            lines.append(f"{o['dir']} {fmt_miles(e)}: {rr:+.1f}R ahora (SL {fmt_miles(s)} / TP {fmt_miles(o['tp'])})")
-        return ("\n".join(lines), False)
+        for o in (ops or []):
+            try:
+                e, s = float(o["entrada"]), float(o["stop"])
+                riesgo = abs(e - s) or 1
+                rr = (t["last"] - e) / riesgo if o.get("dir") == "LONG" else (e - t["last"]) / riesgo
+                lines.append(f"{o.get('dir', '?')} {fmt_miles(e)}: {rr:+.1f}R ahora (SL {fmt_miles(s)} / TP {fmt_miles(float(o.get('tp', s)))})")
+            except Exception:
+                continue
+        return ("\n".join(lines) or "Sin operaciones válidas.", False)
     if c == "/diario":
         j = est.get("journal", [])
         if not j:
@@ -878,7 +917,10 @@ def responder_comando(cmd, ctx):
         tr = round(sum(x.get("r", 0) for x in j), 1)
         return (f"Diario: {len(j)} ops · ganadas {w} ({round(w / len(j) * 100)}%) · total {tr:+.1f}R.", False)
     if c == "/papel":
-        banco = float(est.get("banco", PAPER_BANCO))
+        try:
+            banco = float(est.get("banco", PAPER_BANCO))
+        except Exception:
+            banco = float(PAPER_BANCO)
         j = est.get("paper_cerradas", [])
         ops = est.get("paper_abiertas", [])
         if not j and not ops:
@@ -945,7 +987,8 @@ def responder_comando(cmd, ctx):
         est["sim_abiertas"] = sims
         return ((f"🔬 Simulada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}, {rr:.1f}R). "
                  "Sin dinero, solo aprendizaje. Te aviso al cerrar."), True)
-    hola = f" Hola {cmd['nombre']}." if cmd['nombre'] else " Hola."
+    _nom = str((cmd or {}).get("nombre") or "").strip().replace("\n", " ")[:30]
+    hola = f" Hola {_nom}." if _nom else " Hola."
     return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
              "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /manos "
              "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel /simula"), False)
@@ -1206,10 +1249,13 @@ def journal_check(ops, kl_h1, last):
 def yahoo_cierres(sym):
     u = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=5d"
     req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-    with urllib.request.urlopen(req, timeout=12) as r:
-        d = json.load(r)["chart"]["result"][0]
-    q = [v for v in d["indicators"]["quote"][0]["close"] if v]
-    if len(q) < 2:
+    try:
+        with urllib.request.urlopen(req, timeout=12) as r:
+            d = json.load(r)["chart"]["result"][0]
+        q = [v for v in d["indicators"]["quote"][0]["close"] if v]
+    except Exception:
+        return None
+    if len(q) < 2 or not q[-2]:
         return None
     return {"px": round(q[-1], 2), "chg": round((q[-1] - q[-2]) / q[-2] * 100, 2)}
 
@@ -1261,7 +1307,7 @@ def coinbase_analisis(last, vol_bin):
             "https://api.exchange.coinbase.com/products/BTC-USD/ticker",
             headers={"User-Agent": "vigilante-cloud/3.0"}), timeout=10))
         cb = float(tk["price"])
-        out["prem"] = round((cb - last) / last * 100, 3) if last else 0
+        out["prem"] = round((cb - last) / last * 100, 3) if last else None
         cv = float(tk.get("volume", 0) or 0)
         if vol_bin and vol_bin > 0:
             out["vol_share"] = round(cv / vol_bin * 100, 1)
@@ -1452,7 +1498,7 @@ def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
                 f = {"rsi": 0 if rsi < 40 else (1 if rsi < 60 else 2),
                      "adx": 1 if (a4.get("adx", 0) or 0) >= 20 else 0,
                      "er": 0 if (er if er is not None else 0.2) < 0.15 else (1 if er < 0.4 else 2),
-                     "ses": "Asia" if 0 <= hora < 7 else ("Londres" if 7 <= hora < 13 else ("NY" if 13 <= hora < 21 else "noche")),
+                     "ses": sesion_bucket(hora),
                      "h1t": h1.get("tend", "?"),
                      "zt": 0 if abs(h1.get("z") or 0) < 1.0 else (1 if abs(h1.get("z") or 0) < 2.0 else 2)}
                 p = prob_reaccion(f)
@@ -2094,28 +2140,59 @@ def cargar_estado():
            "alza": [], "baja": [], "pendientes": [], "offset": 0, "runs": 0, "vistas": []}
     try:
         with open(ESTADO_FILE, encoding="utf-8") as fh:
-            est.update(json.load(fh))
+            d = json.load(fh)
+            if isinstance(d, dict):
+                est.update(d)
     except Exception:
         pass
+    try:
+        est["offset"] = int(est.get("offset") or 0)
+    except Exception:
+        est["offset"] = 0
     hist = []
     try:
         with open(HIST_FILE, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
-                if line:
-                    hist.append(json.loads(line))
+                if not line:
+                    continue
+                try:
+                    h = json.loads(line)
+                except Exception:
+                    continue
+                if isinstance(h, dict):
+                    hist.append(h)
     except Exception:
         pass
     return est, hist
 
 
+def _podar_estado(est):
+    """Poda cools/pilas/preavisos para que estado.json no crezca sin cota."""
+    try:
+        if isinstance(est.get("cools"), dict) and len(est["cools"]) > 200:
+            est["cools"] = dict(list(est["cools"].items())[-200:])
+        if isinstance(est.get("pilas"), dict) and len(est["pilas"]) > 200:
+            est["pilas"] = dict(list(est["pilas"].items())[-200:])
+        if isinstance(est.get("preavisos"), dict) and len(est["preavisos"]) > 100:
+            est["preavisos"] = dict(list(est["preavisos"].items())[-100:])
+    except Exception:
+        pass
+    return est
+
+
 def guardar_estado(est, hist):
-    with open(ESTADO_FILE, "w", encoding="utf-8") as fh:
-        json.dump(est, fh)
+    _podar_estado(est)
     hist = hist[-MAX_HIST:]
-    with open(HIST_FILE, "w", encoding="utf-8") as fh:
+    tmp_e = ESTADO_FILE + ".tmp"
+    with open(tmp_e, "w", encoding="utf-8") as fh:
+        json.dump(est, fh)
+    os.replace(tmp_e, ESTADO_FILE)
+    tmp_h = HIST_FILE + ".tmp"
+    with open(tmp_h, "w", encoding="utf-8") as fh:
         for h in hist:
             fh.write(json.dumps(h) + "\n")
+    os.replace(tmp_h, HIST_FILE)
 
 
 def prec_str(lista):
@@ -2289,6 +2366,118 @@ def evaluar_mfe(est, ahora, velas=None):
     est["pendientes"] = nuevas[-100:]
 
 
+def abrir_sombra(est, bias, conf, precio, umbral, ahora):
+    """Sombra: registra TODA señal con sesgo (sin piso de conf) solo para medir.
+    No alerta, no opera papel, no toca alza/baja/eval_log. Dedup 4h por direccion."""
+    try:
+        if bias not in ("ALZA", "BAJA"):
+            return False
+        try:
+            precio = float(precio)
+        except Exception:
+            return False
+        if not (precio > 0):
+            return False
+        try:
+            conf = float(conf)
+        except Exception:
+            conf = 0.0
+        pu = est.get("sombra_ult") or {}
+        try:
+            if pu.get("dir") == bias and (ahora - datetime.datetime.fromisoformat(pu.get("t", ""))).total_seconds() / 3600 < DEDUP_HORAS:
+                return False
+        except Exception:
+            pass
+        ps = est.get("pend_sombra", [])
+        ps.append({"t": ahora.isoformat(), "precio": round(precio),
+                   "bias": bias, "conf": conf,
+                   "risk": round(umbral * precio, 1)})
+        est["pend_sombra"] = ps[-100:]
+        est["sombra_ult"] = {"dir": bias, "t": ahora.isoformat()}
+        return True
+    except Exception:
+        return False
+
+
+def evaluar_sombra(est, ahora, velas=None):
+    """Evalúa sombra vencida (>=8h) con la MISMA regla MFE que evaluar_mfe,
+    pero guarda en eval_sombra (jamás en alza/baja/eval_log). Pura en fallos."""
+    try:
+        pends = est.get("pend_sombra", [])
+        if not pends:
+            return
+        if velas is None:
+            try:
+                velas = klines("1h", 220)
+            except Exception:
+                return
+        nuevas = []
+        for p in pends:
+            try:
+                t0 = datetime.datetime.fromisoformat(p["t"])
+            except Exception:
+                continue
+            if (ahora - t0).total_seconds() / 3600 < EVAL_HORAS:
+                nuevas.append(p)
+                continue
+            try:
+                entry = float(p["precio"])
+                if not (entry > 0):
+                    continue
+            except Exception:
+                continue
+            risk = p.get("risk") or max(entry * UMBRAL_MOV, 1)
+            if p["bias"] == "ALZA":
+                tp, sl = entry + 2 * risk, entry - risk
+            elif p["bias"] == "BAJA":
+                tp, sl = entry - 2 * risk, entry + risk
+            else:
+                continue
+            ventana = [v for v in velas if t0 < v["t"] <= t0 + datetime.timedelta(hours=8)]
+            try:
+                hit = None
+                mfe = mae = 0.0
+                for v in ventana:
+                    if p["bias"] == "ALZA":
+                        mfe = max(mfe, (v["h"] - entry) / entry)
+                        mae = max(mae, (entry - v["l"]) / entry)
+                        toca_tp = v["h"] >= tp
+                        toca_sl = v["l"] <= sl
+                    else:
+                        mfe = max(mfe, (entry - v["l"]) / entry)
+                        mae = max(mae, (v["h"] - entry) / entry)
+                        toca_tp = v["l"] <= tp
+                        toca_sl = v["h"] >= sl
+                    if toca_sl and toca_tp:
+                        hit = 0
+                        break
+                    if toca_tp:
+                        hit = 1
+                        break
+                    if toca_sl:
+                        hit = 0
+                        break
+                if hit is None:
+                    if not ventana:
+                        nuevas.append(p)
+                        continue
+                    cierre = ventana[-1]["c"]
+                    mov = (cierre - entry) / entry
+                    if p["bias"] == "ALZA":
+                        hit = 1 if mov >= risk / entry else 0
+                    else:
+                        hit = 1 if mov <= -risk / entry else 0
+                log = est.get("eval_sombra", [])
+                log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
+                            "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4)})
+                est["eval_sombra"] = log[-200:]
+            except Exception:
+                continue
+        est["pend_sombra"] = nuevas[-100:]
+    except Exception:
+        pass
+
+
 def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
@@ -2301,10 +2490,11 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, forzado, "alerta"
     if bloqueo:
         return False, f"blackout ({motivo_bloq})", "nada"
-    if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= umbral_cambio:
+    if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= umbral_cambio and enfriar(
+            est, "fuerte:" + bias, 4, ahora):
         return True, f"Cambio de dirección: {prev} → {bias}", "alerta"
-    if bias in ("ALZA", "BAJA") and conf >= umbral_fuerte and (
-            prev != bias or enfriar(est, "fuerte:" + bias, 4, ahora)):
+    if bias in ("ALZA", "BAJA") and conf >= umbral_fuerte and enfriar(
+            est, "fuerte:" + bias, 4, ahora):
         return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
             est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 2, ahora):
@@ -2323,7 +2513,12 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
         lado = "max" if "sobre" in liq else "min"
-        if not contra and enfriar(est, "liq:" + lado, 4, ahora):
+        try:
+            _mliq = re.search(r"([\d.]+)", str(liq))
+            _kliq = "liq:" + lado + ":" + (_mliq.group(1).replace(".", "") if _mliq else "?")
+        except Exception:
+            _kliq = "liq:" + lado
+        if not contra and enfriar(est, _kliq, 4, ahora):
             if "sobre" in liq:
                 ref = f"desvanecer hacia {fmt_miles(niv['soportes'][0]['precio'])} (referencia)"
             else:
@@ -2349,7 +2544,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
-        fade_ok = (bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA")
+        fade_ok = True if bias == "LATERAL" else ((bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA"))
         if not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
                 est, f"toque:{nivel}", 4, ahora):
             return True, f"Tocando {lado}", "alerta"
@@ -2408,7 +2603,10 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
                 pass
             return "\n".join(C)
         except Exception:
-            pass
+            try:
+                return "\n".join(C) if C else str(motivo)
+            except Exception:
+                return str(motivo)
 
     icono_tipo = {"alerta": "🚨", "preny": "📊", "manana": "☀️", "madrugada": "🌙", "noche": "🌙"}.get(tipo, "🤖")
     L = []
@@ -2430,7 +2628,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     r_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["resistencias"])
     L.append(f"🟢 SOPORTES: {s_txt}")
     L.append(f"🔴 RESISTENCIAS: {r_txt}")
-    for m in extras.get("memoria", [])[:3]:
+    for m in (extras.get("memoria") or [])[:3]:
         L.append("🧠 " + m)
     if extras.get("fflag"):
         L.append("⚠️ Funding extremo: " + extras["fflag"])
@@ -2441,7 +2639,7 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         L.append(f"🆕 [{n['score']}] {n['titulo']}")
     L.append("")
     L.append("🎯 PLAN (qué esperar para entrar):")
-    for p in extras.get("plan", []):
+    for p in (extras.get("plan") or []):
         L.append("   • " + p)
     L.append("")
     if dirb["bias"] == "ALZA":
@@ -2572,7 +2770,9 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         L.append(f"🧠 AUTO: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}")
     L.append("━━━━━ 📚 CONTEXTO ━━━━━")
     L.append("📰 NOTICIAS NUEVAS (no vistas):")
-    frescas = [n for n in notis if n["titulo"] not in extras.get("vistas", [])][:3]
+    _vistas = extras.get("vistas") or []
+    _notis = notis or []
+    frescas = [n for n in _notis if isinstance(n, dict) and n.get("titulo") not in _vistas][:3]
     if frescas:
         for n in frescas:
             icono = '🔴' if n['score'] >= 9 else '🟡'
@@ -2606,11 +2806,20 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
 
 def trocear(texto, limite=3900):
     """Parte un mensaje largo en trozos <= limite sin romper lineas."""
+    try:
+        texto = str(texto or "")
+    except Exception:
+        texto = ""
+    if not texto:
+        return []
     partes = []
     for bloque in texto.split("\n"):
         while len(bloque) > limite:
-            partes.append(bloque[:limite])
-            bloque = bloque[limite:]
+            corte = bloque.rfind(" ", 0, limite)
+            if corte < limite // 2:
+                corte = limite
+            partes.append(bloque[:corte])
+            bloque = bloque[corte:].lstrip()
         if not partes or len(partes[-1]) + len(bloque) + 1 > limite:
             partes.append(bloque)
         else:
@@ -2625,16 +2834,33 @@ def send_telegram(text):
         try:
             print(text)
         except UnicodeEncodeError:
-            print(text.encode("ascii", "replace").decode("ascii"))
-        with open("parte_cloud.txt", "w", encoding="utf-8") as fh:
-            fh.write(text)
+            try:
+                print(str(text).encode("ascii", "replace").decode("ascii"))
+            except Exception:
+                pass
+        except Exception:
+            pass
+        try:
+            with open("parte_cloud.txt", "w", encoding="utf-8") as fh:
+                fh.write(str(text if text is not None else ""))
+        except Exception:
+            pass
         print("\n[modo local] Variables TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID ausentes.")
         return False
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     import time as _t
-    for i, parte in enumerate(trocear(text)):
+    try:
+        partes = trocear(text)
+    except Exception:
+        return False
+    if not partes:
+        return True
+    for i, parte in enumerate(partes):
         txt = parte if i == 0 else "(sigue) " + parte
-        payload = json.dumps({"chat_id": chat, "text": txt}).encode("utf-8")
+        try:
+            payload = json.dumps({"chat_id": chat, "text": txt}, ensure_ascii=False).encode("utf-8", "replace")
+        except Exception:
+            return False
         ok = False
         for intento in range(3):
             try:
@@ -2643,10 +2869,21 @@ def send_telegram(text):
                     r.read()
                 ok = True
                 break
-            except Exception:
+            except Exception as e:
+                code = getattr(e, "code", None)
+                if code in (400, 401, 403, 404):
+                    break
+                espera = 2 * (intento + 1)
+                try:
+                    body = e.read().decode("utf-8", "replace") if hasattr(e, "read") else ""
+                    m = re.search(r'"retry_after"\s*:\s*(\d+)', body)
+                    if code == 429 and m:
+                        espera = min(int(m.group(1)), 60)
+                except Exception:
+                    pass
                 if intento < 2:
                     try:
-                        _t.sleep(2 * (intento + 1))
+                        _t.sleep(espera)
                     except Exception:
                         pass
         if not ok:
@@ -2700,7 +2937,15 @@ def main():
         except Exception:
             pass
         umbral = max(UMBRAL_MOV, (h1["atr"] / t["last"]) * UMBRAL_ATR_MULT) if t["last"] else UMBRAL_MOV
-        evaluar_mfe(est, ahora)
+        try:
+            _velas_ev = klines("1h", 220)
+        except Exception:
+            _velas_ev = None
+        evaluar_mfe(est, ahora, _velas_ev)
+        try:
+            evaluar_sombra(est, ahora, _velas_ev)
+        except Exception:
+            pass
         estudiar_eventos(est, hist, evs, ahora)
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
@@ -2745,9 +2990,9 @@ def main():
         bloqueo, motivo_bloq = blackout(evs, ahora)
         aviso_previo = preaviso(est, evs, ahora)
         try:
-            edad_h = (ahora - kl_h1[-1]["t"]).total_seconds() / 3600
+            edad_h = (ahora - kl_h1[-1]["t"]).total_seconds() / 3600 if kl_h1 else 99
         except Exception:
-            edad_h = 0
+            edad_h = 99
         if edad_h > 1.25:
             est["stale_n"] = est.get("stale_n", 0) + 1
             guardar_estado(est, hist)
@@ -2782,12 +3027,13 @@ def main():
         poc = punto_control(kl_h1)
         rup = ruptura(kl_h1, niv["soportes"][0]["precio"], niv["resistencias"][0]["precio"])
         pila = None
+        pila_key = None
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
-            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"], h1, a4, ahora.hour)
+            texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"], h1, h4, ahora.hour)
             if texto and est.get("pilas", {}).get(key) != hoy:
                 pila = texto
-                est.setdefault("pilas", {})[key] = hoy
+                pila_key = key
         except Exception:
             pila = None
         forzado = None
@@ -2856,6 +3102,10 @@ def main():
         f_ses = calib.get(sesion_bucket(ahora.hour), 1.0)
         uf = UMBRAL_CONF_FUERTE * f_ses
         uc = UMBRAL_CONF_CAMBIO * f_ses
+        try:
+            cools_antes = dict(est.get("cools") or {})
+        except Exception:
+            cools_antes = {}
         enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
@@ -2904,6 +3154,11 @@ def main():
             pos = abrir_papel(est, dirb, niv, t["last"], ahora)
             if pos:
                 est["paper_ult"] = {"dir": dirb["bias"], "t": ahora.isoformat()}
+        # SOMBRA (invisible): mide TODA señal con sesgo, sin pisos ni frenos.
+        try:
+            abrir_sombra(est, dirb["bias"], dirb["confianza"], t["last"], umbral, ahora)
+        except Exception:
+            pass
         guardar_estado(est, hist)
 
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
@@ -2991,6 +3246,11 @@ def main():
             print(f"Sin alerta ({motivo}). Estado e historial guardados.")
             return
         if es_dup and not forzar:
+            try:
+                est["cools"] = cools_antes
+                guardar_estado(est, hist)
+            except Exception:
+                pass
             print("Duplicado (<90 seg desde la ultima pasada). Comandos respondidos, parte omitido.")
             return
         runs = est["runs"]
@@ -3123,6 +3383,11 @@ def main():
         if ok:
             hist[-1]["enviado"] = True
             est["vistas"] = (est.get("vistas", []) + [n["titulo"] for n in notis])[-30:]
+            try:
+                if pila and pila_key and motivo == pila:
+                    est.setdefault("pilas", {})[pila_key] = hoy
+            except Exception:
+                pass
             guardar_estado(est, hist)
     except Exception as e:  # noqa: BLE001
         err = f"⚠️ El Vigilante fallo: {e} (si es Telegram 400: revisa Chat ID, pulsa Start en tu bot y verifica el token)"
