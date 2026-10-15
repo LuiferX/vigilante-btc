@@ -172,6 +172,8 @@ t("dec cambio", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, 
 t("dec fuerte", "Fuerte" in v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb, ultimo_bias="ALZA"), ah, None, None, "tendencia", False, "", None, None, None)[1] or True)
 t("dec forzado primero", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, "Tu alerta", None, "tendencia", True, "", None, None, None)[1] == "Tu alerta")
 t("dec brusco", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 1.5, "tendencia", False, "", None, None, None)[1])
+t("dec brusco fino", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 0.8, "tendencia", False, "", None, None, None)[1])
+t("dec brusco calla", "brusco" not in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 0.6, "tendencia", False, "", None, None, None)[1])
 t("dec liq", "iquidez" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", None, "x", None)[1])
 t("dec dia", "NY mueve" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", 2.5, None, None)[1])
 t("dec toque chop", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "rango", False, "", None, None, None)[2] == "nada")
@@ -319,6 +321,14 @@ t("auto pocos", v.auto_stats(lg[:5]) is None)
 t("niveles", all(x["precio"] < 83000 for x in v.niveles(
     {"winL": 82000, "winH": 0}, {"winL": 0, "winH": 0}, {"winL": 0, "winH": 0},
     {"winL": 0, "winH": 0}, None, None, 83000)["soportes"]))
+_n1 = v.niveles({"winL": 80702, "winH": 82426}, {"winL": 0, "winH": 0}, {"winL": 0, "winH": 0},
+    {"winL": 0, "winH": 0}, None, None, 82000)["resistencias"]
+_n2 = v.niveles({"winL": 80702, "winH": 82631}, {"winL": 0, "winH": 0}, {"winL": 0, "winH": 0},
+    {"winL": 0, "winH": 0}, None, None, 82000)["resistencias"]
+t("niveles snap estable", _n1 and _n1[0]["precio"] == 82500 and [x["precio"] for x in _n1] == [x["precio"] for x in _n2])
+_z1 = sorted(z["precio"] for z in v.zonas_pilas(None, {"winL": 80702, "winH": 82426}, {"winL": 79000, "winH": 83000}, 82000, None))
+_z2 = sorted(z["precio"] for z in v.zonas_pilas(None, {"winL": 80702, "winH": 82631}, {"winL": 79000, "winH": 83000}, 82000, None))
+t("pilas snap estable", _z1 == _z2 and 82500 in _z1)
 
 # ---------- cinta con datos ----------
 tr = lambda p, q, m: {"p": p, "q": q, "m": m}
@@ -785,6 +795,15 @@ t("precio sin lookahead", _bt.precio_en([{"t": datetime.datetime(2026, 1, 1, 2, 
 t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo=datetime.timezone.utc), "h": 10.0, "l": 0.0} for h in range(20)],
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
+t("noticias con presupuesto", v.noticias.__defaults__ == (5, 40))
+t("backtest demo marcado", "[DEMO]" in open(os.path.join(_AQUI, "backtest.py"), encoding="utf-8").read())
+_ahr = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+t("ruptura contra avisa", v.decidir_alerta(80552, {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 80445}]},
+    {"bias": "BAJA", "confianza": 50}, {}, _ahr, None, None, "tendencia", False, "", None, None, None, 55, 40, None,
+    "ruptura ALCISTA confirmada sobre 80.445", None, None, None, None, None)[1].endswith("(ojo: sesgo en contra, no perseguir)"))
+t("ruptura a favor limpia", v.decidir_alerta(80552, {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 80445}]},
+    {"bias": "ALZA", "confianza": 50}, {}, _ahr, None, None, "tendencia", False, "", None, None, None, 55, 40, None,
+    "ruptura ALCISTA confirmada sobre 80.445 (cierre 1H 12:00 en 80.552, 0.13% encima)", None, None, None, None, None)[1].endswith("encima)"))
 _ahP = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
 _nvp = {"soportes": [{"precio": 82200}], "resistencias": [{"precio": 83800}]}
 _estP = {"banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [], "paper_dia": {"fecha": _ahP.strftime("%Y-%m-%d"), "pnl": 0.0}}
