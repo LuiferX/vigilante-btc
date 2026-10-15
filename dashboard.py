@@ -675,6 +675,85 @@ def _ops_html(est, ahora):
     return (f"{stats}{ab}{ce}{pe}{jo}")
 
 
+def _sombra_html(est):
+    """Tarjeta Sombra: eval_sombra acumuladas + pendientes en cola. Puro."""
+    try:
+        evs = [e for e in ((est or {}).get("eval_sombra") or []) if isinstance(e, dict)]
+        pen = [p for p in ((est or {}).get("pend_sombra") or []) if isinstance(p, dict)]
+        if not evs and not pen:
+            return "<p class='mini'>sin evaluaciones aún</p>"
+        n = len(evs)
+        ok = sum(1 for e in evs if e.get("r") == 1)
+        wr = f"{round(ok / n * 100)}% ({ok}/{n})" if n else "s/d"
+        return (f"<div class='stats'><div class='stat'><small>Evaluadas</small><b>{n}</b></div>"
+                f"<div class='stat'><small>Acierto</small><b>{_esc(wr)}</b></div>"
+                f"<div class='stat'><small>En cola</small><b>{len(pen)}</b></div></div>"
+                f"<p class='mini'>Mide toda señal con sesgo, sin piso de confianza.</p>")
+    except Exception:
+        return "<p class='mini'>sin evaluaciones aún</p>"
+
+
+def _kpis_papel_html(est):
+    """KPIs puros de dinero papel desde est['paper_cerradas'] (pnl y r por item)."""
+    try:
+        bruto = (est or {}).get("paper_cerradas") if isinstance(est, dict) else None
+        cerradas = [c for c in (bruto or []) if isinstance(c, dict)]
+        if not cerradas:
+            return "<p class='mini'>sin operaciones aún</p>"
+        n = len(cerradas)
+        pnls = [_num(c.get("pnl")) for c in cerradas]
+        rs = [_num(c.get("r")) for c in cerradas]
+        ganadas = sum(1 for v in pnls if v > 0)
+        wr = (ganadas / n * 100) if n else 0.0
+        bruto_win = sum(v for v in pnls if v > 0)
+        bruto_loss = sum(-v for v in pnls if v < 0)
+        if bruto_loss > 0:
+            pf_txt = f"{bruto_win / bruto_loss:.2f}"
+        else:
+            pf_txt = "s/d"
+        exp_r = sum(rs) / n if n else 0.0
+        i_mejor = max(range(n), key=lambda i: pnls[i])
+        i_peor = min(range(n), key=lambda i: pnls[i])
+        mejor_txt = f"{pnls[i_mejor]:+.0f} ({rs[i_mejor]:+.2f}R)"
+        peor_txt = f"{pnls[i_peor]:+.0f} ({rs[i_peor]:+.2f}R)"
+        ultimo = pnls[-1]
+        if ultimo > 0:
+            signo = 1
+        elif ultimo < 0:
+            signo = -1
+        else:
+            signo = 0
+        racha = 0
+        if signo == 1:
+            for v in reversed(pnls):
+                if v > 0:
+                    racha += 1
+                else:
+                    break
+            racha_txt = f"{racha} ganadas"
+        elif signo == -1:
+            for v in reversed(pnls):
+                if v < 0:
+                    racha += 1
+                else:
+                    break
+            racha_txt = f"{racha} perdidas"
+        else:
+            racha_txt = "neutra"
+        return (
+            f"<div class='stats'>"
+            f"<div class='stat'><small>Cerradas</small><b>{_esc(n)}</b></div>"
+            f"<div class='stat'><small>Ganadas</small><b>{_esc(f'{ganadas}/{n} ({wr:.0f}%)')}</b></div>"
+            f"<div class='stat'><small>Profit factor</small><b>{_esc(pf_txt)}</b></div>"
+            f"<div class='stat'><small>Expectancy</small><b>{_esc(f'{exp_r:+.2f}R')}</b></div>"
+            f"<div class='stat'><small>Mejor</small><b>{_esc(mejor_txt)}</b></div>"
+            f"<div class='stat'><small>Peor</small><b>{_esc(peor_txt)}</b></div>"
+            f"<div class='stat'><small>Racha actual</small><b>{_esc(racha_txt)}</b></div>"
+            f"</div>")
+    except Exception:
+        return "<p class='mini'>sin operaciones aún</p>"
+
+
 CD_JS = ("<script>(function(){try{var el=document.getElementById('cd');"
           "if(!el||!el.dataset||!el.dataset.next)return;"
           "var t=new Date(el.dataset.next).getTime();if(!isFinite(t))return;"
@@ -1495,6 +1574,16 @@ def build_dashboard(est, hist):
         tarjetas.append(_card("macro", "Macro · eventos", mc))
     tarjetas.append(_sec("Dinero papel", "s-dinero"))
     tarjetas.append(_card("ops", "Operaciones papel", ops))
+    try:
+        _kpis = _kpis_papel_html(est)
+    except Exception:
+        _kpis = "<p class='mini'>sin operaciones aún</p>"
+    tarjetas.append(_card("kpis", "Dinero papel: KPIs", _kpis))
+    try:
+        _som = _sombra_html(est)
+    except Exception:
+        _som = "<p class='mini'>sin evaluaciones aún</p>"
+    tarjetas.append(_card("sombra", "Sombra (aprende de todo)", _som))
     tarjetas.append(_card("banco", "Banco papel", banco_b))
     tarjetas.append(_card("prec", "Precisión", prec_b))
     tarjetas.append(_sec("Sistema", "s-sistema"))
