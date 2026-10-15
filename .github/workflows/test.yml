@@ -3,11 +3,15 @@ name: Tests
 on:
   push:
     branches: [main]
-    paths: ['vigilante_cloud.py', 'test_vigilante.py', 'dashboard.py', 'comandos.py']
+    paths: ['vigilante_cloud.py', 'test_vigilante.py', 'dashboard.py', 'comandos.py', 'backtest.py', '.github/workflows/**']
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: tests
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -16,6 +20,11 @@ jobs:
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
+
+      - name: Fijar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Suite de calidad (sin red)
         run: python test_vigilante.py
