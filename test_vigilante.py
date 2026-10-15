@@ -535,16 +535,17 @@ _sn = {"tf": {"h1": {"tend": "alcista", "rsi": 70, "macd": 1},
               "w1": {"tend": "alcista", "rsi": 60, "macd": 1}}}
 t("dash tfs 4", _db._tfs_html(_sn).count("data-tf=") == 4)
 t("dash tfs vacio", _db._tfs_html({}) == "")
-t("dash duelo gana", "VICTORIA DE LAS BALLENAS" in _db._duelo_html(
-    {'bal': {'nb': 8, 'ns': 2, 'buys': 60.0, 'sells': 10.0, 'big': 12.5, 'txt': 'ballenas acumulando'},
-     'senti': {'taker': 1.0}}))
-t("dash duelo toro", "VICTORIA DE LOS TOROS" in _db._duelo_html(
-    {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
+t("dash duelo gana", "VICTORIA DE LOS TOROS" in _db._duelo_html(
+    {'bal': {'nb': 8, 'ns': 2, 'buys': 60.0, 'sells': 10.0, 'big': 12.5, 'txt': 'x'},
      'senti': {'taker': 1.35}}))
+t("dash duelo toro", "VICTORIA DE LOS OSOS" in _db._duelo_html(
+    {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
+     'senti': {'taker': 0.75}}))
 t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
-t("duelo debil no corona", "Pelea pareja" in _db._duelo_html(
+t("duelo caso vivo osos", "VICTORIA DE LOS OSOS" in _db._duelo_html(
     {'bal': {'nb': 0, 'ns': 1, 'buys': 0.0, 'sells': 6.7, 'big': 6.7, 'txt': 'x'},
-     'senti': {'taker': 0.794}}) and "VICTORIA" not in _db._duelo_html(
+     'senti': {'taker': 0.794}}))
+t("duelo debil no corona toros", "VICTORIA DE LOS TOROS" not in _db._duelo_html(
     {'bal': {'nb': 0, 'ns': 1, 'buys': 0.0, 'sells': 6.7, 'big': 6.7, 'txt': 'x'},
      'senti': {'taker': 0.794}}))
 _d1 = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
