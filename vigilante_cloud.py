@@ -1931,16 +1931,36 @@ def mapa_liq(kl, last, funding):
 
 
 def ballenas(data=None):
-    """Cinta de ballenas: prints >= UMBRAL_BALLENA en los ultimos 1000 trades
-    (fapi, con fallback a spot). m=True = vendedor agresivo."""
+    """Cinta de ballenas: prints >= UMBRAL_BALLENA en ~3000 trades recientes
+    (fapi, con fallback a spot). m=True = vendedor agresivo.
+    Ventana ancha porque los prints 5+ son ralos (1-5 por cada 1000)."""
     if data is None:
-        data = None
+        data = []
         for base in (FAPI, VISION):
             try:
-                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-                break
+                pg = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
             except Exception:
                 continue
+            if not pg:
+                continue
+            data = list(pg)
+            try:
+                vistos = {t.get("a") for t in data}
+                for _ in range(2):
+                    viejos = [t.get("a") for t in data if isinstance(t.get("a"), int)]
+                    if not viejos:
+                        break
+                    pg2 = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000&fromId=%d"
+                                % max(0, min(viejos) - 1000), tries=1)
+                    if not pg2:
+                        break
+                    for t in pg2:
+                        if t.get("a") not in vistos:
+                            vistos.add(t.get("a"))
+                            data.append(t)
+            except Exception:
+                pass
+            break
     if not data:
         return None
     buys = sells = 0.0
@@ -3498,6 +3518,23 @@ def main():
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
         bal = ballenas()
+        if bal is None:
+            try:
+                _pb = est.get("last_bal") or {}
+                _pbt = datetime.datetime.fromisoformat(str(_pb.get("t", "")))
+                if _pbt.tzinfo is None:
+                    _pbt = _pbt.replace(tzinfo=datetime.timezone.utc)
+                _edh = (ahora - _pbt).total_seconds() / 3600
+                if _edh < 6 and isinstance(_pb.get("bal"), dict):
+                    bal = dict(_pb["bal"])
+                    bal["txt"] = str(bal.get("txt", "")) + f" (hace {int(_edh)}h)"
+            except Exception:
+                pass
+        try:
+            if isinstance(bal, dict) and (bal.get("nb", 0) + bal.get("ns", 0)) > 0 and "(hace" not in str(bal.get("txt", "")):
+                est["last_bal"] = {"t": ahora.isoformat(), "bal": {k: bal.get(k) for k in ("nb", "ns", "buys", "sells", "big", "txt")}}
+        except Exception:
+            pass
         ima = imanes(t["last"])
         oro = oro_vs_btc(t["chg"])
         lsr = ls_global()
