@@ -37,8 +37,17 @@ def main():
         t = vc.ticker24()
         fresco_txt = ""
     except Exception:
-        t = {"last": snap["precio"], "chg": snap.get("chg", 0),
-             "hi": snap.get("hi", 0), "lo": snap.get("lo", 0)}
+        try:
+            t = {"last": float(snap.get("precio", 0) or 0), "chg": float(snap.get("chg", 0) or 0),
+                 "hi": float(snap.get("hi", 0) or 0), "lo": float(snap.get("lo", 0) or 0)}
+        except Exception:
+            print("Snapshot sin precio, espero al proximo parte.")
+            if sucio:
+                try:
+                    vc.guardar_estado(est, hist)
+                except Exception:
+                    pass
+            return
         fresco_txt = " (precio del último parte)"
     evs = []
     for e in snap.get("evs", []):
@@ -68,6 +77,11 @@ def main():
                "bloqueo": bloq, "pres": snap.get("pres")}
     except Exception as e:
         print(f"Snapshot incompatible, espero al proximo parte ({e}).")
+        if sucio:
+            try:
+                vc.guardar_estado(est, hist)
+            except Exception:
+                pass
         return
     chat_ok = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     fresco = est.get("runs", 0) == 0
@@ -75,21 +89,28 @@ def main():
     if not fresco:
         print(f"Comandos pendientes: {len(cmds)}")
         for cm in cmds:
-            if cm["texto"] == "/detalle" and str(cm["chat"]) == str(chat_ok) and chat_ok:
+            if cm.get("texto") == "/detalle" and str(cm.get("chat")) == str(chat_ok) and chat_ok:
                 est["pide_detalle"] = True
                 sucio = True
                 vc.send_telegram("💬 /detalle\nAnotado: te mando el detalle en la próxima pasada (máx 15 min).")
                 print("  /detalle anotado")
                 n_resp += 1
                 continue
-            r, d = vc.responder_comando(cm, ctx)
-            if r:
-                vc.send_telegram("💬 " + cm["texto"] + "\n" + r + fresco_txt)
-                print(f"  respondido {cm['texto']}")
-                n_resp += 1
-            else:
-                print(f"  ignorado {cm['texto']}")
-            sucio = sucio or d
+            try:
+                r, d = vc.responder_comando(cm, ctx)
+            except Exception as e:
+                print(f"  comando roto {cm.get('texto', '?')} ({e})")
+                continue
+            try:
+                if r:
+                    vc.send_telegram("💬 " + str(cm.get("texto", "?"))[:60] + "\n" + r + fresco_txt)
+                    print(f"  respondido {cm.get('texto', '?')}")
+                    n_resp += 1
+                else:
+                    print(f"  ignorado {cm.get('texto', '?')}")
+                sucio = sucio or d
+            except Exception as e:
+                print(f"  envio roto {cm.get('texto', '?')} ({e})")
     if sucio:
         vc.guardar_estado(est, hist)
     print(f"Oyente OK: {n_resp} respuestas")
