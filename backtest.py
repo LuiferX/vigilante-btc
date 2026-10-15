@@ -61,10 +61,14 @@ def velas_1h():
     raise SystemExit("Sin velas: ni fapi ni vision responden")
 
 
+CIERRE_1H = datetime.timedelta(hours=1)
+
+
 def precio_en(velas, cuando):
+    """Precio de la última vela CERRADA a `cuando` (sin lookahead)."""
     ant = None
     for v in velas:
-        if v["t"] <= cuando:
+        if v["t"] + CIERRE_1H <= cuando:
             ant = v
         else:
             break
@@ -72,7 +76,7 @@ def precio_en(velas, cuando):
 
 
 def atr_en(velas, cuando):
-    prev = [v for v in velas if v["t"] <= cuando][-15:-1]
+    prev = [v for v in velas if v["t"] + CIERRE_1H <= cuando][-14:]
     if len(prev) < 5:
         return None
     trs = [v["h"] - v["l"] for v in prev]
@@ -93,12 +97,12 @@ def metricas(res):
         peak = max(peak, eq)
         dd = min(dd, eq - peak)
     return {"n": n, "pct": round(sum(hits) / n * 100, 1),
-            "r": round(eq, 1), "pf": round(gan / per, 2) if per else float("inf"),
+            "r": round(eq, 1), "pf": (round(gan / per, 2) if per else None),
             "exp": round(eq / n, 2), "dd": round(dd, 1)}
 
 
 def sharpe_ratio(rs):
-    """Sharpe por trade (media / pstdev) de una lista de R.
+    """Sharpe por trade (media / stdev muestral) de una lista de R.
 
     Pura/stdlib. Devuelve None si n<5 o si la desv. es 0
     (muestra insuficiente para un Sharpe estable).
@@ -107,7 +111,7 @@ def sharpe_ratio(rs):
     if len(rs) < 5:
         return None
     mu = statistics.mean(rs)
-    sd = statistics.pstdev(rs)
+    sd = statistics.stdev(rs)
     if not sd:
         return None
     return mu / sd
@@ -272,11 +276,14 @@ def main():
         print("Muy pocas para backtest serio. Vuelve en unos dias.")
         return
     velas = velas_1h()
+    senales = sorted(senales, key=lambda s: str(s.get("t", "")))
     res = []
     atr_pcts = []
     for s in senales:
         try:
-            t0 = datetime.datetime.fromisoformat(s["t"])
+            t0 = datetime.datetime.fromisoformat(str(s["t"]).strip().replace("Z", "+00:00"))
+            if t0.tzinfo is None:
+                t0 = t0.replace(tzinfo=datetime.timezone.utc)
         except Exception:
             continue
         p0 = precio_en(velas, t0)
@@ -298,21 +305,21 @@ def main():
         try:
             import statistics as _st
             _rs = [x["r"] for x in res]
-            _sh = _st.mean(_rs) / (_st.pstdev(_rs) or 1.0)
+            _sh = _st.mean(_rs) / _st.stdev(_rs) if len(_rs) >= 5 and _st.stdev(_rs) else 0.0
         except Exception:
             _sh = 0.0
         print(f"Split purgado: train={len(_tr)} test={len(_te)} | Puerta: {puerta_trials(len(res), round(_sh, 2))}")
-    corte = len(res) // 2
-    m_in, m_out, m_all = metricas(res[:corte]), metricas(res[corte:]), metricas(res)
+    idx_tr, idx_te = partir_purgado(len(res))
+    m_in, m_out, m_all = metricas([res[i] for i in idx_tr]), metricas([res[i] for i in idx_te]), metricas(res)
     print("\n===== BACKTEST (regla del bot, plan 2R) =====")
     for nombre, m in (("IN-SAMPLE ", m_in), ("OUT-SAMPLE", m_out), ("TOTAL     ", m_all)):
-        print(f"{nombre}: n={m['n']} acierto={m['pct']}% R={m['r']:+} PF={m['pf']} "
+        print(f"{nombre}: n={m['n']} acierto={m['pct']}% R={m['r']:+} PF={m['pf'] if m['pf'] is not None else 'n/d'} "
               f"exp={m['exp']}R dd={m['dd']}R")
     print("\nRegla honesta: si OUT es parecido a IN, el sistema es real. "
           "Si OUT se derrumba, era suerte del pasado.")
     # --- Informativo (no cambia regla 2R ni corte IN/OOS) ---
-    rs_in = [x["r"] for x in res[:corte]]
-    rs_out = [x["r"] for x in res[corte:]]
+    rs_in = [x["r"] for x in [res[i] for i in idx_tr]]
+    rs_out = [x["r"] for x in [res[i] for i in idx_te]]
     rs_all = [x["r"] for x in res]
     sh_in, sh_out, sh_all = sharpe_ratio(rs_in), sharpe_ratio(rs_out), sharpe_ratio(rs_all)
     fmt = lambda v: f"{v:+.2f}" if v is not None else "n/d"
@@ -322,7 +329,7 @@ def main():
         print(f"DSR OUT=n/d (n_trials={n_trials} como proxy: n senales evaluadas; T={len(rs_out)})")
     else:
         mu_o = statistics.mean(rs_out)
-        sd_o = statistics.pstdev(rs_out)
+        sd_o = statistics.stdev(rs_out) if len(rs_out) >= 2 else 0.0
         skew_o = sum((x - mu_o) ** 3 for x in rs_out) / len(rs_out) / (sd_o ** 3) if sd_o else 0.0
         kurt_o = sum((x - mu_o) ** 4 for x in rs_out) / len(rs_out) / (sd_o ** 4) if sd_o else 3.0
         dsr = deflated_sharpe(sh_out, len(rs_out), skew_o, kurt_o, n_trials)
@@ -331,21 +338,21 @@ def main():
     if atr_pcts:
         atr_medio = statistics.mean(atr_pcts)
         costo = costo_bps(atr_medio)
-        umbral_medio = max(0.002, atr_medio * 0.5)
+        umbral_medio = statistics.mean(max(0.002, a * 0.5) for a in atr_pcts)
         costo_r = costo / (umbral_medio * 10000.0)
         print(f"Con costos ~{costo:.1f}bps (ATR medio {atr_medio * 100:.2f}%) "
-              f"el expectancy cae ~{costo_r:.2f}R por trade (informativo).")
+              f"el expectancy cae ~{costo_r:.2f}R por trade (informativo, no resta al R publicado).")
     # --- PF por grupo (informativo, no cambia regla 2R ni corte IN/OOS) ---
     print("PF por sesion:")
     for g, m in pf_por_grupo(res, "sesion").items():
         if m["n"] >= 4:
-            print(f"  {g}: n={m['n']} acierto={m['pct']}% PF={m['pf']}")
+            print(f"  {g}: n={m['n']} acierto={m['pct']}% PF={m['pf'] if m['pf'] is not None else 'n/d'}")
         else:
             print(f"  {g}: pocos (n={m['n']})")
     print("PF por grado:")
     for g, m in pf_por_grupo(res, "grade").items():
         if m["n"] >= 4:
-            print(f"  {g}: n={m['n']} acierto={m['pct']}% PF={m['pf']}")
+            print(f"  {g}: n={m['n']} acierto={m['pct']}% PF={m['pf'] if m['pf'] is not None else 'n/d'}")
         else:
             print(f"  {g}: pocos (n={m['n']})")
 
