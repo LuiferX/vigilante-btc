@@ -244,7 +244,7 @@ UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
 SEMILLA_SESION = {"NY": 1.0, "Londres": 1.0, "noche": 1.0, "Asia": 1.0}  # neutra: ver doc
 PAPER_BANCO = 100.0    # perfil XLX: banco virtual en USDT
-PAPER_LEV = 60         # apalancamiento: solo dimensiona la liquidacion estimada
+PAPER_LEV = 50         # apalancamiento: solo dimensiona la liquidacion estimada
 PAPER_RIESGO = 0.01    # 1% por idea (0.5% en racha de 3+ perdidas)
 
 
@@ -503,6 +503,56 @@ def sl_estructura(entry, dire, ref, atr_val):
             return None
         dist = abs(entry - sl) / entry * 100 if entry > 0 else 99
         return (round(sl), round(dist, 2), dist > 1.5)
+    except Exception:
+        return None
+
+
+def mecha_rechazo(candles):
+    """Rechazo por mecha en BTC 1H. Puro, sin red.
+    ALZA = martillo (mecha inferior domina, nivel=low).
+    BAJA = estrella fugaz (mecha superior domina, nivel=high).
+    Recencia: solo las ultimas 2 cerradas (la fresca manda).
+    Si pasas la vela en formacion, llama con candles[:-1].
+    Devuelve None o {"dir","nivel","mid","ref","ratio","fuerza"}."""
+    try:
+        n = len(candles or [])
+        if n < 1:
+            return None
+        RANGO_MIN = 400
+        MECHA_MIN_USDT = 250
+        MECHA_MIN_PCT = 0.30
+        RATIO_MIN = 0.50
+        CUERPO_MAX = 0.35
+        OPUESTA_MAX = 0.25
+        for idx in ([n - 1, n - 2] if n >= 2 else [n - 1]):
+            c = candles[idx]
+            o, h, l, cl = float(c["o"]), float(c["h"]), float(c["l"]), float(c["c"])
+            rango = h - l
+            if rango < RANGO_MIN or rango <= 0 or cl <= 0:
+                continue
+            cuerpo = abs(o - cl)
+            mi = min(o, cl) - l
+            ms = h - max(o, cl)
+            if mi < 0 or ms < 0:
+                continue
+            ri, rs, rc = mi / rango, ms / rango, cuerpo / rango
+            if rc > CUERPO_MAX:
+                continue
+            if ri >= RATIO_MIN and ri > rs and rs <= OPUESTA_MAX:
+                if mi < MECHA_MIN_USDT or mi / cl * 100 < MECHA_MIN_PCT:
+                    continue
+                fuerte = ri >= 0.65 and rc <= 0.20
+                return {"dir": "ALZA", "nivel": round(l), "mid": round((l + cl) / 2),
+                        "ref": round(cl), "ratio": round(ri, 3),
+                        "fuerza": "fuerte" if fuerte else "media"}
+            if rs >= RATIO_MIN and rs > ri and ri <= OPUESTA_MAX:
+                if ms < MECHA_MIN_USDT or ms / cl * 100 < MECHA_MIN_PCT:
+                    continue
+                fuerte = rs >= 0.65 and rc <= 0.20
+                return {"dir": "BAJA", "nivel": round(h), "mid": round((h + cl) / 2),
+                        "ref": round(cl), "ratio": round(rs, 3),
+                        "fuerza": "fuerte" if fuerte else "media"}
+        return None
     except Exception:
         return None
 
@@ -1245,6 +1295,10 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     if dirb["bias"] not in ("ALZA", "BAJA"):
         return None
     banco = float(est.get("banco", PAPER_BANCO))
+    if banco <= 20:
+        banco = PAPER_BANCO
+        est["banco"] = banco
+        est["banco_pico"] = banco
     pico = float(est.get("banco_pico", banco))
     if banco > pico:
         pico = banco
@@ -1278,8 +1332,10 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     dist_stop = abs(precio - stop)
     if dist_stop <= 0:
         return None
-    liq = round(precio * (1 - 0.9 / PAPER_LEV)) if dire == "LONG" else round(precio * (1 + 0.9 / PAPER_LEV))
+    liq = round(precio * (1 - 1.0 / PAPER_LEV)) if dire == "LONG" else round(precio * (1 + 1.0 / PAPER_LEV))
     if dist_stop > abs(precio - liq):
+        return None
+    if dist_stop > 0.5 * abs(precio - liq):
         return None
     tam = (banco * riesgo_pct) / dist_stop
     pos = {"dir": dire, "entrada": round(precio), "stop": stop, "tp": round(tp),
@@ -2488,6 +2544,99 @@ def evaluar_mfe(est, ahora, velas=None):
     est["pendientes"] = nuevas[-100:]
 
 
+def abrir_todo(est, bias, conf, precio, umbral, ahora):
+    """Todo: registra CADA pasada (hable o calle) para medir si callar fue correcto.
+    No alerta, no opera, no toca nada vivo. Dedup 1h por sesgo."""
+    try:
+        if bias not in ("ALZA", "BAJA", "LATERAL"):
+            return False
+        pu = est.get("todo_ult") or {}
+        try:
+            if pu.get("dir") == bias and (ahora - datetime.datetime.fromisoformat(pu.get("t", ""))).total_seconds() / 3600 < 1:
+                return False
+        except Exception:
+            pass
+        try:
+            precio = float(precio)
+            if not (precio > 0):
+                return False
+        except Exception:
+            return False
+        try:
+            conf = float(conf)
+        except Exception:
+            conf = 0.0
+        ps = est.get("pend_todo", [])
+        ps.append({"t": ahora.isoformat(), "precio": round(precio),
+                   "bias": bias, "conf": conf,
+                   "risk": round(umbral * precio, 1)})
+        est["pend_todo"] = ps[-500:]
+        est["todo_ult"] = {"dir": bias, "t": ahora.isoformat()}
+        return True
+    except Exception:
+        return False
+
+
+def evaluar_todo(est, ahora, velas=None):
+    """Evalúa todo vencido (>=8h). ALZA/BAJA igual que sombra; LATERAL acierta
+    si NO hubo movimiento 2R a ningún lado (callar fue correcto).
+    Guarda en eval_todo, jamás en vivo. Puro en fallos."""
+    try:
+        pends = est.get("pend_todo", [])
+        if not pends:
+            return
+        if velas is None:
+            try:
+                velas = klines("1h", 220)
+            except Exception:
+                return
+        nuevas = []
+        for p in pends:
+            try:
+                t0 = datetime.datetime.fromisoformat(p["t"])
+            except Exception:
+                continue
+            if t0.tzinfo is None:
+                t0 = t0.replace(tzinfo=datetime.timezone.utc)
+            if (ahora - t0).total_seconds() / 3600 < EVAL_HORAS:
+                nuevas.append(p)
+                continue
+            try:
+                entry = float(p["precio"])
+                if not (entry > 0):
+                    continue
+            except Exception:
+                continue
+            risk = p.get("risk") or max(entry * UMBRAL_MOV, 1)
+            try:
+                ventana = [v for v in velas if t0 < v["t"] <= t0 + datetime.timedelta(hours=8)]
+            except Exception:
+                continue
+            try:
+                mfe = mae = 0.0
+                for v in ventana:
+                    mfe = max(mfe, (v["h"] - entry) / entry)
+                    mae = max(mae, (entry - v["l"]) / entry)
+                if p["bias"] == "ALZA":
+                    hit = 1 if mfe >= 2 * risk / entry else 0
+                elif p["bias"] == "BAJA":
+                    hit = 1 if mae >= 2 * risk / entry else 0
+                else:
+                    hit = 1 if (mfe < 2 * risk / entry and mae < 2 * risk / entry) else 0
+                if not ventana:
+                    nuevas.append(p)
+                    continue
+                log = est.get("eval_todo", [])
+                log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
+                            "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4)})
+                est["eval_todo"] = log[-500:]
+            except Exception:
+                continue
+        est["pend_todo"] = nuevas[-500:]
+    except Exception:
+        pass
+
+
 def abrir_sombra(est, bias, conf, precio, umbral, ahora):
     """Sombra: registra TODA señal con sesgo (sin piso de conf) solo para medir.
     No alerta, no opera papel, no toca alza/baja/eval_log. Dedup 4h por direccion."""
@@ -2640,7 +2789,7 @@ def gestion_sl(op, last, atr_h1, regimen):
         return (None, None, None)
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     res = niv["resistencias"][0]
     sup = niv["soportes"][0]
@@ -2712,6 +2861,15 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 extra = f" · SL {fmt_miles(sl[0])}" if isinstance(sl, (list, tuple)) else ""
                 lejos = " (SL lejos, tamaño pequeño)" if isinstance(sl, (list, tuple)) and len(sl) > 2 and sl[2] else ""
                 return True, f"{verbo} {qb.get('tipo', 'BOS')} sobre {fmt_miles(qb.get('nivel', precio))}{extra}{lejos}", "alerta"
+        except Exception:
+            pass
+    if isinstance(mecha, dict) and mecha.get("dir") in ("ALZA", "BAJA") and bias == mecha["dir"] and conf >= UMBRAL_CONF_SENAL:
+        try:
+            if enfriar(est, "mecha:" + mecha["dir"], 4, ahora):
+                verbo = "RECHAZO ALZA" if mecha["dir"] == "ALZA" else "RECHAZO BAJA"
+                extra = f" · SL {fmt_miles(slm[0])}" if isinstance(slm, (list, tuple)) else ""
+                lejos = " (SL lejos, tamaño pequeño)" if isinstance(slm, (list, tuple)) and len(slm) > 2 and slm[2] else ""
+                return True, f"{verbo} {fmt_miles(mecha.get('nivel', precio))}→{fmt_miles(precio)}{extra}{lejos}", "alerta"
         except Exception:
             pass
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
@@ -3119,6 +3277,10 @@ def main():
             evaluar_sombra(est, ahora, _velas_ev)
         except Exception:
             pass
+        try:
+            evaluar_todo(est, ahora, _velas_ev)
+        except Exception:
+            pass
         estudiar_eventos(est, hist, evs, ahora)
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
@@ -3207,6 +3369,20 @@ def main():
             sl = sl_estructura(t["last"], (qb or {}).get("dir"), (qb or {}).get("swing"), h1.get("atr")) if qb else None
         except Exception:
             sl = None
+        try:
+            _mr = mecha_rechazo((kl_h1 or [])[:-1])
+            mecha = None
+            slm = None
+            if isinstance(_mr, dict):
+                if _mr["dir"] == "ALZA" and t["last"] > _mr["mid"]:
+                    mecha = _mr
+                    slm = sl_estructura(t["last"], "ALZA", _mr["nivel"], h1.get("atr"))
+                elif _mr["dir"] == "BAJA" and t["last"] < _mr["mid"]:
+                    mecha = _mr
+                    slm = sl_estructura(t["last"], "BAJA", _mr["nivel"], h1.get("atr"))
+        except Exception:
+            mecha = None
+            slm = None
         pila = None
         pila_key = None
         try:
@@ -3328,7 +3504,7 @@ def main():
             _snap_ual = _cp.deepcopy(est.get("ultima_alerta"))
         except Exception:
             _snap_ual = est.get("ultima_alerta")
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -3385,6 +3561,11 @@ def main():
             abrir_sombra(est, dirb["bias"], dirb["confianza"], t["last"], umbral, ahora)
         except Exception:
             pass
+        # TODO (invisible): mide CADA pasada hable o calle, para saber si callar fue correcto.
+        try:
+            abrir_todo(est, dirb["bias"], dirb["confianza"], t["last"], umbral, ahora)
+        except Exception:
+            pass
         guardar_estado(est, hist)
 
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
@@ -3434,6 +3615,8 @@ def main():
             "poc": poc if isinstance(poc, dict) else None,
             "qb": qb if isinstance(qb, dict) else None,
             "sl": list(sl) if isinstance(sl, (list, tuple)) else None,
+            "mecha": mecha if isinstance(mecha, dict) else None,
+            "slm": list(slm) if isinstance(slm, (list, tuple)) else None,
             "dom": dom if isinstance(dom, dict) else None,
             "liqmap": ({"arriba": liqmap.get("arriba", [])[:5],
                         "abajo": liqmap.get("abajo", [])[:5],
