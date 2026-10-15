@@ -900,6 +900,44 @@ def responder_comando(cmd, ctx):
             cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
             base += f"\nConciencia: cuando digo 40s/50s/60+ acierto {cub} · Brier {tc['brier']} (0 perfecto) · n={tc['n']}."
         return (base, False)
+    if c == "/sombra":
+        try:
+            slog = [e for e in (est.get("eval_sombra", []) or []) if isinstance(e, dict)]
+            n = len(slog)
+            if not n:
+                return ("Sombra: sin evaluaciones aún (mide toda señal con sesgo, sin operar).", False)
+            ok = sum(1 for e in slog if float(e.get("r", 0) or 0) > 0)
+            pct = round(ok / n * 100) if n else 0
+            base = f"Sombra: n={n} · acierto {pct}% ({ok}/{n})."
+            try:
+                tc = tabla_calibracion(slog)
+            except Exception:
+                tc = None
+            if tc and tc.get("cubetas"):
+                cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
+                base += f"\nPor confianza: {cub}."
+            return (base, False)
+        except Exception:
+            return ("Sombra: sin datos válidos aún.", False)
+    if c == "/evals":
+        try:
+            elog = [e for e in (est.get("eval_log", []) or []) if isinstance(e, dict)]
+            n = len(elog)
+            if not n:
+                return ("Evals: sin evaluaciones aún.", False)
+            ok = sum(1 for e in elog if float(e.get("r", 0) or 0) > 0)
+            pct = round(ok / n * 100) if n else 0
+            base = f"Evals: n={n} · acierto {pct}% ({ok}/{n})."
+            try:
+                tc = tabla_calibracion(elog)
+            except Exception:
+                tc = None
+            if tc and tc.get("cubetas"):
+                cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
+                base += f"\nPor confianza: {cub} · Brier {tc['brier']} (0 perfecto)."
+            return (base, False)
+        except Exception:
+            return ("Evals: sin datos válidos aún.", False)
     if c == "/manos":
         sm = ctx.get("smart")
         if not sm:
@@ -1056,7 +1094,7 @@ def responder_comando(cmd, ctx):
     _nom = str((cmd or {}).get("nombre") or "").strip().replace("\n", " ")[:30]
     hola = f" Hola {_nom}." if _nom else " Hola."
     return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
-             "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /manos "
+             "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /sombra /evals /manos "
              "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel /simula"), False)
 
 
@@ -1524,6 +1562,22 @@ def liquidez(kl, last):
     if any(c["l"] < lo for c in ult3) and last > lo and abs(last - lo) / lo <= 0.004:
         return f"barrido bajo mínimos {fmt_miles(lo)} con devolución (trampa para vendedores)"
     return None
+
+
+def lado_ok(bias, texto):
+    """Un solo lado por sesgo: ALZA solo PISO, BAJA solo TECHO, LATERAL ambos.
+    Puro. Evita el doble mensaje contradictorio (techo y piso seguidos)."""
+    try:
+        lado = "PISO" if "PISO" in str(texto) else ("TECHO" if "TECHO" in str(texto) else "?")
+        if bias == "LATERAL" or lado == "?":
+            return True
+        if bias == "ALZA":
+            return lado == "PISO"
+        if bias == "BAJA":
+            return lado == "TECHO"
+        return True
+    except Exception:
+        return True
 
 
 def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
@@ -3158,7 +3212,7 @@ def main():
         try:
             zonas = zonas_pilas(pw, d1, w1, t["last"], ima)
             texto, key = mensaje_pila(zonas, t["last"], niv["soportes"], niv["resistencias"], h1, h4, ahora.hour)
-            if texto and est.get("pilas", {}).get(key) != hoy:
+            if texto and est.get("pilas", {}).get(key) != hoy and lado_ok(dirb["bias"], texto):
                 pila = texto
                 pila_key = key
         except Exception:
