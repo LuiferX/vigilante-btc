@@ -306,7 +306,7 @@ def ticker24():
 
 
 def sentiment():
-    out = {"funding": None, "oi": None, "taker": None}
+    out = {"funding": None, "oi": None, "taker": None, "spread": None}
     try:
         f = fetch(f"{FAPI}/premiumIndex?symbol=BTCUSDT", tries=1)
         out["funding"] = round(float(f["lastFundingRate"]) * 100, 4)
@@ -323,7 +323,28 @@ def sentiment():
             out["taker"] = round(float(t[-1]["buySellRatio"]), 3)
     except Exception:
         pass
+    try:
+        b = fetch(f"{VISION}/ticker/bookTicker?symbol=BTCUSDT", tries=1)
+        bid, ask = float(b["bidPrice"]), float(b["askPrice"])
+        mid = (bid + ask) / 2
+        if mid > 0:
+            out["spread"] = round((ask - bid) / mid * 10000, 2)
+    except Exception:
+        pass
     return out
+
+
+def regla_spread(spread_bps):
+    """Ejecución por spread (Kaiko/Bybit): market/limit/pausa. Puro."""
+    try:
+        s = float(spread_bps)
+    except Exception:
+        return "s/d"
+    if s <= 3:
+        return "market ok"
+    if s <= 5:
+        return "mejor limit"
+    return "pausa"
 
 
 def ema_series(vals, n):
@@ -2920,6 +2941,12 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
                     C.append(f"NY {extras['mov_ny']:+.2f}% desde apertura")
                 except Exception:
                     pass
+            try:
+                _sp = (senti or {}).get("spread")
+                if _sp is not None:
+                    C.append(f"Spread {_sp}bps → {regla_spread(_sp)}")
+            except Exception:
+                pass
             vistos = {accion}
             for p in (extras.get("plan", []) or [])[:2]:
                 try:
