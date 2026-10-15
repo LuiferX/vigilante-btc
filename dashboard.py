@@ -247,6 +247,7 @@ border:1px solid #ef444455;background:#450a0a;border-radius:5px;padding:2px 7px;
 font-weight:800;font-size:22px;color:#fff}
 .fmono.b{background:linear-gradient(135deg,#0ea5e9,#1e3a8a);box-shadow:0 0 18px #38bdf855}
 .fmono.t{background:linear-gradient(135deg,#22c55e,#14532d);box-shadow:0 0 18px #22c55e55}
+.fmono.o{background:linear-gradient(135deg,#ef4444,#7f1d1d);box-shadow:0 0 18px #ef444455}
 .fighter.dormido .fmono{filter:grayscale(.8);animation:respirar 3.2s ease-in-out infinite}
 .simtag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.6px;color:#93c5fd;
 border:1px solid var(--line);background:#0c0c0e;border-radius:5px;padding:2px 7px;margin-right:6px}
@@ -1305,19 +1306,22 @@ def _macro_html(snap, ahora_dt):
 
 
 def _duelo_html(snap):
+    """Osos (ventas) vs Toros (compras): dos fuerzas INDEPENDIENTES.
+    Osos = % ventas en prints de ballenas 5+ BTC. Toros = taker buy/sell
+    mapeado 0-100 (50 = parejo). Gana por 15+ con fuerza 40+."""
     if not isinstance(snap, dict):
         return ""
     bal = snap.get("bal") if isinstance(snap.get("bal"), dict) else None
     taker = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
-    pw = None
+    po = None
     try:
         if bal and not isinstance(bal.get("buys"), bool) and not isinstance(bal.get("sells"), bool):
             _b = float(bal.get("buys", 0))
             _s = float(bal.get("sells", 0))
             if _b == _b and _s == _s and _b not in (float("inf"), float("-inf")) and _s not in (float("inf"), float("-inf")) and (_b + _s) > 0:
-                pw = _b / (_b + _s) * 100
+                po = _s / (_b + _s) * 100
     except Exception:
-        pw = None
+        po = None
     pt = None
     try:
         if taker is not None and not isinstance(taker, bool):
@@ -1326,19 +1330,19 @@ def _duelo_html(snap):
                 pt = max(0, min(100, (_t - 0.7) / 0.6 * 100))
     except Exception:
         pt = None
-    if pw is None and pt is None:
+    if po is None and pt is None:
         dor = ("<div class='fighter dormido'><span class='fmono {c}'>{l}</span>"
                "<div class='zzz'><span>·</span><span>·</span><span>·</span></div>"
                "<div class='fname'>{n} en espera</div></div>")
         return (
-            f"<div class='duel'>{dor.format(c='b', l='B', n='Ballenas')}"
+            f"<div class='duel'>{dor.format(c='o', l='O', n='Osos')}"
             f"<div class='vs'>VS</div>{dor.format(c='t', l='T', n='Toros')}</div>"
             f"<div class='winbanner'>Nadie en la arena todavía</div>"
             f"<p class='mini'>La cinta de ballenas y el taker aparecen en la próxima pasada.</p>")
     plz = ("<div class='fighter dormido'><span class='fmono {c}'>{l}</span>"
            "<div class='zzz'><span>·</span><span>·</span><span>·</span></div>"
            "<div class='fname'>{n} en espera</div><div class='fpow'>s/d</div></div>")
-    if pw is None or pt is None:
+    if po is None or pt is None:
         dw = ""
         try:
             nb = int(bal.get("nb", 0)) if bal else 0
@@ -1346,33 +1350,34 @@ def _duelo_html(snap):
         except Exception:
             nb, ns = 0, 0
         if (nb + ns) > 0:
-            dw = (f"<div class='tmeta'><span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span> · "
-                  f"<span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span></div>")
-        fw = (f"<div class='fighter'><span class='fmono b'>B</span><div class='fname'>Ballenas</div>"
-              f"<div class='fpow'>{pw:.0f}</div>"
-              f"<div class='rsibar'><i style='width:{pw:.0f}%;background:#38bdf8'></i></div>{dw}</div>"
-              if pw is not None else plz.format(c='b', l='B', n='Ballenas'))
+            dw = (f"<div class='tmeta'><span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span> · "
+                  f"<span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span></div>")
+        fo = (f"<div class='fighter'><span class='fmono o'>O</span><div class='fname'>Osos</div>"
+              f"<div class='fpow'>{po:.0f}</div>"
+              f"<div class='rsibar'><i style='width:{po:.0f}%;background:#ef4444'></i></div>{dw}</div>"
+              if po is not None else plz.format(c='o', l='O', n='Osos'))
         tk = (snap.get("senti") or {}).get("taker") if isinstance(snap.get("senti"), dict) else None
         dt = f"<div class='tmeta'>taker buy/sell {tk if tk is not None else 's/d'}</div>"
         ft = (f"<div class='fighter'><span class='fmono t'>T</span><div class='fname'>Toros</div>"
               f"<div class='fpow'>{pt:.0f}</div>"
               f"<div class='rsibar'><i style='width:{pt:.0f}%;background:#4ade80'></i></div>{dt}</div>"
               if pt is not None else plz.format(c='t', l='T', n='Toros'))
-        return (f"<div class='duel'>{fw}<div class='vs'>VS</div>{ft}</div>"
+        return (f"<div class='duel'>{fo}<div class='vs'>VS</div>{ft}</div>"
                 f"<div class='winbanner'>Esperando al rival</div>"
-                f"<p class='mini'>Ballenas = compras/(compras+ventas) en prints de 5+ BTC · "
-                f"Toros = taker buy/sell (misma fórmula del bot).</p>")
-    pw_d = pw if pw is not None else 50
+                f"<p class='mini'>Osos = ventas/(ventas+compras) en prints de 5+ BTC · "
+                f"Toros = taker buy/sell (50 = parejo).</p>")
+    po_d = po if po is not None else 50
     pt_d = pt if pt is not None else 50
-    diff = pw_d - pt_d
-    wwin = diff > 0
+    diff = pt_d - po_d
+    twin = diff > 0
     toros_compra = pt_d > 50
-    if abs(diff) >= 15 and max(pw_d, pt_d) >= 40 and (wwin or toros_compra):
-        if wwin:
-            banner = "VICTORIA DE LAS BALLENAS — " + _esc((bal or {}).get("txt", ""))
-        else:
+    osos_venta = po_d > 50
+    if abs(diff) >= 15 and max(po_d, pt_d) >= 40 and ((twin and toros_compra) or (not twin and osos_venta)):
+        if twin:
             banner = "VICTORIA DE LOS TOROS — la compra agresiva manda"
-        cw, cl = ("winner", "loser") if wwin else ("loser", "winner")
+        else:
+            banner = "VICTORIA DE LOS OSOS — la venta agresiva manda"
+        cw, cl = ("loser", "winner") if twin else ("winner", "loser")
     else:
         banner, cw, cl = "Pelea pareja — nadie domina", "", ""
     det_w = ""
@@ -1382,8 +1387,8 @@ def _duelo_html(snap):
     except Exception:
         nb2, ns2 = 0, 0
     if (nb2 + ns2) > 0:
-        det_w = (f"<div class='tmeta'><span class='win'>+{bal.get('buys', 0)} BTC en {bal.get('nb', 0)}</span> · "
-                 f"<span class='loss'>−{bal.get('sells', 0)} BTC en {bal.get('ns', 0)}</span> · max {bal.get('big', 0)}</div>")
+        det_w = (f"<div class='tmeta'><span class='loss'>−{_esc(bal.get('sells', 0))} BTC en {_esc(bal.get('ns', 0))}</span> · "
+                 f"<span class='win'>+{_esc(bal.get('buys', 0))} BTC en {_esc(bal.get('nb', 0))}</span> · max {_esc(bal.get('big', 0))}</div>")
     elif bal:
         det_w = "<div class='tmeta'>sin prints ≥5 BTC en la cinta</div>"
     else:
@@ -1391,15 +1396,15 @@ def _duelo_html(snap):
     det_t = f"<div class='tmeta'>taker buy/sell {_esc(taker if taker is not None else 's/d')}</div>"
     return (
         f"<div class='duel'>"
-        f"<div class='fighter {cw}'><span class='fmono b'>B</span><div class='fname'>Ballenas</div>"
-        f"<div class='fpow'>{pw_d:.0f}</div>"
-        f"<div class='rsibar'><i style='width:{pw_d:.0f}%;background:#38bdf8'></i></div>{det_w}</div>"
+        f"<div class='fighter {cw}'><span class='fmono o'>O</span><div class='fname'>Osos</div>"
+        f"<div class='fpow'>{po_d:.0f}</div>"
+        f"<div class='rsibar'><i style='width:{po_d:.0f}%;background:#ef4444'></i></div>{det_w}</div>"
         f"<div class='vs'>VS</div>"
         f"<div class='fighter {cl}'><span class='fmono t'>T</span><div class='fname'>Toros</div>"
         f"<div class='fpow'>{pt_d:.0f}</div>"
         f"<div class='rsibar'><i style='width:{pt_d:.0f}%;background:#4ade80'></i></div>{det_t}</div>"
         f"</div><div class='winbanner'>{banner}</div>"
-        f"<p class='mini'>Ballenas = compras/(compras+ventas) en prints de 5+ BTC · "
+        f"<p class='mini'>Osos = ventas en prints de 5+ BTC · "
         f"Toros = taker buy/sell (50 = parejo). Gana por 15+ con fuerza 40+.</p>")
 
 
@@ -1571,7 +1576,7 @@ def build_dashboard(est, hist):
         tarjetas.append(_card("liqmap", "Mapa de liquidez", lq))
     du = _duelo_html(est.get("snapshot"))
     if du:
-        tarjetas.append(_card("duelo", "Ballenas vs Toros", du))
+        tarjetas.append(_card("duelo", "Osos vs Toros", du))
     mc = _macro_html(est.get("snapshot"), ahora_dt)
     if mc:
         tarjetas.append(_card("macro", "Macro · eventos", mc))
