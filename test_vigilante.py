@@ -780,6 +780,14 @@ t("atr solo cerradas", _bt.atr_en([{"t": datetime.datetime(2026, 1, 1, h, tzinfo
     datetime.datetime(2026, 1, 1, 10, 30, tzinfo=datetime.timezone.utc)) == 10.0)
 t("pf vacio", _bt.pf_por_grupo([], "sesion") == {})
 _ahq = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+_ahN = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
+_vn = [{"t": _ahN - datetime.timedelta(hours=9 - i), "h": 83000 + 50 * i + 30, "l": 83000 + 50 * i - 30, "c": 83000 + 50 * i} for i in range(10)]
+_est_n = {"pendientes": [{"t": "2026-10-13T23:00:00", "precio": 83000, "bias": "ALZA", "conf": 40, "risk": 166.0}]}
+v.evaluar_mfe(_est_n, _ahq, _vn)
+t("mfe naive no tumba", len(_est_n.get("eval_log", [])) == 1)
+_est_ns = {"pend_sombra": [{"t": "2026-10-13T23:00:00", "precio": 83000, "bias": "ALZA", "conf": 8, "risk": 166.0}]}
+v.evaluar_sombra(_est_ns, _ahq, _vn)
+t("sombra naive evalua", len(_est_ns.get("eval_sombra", [])) == 1 and _est_ns.get("pend_sombra", []) == [])
 t("gestion BE short", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83850}, 82600, 100.0, "tendencia")[:2] == (round((83297 - 82600) / 553, 2), "BE"))
 t("gestion BE precio", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83850}, 82600, 100.0, "tendencia")[2] == 83297)
 t("gestion BE una vez", v.gestion_sl({"dir": "SHORT", "entrada": 83297, "stop": 83297, "be_done": True}, 82600, 100.0, "tendencia")[1] is None)
@@ -890,26 +898,26 @@ _tx, _ky = v.mensaje_pila(_zp, 83700, [{"precio": 82973}], [{"precio": 83850}],
 t("pila vive con h4", _tx is not None and _tx.startswith("EYY PILAS") and _ky == "83850")
 _est_p = {}
 _r1 = v.decidir_alerta(83700, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
-    {"bias": "LATERAL", "confianza": 10}, _est_p, _ah, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)
+    {"bias": "LATERAL", "confianza": 10}, _est_p, _ahq, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)
 t("pila alerta una vez", _r1[0] is True and _r1[2] == "alerta")
 _r2 = v.decidir_alerta(83700, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
-    {"bias": "LATERAL", "confianza": 10}, _est_p, _ah, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)
+    {"bias": "LATERAL", "confianza": 10}, _est_p, _ahq, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)
 t("pila repetida calla", _r2[2] == "nada")
 _ebf = {"ultimo_bias": "LATERAL", "cools": {}}
 _nv = {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 90000}]}
-t("fuerte avisa 1ra", v.decidir_alerta(85000, _nv, {"bias": "ALZA", "confianza": 70}, _ebf, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[0] is True)
+t("fuerte avisa 1ra", v.decidir_alerta(85000, _nv, {"bias": "ALZA", "confianza": 70}, _ebf, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[0] is True)
 _ebf["ultimo_bias"] = "ALZA"
-t("fuerte sella 2da", v.decidir_alerta(85000, _nv, {"bias": "ALZA", "confianza": 70}, _ebf, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[2] == "nada")
+t("fuerte sella 2da", v.decidir_alerta(85000, _nv, {"bias": "ALZA", "confianza": 70}, _ebf, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[2] == "nada")
 _ebc = {"ultimo_bias": "ALZA", "cools": {}}
-t("cambio avisa", v.decidir_alerta(85000, _nv, {"bias": "BAJA", "confianza": 70}, _ebc, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[0] is True)
+t("cambio avisa", v.decidir_alerta(85000, _nv, {"bias": "BAJA", "confianza": 70}, _ebc, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[0] is True)
 _ebc["ultimo_bias"] = "BAJA"
-t("cambio no repite", v.decidir_alerta(85000, _nv, {"bias": "BAJA", "confianza": 70}, _ebc, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[2] == "nada")
+t("cambio no repite", v.decidir_alerta(85000, _nv, {"bias": "BAJA", "confianza": 70}, _ebc, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[2] == "nada")
 t("toque lateral avisa", v.decidir_alerta(82500, {"soportes": [{"precio": 82400}], "resistencias": [{"precio": 90000}]},
-    {"bias": "LATERAL", "confianza": 50}, {}, _ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[1].startswith("Tocando"))
+    {"bias": "LATERAL", "confianza": 50}, {}, _ahq, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None)[1].startswith("Tocando"))
 _ebl = {}
-t("liq nivel1 avisa", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ah, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.199 X", None, 55, 40, None, None)[0] is True)
-t("liq nivel2 avisa", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ah, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.500 Y", None, 55, 40, None, None)[0] is True)
-t("liq mismo nivel calla", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ah, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.500 Y", None, 55, 40, None, None)[2] == "nada")
+t("liq nivel1 avisa", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ahq, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.199 X", None, 55, 40, None, None)[0] is True)
+t("liq nivel2 avisa", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ahq, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.500 Y", None, 55, 40, None, None)[0] is True)
+t("liq mismo nivel calla", v.decidir_alerta(82500, _nv, {"bias": "LATERAL", "confianza": 10}, _ebl, _ahq, None, None, "tendencia", False, "", None, "barrido sobre máximos 84.500 Y", None, 55, 40, None, None)[2] == "nada")
 _ah0 = datetime.datetime(2026, 10, 14, tzinfo=datetime.timezone.utc)
 t("sombra abre sin piso", v.abrir_sombra({}, "ALZA", 5, 83000, 0.002, _ah0) is True)
 t("sombra rechaza lateral", v.abrir_sombra({}, "LATERAL", 90, 83000, 0.002, _ah0) is False)
