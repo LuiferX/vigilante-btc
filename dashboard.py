@@ -1365,10 +1365,13 @@ def _duelo_html(snap):
     pw_d = pw if pw is not None else 50
     pt_d = pt if pt is not None else 50
     diff = pw_d - pt_d
-    if abs(diff) >= 15:
-        wwin = diff > 0
-        banner = ("VICTORIA DE LAS BALLENAS — " + _esc((bal or {}).get("txt", "")) if wwin
-                  else "VICTORIA DE LOS TOROS — la compra agresiva manda")
+    wwin = diff > 0
+    toros_compra = pt_d > 50
+    if abs(diff) >= 15 and max(pw_d, pt_d) >= 40 and (wwin or toros_compra):
+        if wwin:
+            banner = "VICTORIA DE LAS BALLENAS — " + _esc((bal or {}).get("txt", ""))
+        else:
+            banner = "VICTORIA DE LOS TOROS — la compra agresiva manda"
         cw, cl = ("winner", "loser") if wwin else ("loser", "winner")
     else:
         banner, cw, cl = "Pelea pareja — nadie domina", "", ""
@@ -1397,7 +1400,7 @@ def _duelo_html(snap):
         f"<div class='rsibar'><i style='width:{pt_d:.0f}%;background:#4ade80'></i></div>{det_t}</div>"
         f"</div><div class='winbanner'>{banner}</div>"
         f"<p class='mini'>Ballenas = compras/(compras+ventas) en prints de 5+ BTC · "
-        f"Toros = taker buy/sell (misma fórmula del bot). Gana por 15+.</p>")
+        f"Toros = taker buy/sell (50 = parejo). Gana por 15+ con fuerza 40+.</p>")
 
 
 def _saludo(ahora_dt):
