@@ -3016,7 +3016,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 return True, f"{verbo} {qb.get('tipo', 'BOS')} sobre {fmt_miles(qb.get('nivel', precio))}{extra}{lejos}", "alerta"
         except Exception:
             pass
-    if isinstance(mecha, dict) and mecha.get("dir") in ("ALZA", "BAJA") and bias == mecha["dir"] and conf >= UMBRAL_CONF_SENAL:
+    if isinstance(mecha, dict) and mecha.get("dir") in ("ALZA", "BAJA") and bias == mecha["dir"] and conf >= UMBRAL_CONF_SENAL and regimen == "tendencia":
         try:
             if enfriar(est, "mecha:" + mecha["dir"], 4, ahora):
                 verbo = "RECHAZO ALZA" if mecha["dir"] == "ALZA" else "RECHAZO BAJA"
