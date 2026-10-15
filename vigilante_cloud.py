@@ -1209,6 +1209,28 @@ def racha_perdidas(est):
     return n
 
 
+def perdon_bloqueo(est, ahora):
+    """Perdon por bloqueo: 3 dias seguidos con senal valida pero freno de pico
+    -> pico=banco (castigo real, sin deadlock). True si perdono."""
+    try:
+        bp = est.get("bloq_pico") or {}
+        hoy = ahora.strftime("%Y-%m-%d")
+        ayer = (ahora - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        d = int(bp.get("dias", 0) or 0)
+        if bp.get("fecha") == ayer:
+            d += 1
+        elif bp.get("fecha") != hoy:
+            d = 1
+        if d >= 3:
+            est["banco_pico"] = float(est.get("banco", PAPER_BANCO))
+            est["bloq_pico"] = {"fecha": hoy, "dias": 0}
+            return True
+        est["bloq_pico"] = {"fecha": hoy, "dias": d}
+        return False
+    except Exception:
+        return False
+
+
 def puede_papel(est, bias, conf, ahora):
     """El papel opera señales B (35%+): aprende sin spamear. Dedup 4h por direccion."""
     if bias not in ("ALZA", "BAJA") or conf < UMBRAL_PAPEL:
@@ -1391,7 +1413,10 @@ def abrir_papel(est, dirb, niv, precio, ahora):
         pico = banco
         est["banco_pico"] = pico
     if pico > 0 and (pico - banco) / pico >= 0.10:
-        return None
+        if perdon_bloqueo(est, ahora):
+            pico = banco
+        else:
+            return None
     hoy = ahora.strftime("%Y-%m-%d")
     pd = est.get("paper_dia") or {}
     if pd.get("fecha") != hoy:
@@ -1430,12 +1455,21 @@ def abrir_papel(est, dirb, niv, precio, ahora):
         return None
     liq = round(entrada * (1 - 1.0 / PAPER_LEV)) if dire == "LONG" else round(entrada * (1 + 1.0 / PAPER_LEV))
     tam = (banco * riesgo_pct) / dist_stop
+    try:
+        if (tam * entrada) / PAPER_LEV > 10 * (dist_stop * tam):
+            return None  # cap LIQ real: el LIQ de hoy pago 25.7x el riesgo; maximo 10x
+    except Exception:
+        return None
     pos = {"dir": dire, "entrada": entrada, "stop": stop, "tp": round(tp),
            "tam": tam, "riesgo": round(dist_stop * tam, 2), "lev": PAPER_LEV,
            "liq": liq, "t": ahora.isoformat()}
     if len(est.get("paper_abiertas", []) or []) >= MAX_PAPER_ABIERTAS:
         return None
     est["paper_abiertas"] = est.get("paper_abiertas", []) + [pos]
+    try:
+        est.pop("bloq_pico", None)
+    except Exception:
+        pass
     return pos
 
 
