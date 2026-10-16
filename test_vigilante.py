@@ -222,6 +222,14 @@ t("cmd alerta ok", cmd("/alerta", "/alerta 85000")[1] is True)
 t("cmd alerta mal", "Uso" in cmd("/alerta", "/alerta")[0])
 t("cmd alertas", "85.000" in cmd("/alertas")[0])
 t("cmd borrar", cmd("/borrar")[1] is True and CTX["est"]["mis_alertas"] == [])
+t("cohorte honesta", "Cohorte:" in open(os.path.join(_AQUI, "backtest.py"), encoding="utf-8").read())
+t("journal corrupta visible", v.journal_check([{"dir": "LONG"}], [{"h": 83500, "l": 83000, "c": 83200}] * 10, 83300)[0] == [{"dir": "LONG"}])
+t("cmd simula invertido no", "bajo la entrada" in cmd("/simula", "/simula LONG 80000")[0])
+t("cmd simula ok", cmd("/simula", "/simula LONG 83000")[1] is True)
+_gua = list(CTX["est"].get("mis_alertas", []))
+CTX["est"]["mis_alertas"] = [{}]
+t("cmd alertas corrupta", "corruptas" in cmd("/alertas")[0])
+CTX["est"]["mis_alertas"] = _gua
 t("cmd opere ok", cmd("/opere", "/opere LONG 83000 82500 84000")[1] is True)
 t("cmd opere mal", "Uso" in cmd("/opere", "/opere LONG x")[0])
 t("cmd voy", "LONG" in cmd("/voy")[0])
@@ -583,6 +591,9 @@ t("dash duelo toro", "VICTORIA DE LOS OSOS" in _db._duelo_html(
     {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
      'senti': {'taker': 0.75}}))
 t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
+_ban = _db._banner_html({"ultima_alerta": {"t": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "motivo": "<script>alert(1)</script>", "precio": 83000, "bias": "ALZA", "conf": 60}}, [], datetime.datetime.now(datetime.timezone.utc))
+t("banner escapa", "<script>" not in _ban and "&lt;script&gt;" in _ban)
 t("dash duelo cinta vacia", "cinta sin ballenas" in _db._duelo_html(
     {"bal": {"nb": 0, "ns": 0, "buys": 0, "sells": 0, "big": 0, "txt": "sin prints de ballenas"},
      "senti": {"taker": 0.794}}))
