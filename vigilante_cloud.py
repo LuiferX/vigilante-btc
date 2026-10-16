@@ -972,7 +972,7 @@ def leer_comandos(offset):
                 new_off = max(new_off, int(res[-1].get("update_id", 0)) + 1)
             except Exception:
                 pass
-        for u in res[-10:]:
+        for u in res:
             try:
                 new_off = max(new_off, int(u.get("update_id", 0)) + 1)
             except Exception:
@@ -1132,9 +1132,16 @@ def responder_comando(cmd, ctx):
         return (f"Alerta creada: te aviso cuando BTC {verbo} {fmt_miles(px)}.", True)
     if c == "/alertas":
         al = est.get("mis_alertas") or []
-        if not al:
+        limpias = [a for a in al if isinstance(a, dict) and a.get("precio") and a.get("dir")]
+        if not limpias:
+            if al:
+                return ("Tus alertas están corruptas. Usa /borrar y crea de nuevo.", False)
             return ("Sin alertas de precio. Crea con /alerta 85000.", False)
-        return (("Tus alertas:\n" + "\n".join(f"• {fmt_miles(a['precio'])} ({a['dir']})" for a in al)), False)
+        try:
+            txt = "\n".join(f"• {fmt_miles(float(a['precio']))} ({a['dir']})" for a in limpias)
+        except Exception:
+            return ("Tus alertas están corruptas. Usa /borrar y crea de nuevo.", False)
+        return (("Tus alertas:\n" + txt), False)
     if c == "/borrar":
         est["mis_alertas"] = []
         return ("Alertas de precio borradas.", True)
@@ -1248,6 +1255,10 @@ def responder_comando(cmd, ctx):
             return ("Números inválidos.", False)
         if not (e > 0 and s > 0 and tp > 0 and e != s):
             return ("Revisa los precios (stop distinto de entrada).", False)
+        if d == "LONG" and not (s < e):
+            return ("En LONG el stop va bajo la entrada.", False)
+        if d == "SHORT" and not (s > e):
+            return ("En SHORT el stop va sobre la entrada.", False)
         riesgo = abs(e - s) or 1
         rr = abs(tp - e) / riesgo
         sims.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
@@ -1593,6 +1604,7 @@ def journal_check(ops, kl_h1, last):
             else:
                 abiertas.append(o)
         except Exception:
+            abiertas.append(o)  # corrupta pero visible: nunca se pierde en silencio
             continue
     return abiertas, msgs
 
