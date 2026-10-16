@@ -30,7 +30,8 @@ def main():
     except Exception:
         cmds, new_off = [], est.get("offset", 0)
     sucio = False
-    if new_off != est.get("offset", 0):
+    old_off = est.get("offset", 0)
+    if new_off != old_off:
         est["offset"] = new_off
         sucio = True
     try:
@@ -77,6 +78,11 @@ def main():
                "bloqueo": bloq, "pres": snap.get("pres")}
     except Exception as e:
         print(f"Snapshot incompatible, espero al proximo parte ({e}).")
+        if cmds:
+            try:
+                vc.send_telegram("⏳ Actualizando datos, reenvía tu comando en 5 min.")
+            except Exception:
+                pass
         if sucio:
             try:
                 vc.guardar_estado(est, hist)
@@ -86,6 +92,14 @@ def main():
     chat_ok = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     fresco = est.get("runs", 0) == 0
     n_resp = 0
+    if fresco and cmds:
+        est["offset"] = old_off  # primer parte: reintenta luego, no los pierdas
+        print(f"Primer parte pendiente: {len(cmds)} comandos reintentan luego.")
+        try:
+            vc.guardar_estado(est, hist)
+        except Exception:
+            pass
+        return
     if not fresco:
         print(f"Comandos pendientes: {len(cmds)}")
         for cm in cmds:
