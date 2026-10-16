@@ -256,8 +256,11 @@ ul.pq li{border-left:3px solid #38bdf8}
 border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.grid{columns:3 330px;column-gap:14px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:14px;align-items:start}
+#c-ultima,#c-sala{grid-column:1/-1}
 .card{margin-bottom:14px;break-inside:avoid}
+#c-sala{break-inside:avoid;grid-column:1/-1}
+#salaCanvas{width:100%;height:560px;display:block;background:#020304;border-radius:8px}
 .card{background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,0) 120px),var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;
 box-shadow:var(--shadow);backdrop-filter:blur(8px);animation:up .55s both}
 .card:hover{border-color:var(--line2)}
@@ -312,7 +315,8 @@ table.ops tr:hover td{background:#ffffff0d}
 .tscroll{max-height:264px;overflow-y:auto;border-radius:8px}
 .tscroll thead th{position:sticky;top:0;background:#0c0c0e;z-index:1}
 footer{color:#64748b;font-size:12px;margin:16px 2px;line-height:1.5}
-@media(max-width:640px){body{padding:14px 10px 24px}.grid{columns:1}.card{padding:14px 13px;margin-bottom:10px}table.ops th,table.ops td{padding:7px 8px;font-size:12px}.tscroll{max-height:320px}header{gap:8px}.nav{margin:0 -2px 6px;padding:8px 2px}}
+@media(max-width:1024px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){body{padding:14px 10px 24px}.grid{grid-template-columns:minmax(0,1fr)}.card{padding:14px 13px;margin-bottom:10px}table.ops th,table.ops td{padding:7px 8px;font-size:12px}.tscroll{max-height:320px}header{gap:8px}.nav{margin:0 -2px 6px;padding:8px 2px}}
 @media(max-width:480px){.big{font-size:26px;letter-spacing:-.4px}.clock{font-size:22px}.gwrap{flex-direction:column;align-items:flex-start}}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-track{background:#000}
@@ -343,7 +347,7 @@ ul.pq{list-style:none;margin:8px 0 0;padding:0}
 ul.pq li{font-size:12.5px;color:#cbd5e1;background:#0c0c0e;border:1px solid var(--line);
 border-radius:10px;padding:7px 10px;margin-bottom:6px}
 ul.pq li:hover{border-color:#ffffff38}
-.sec{column-span:all;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+.sec{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
 color:#64748b;margin:10px 2px 14px;padding-top:10px;border-top:1px solid #ffffff10}
 .nav{display:flex;gap:6px;overflow-x:auto;padding:8px 2px;margin-bottom:4px;scrollbar-width:none;
 position:sticky;top:0;z-index:5;background:rgba(0,0,0,.82);backdrop-filter:blur(8px)}
@@ -409,6 +413,61 @@ padding:4px 12px;cursor:pointer}
 .nyon{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}
 .nyon.on{background:#052e16;color:#4ade80;border:1px solid #22c55e55}
 .nyon.off{background:#1e293b;color:#cbd5e1;border:1px solid var(--line)}
+/* ===== TEMA MONOCROMO ARQUITECTONICO (idle) ===== */
+:root{--acc:#f0f0f0;--grn:#e8e8e8;--amb:#aab0bb;--red:#8a8a8a}
+body{background:#000;background-image:linear-gradient(rgba(240,240,240,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(240,240,240,.028) 1px,transparent 1px);background-size:28px 28px}
+body::before{background:radial-gradient(circle,#1a1d24 0%,transparent 70%)!important}
+body::after{background:radial-gradient(circle,#0e0f13 0%,transparent 70%)!important}
+body[data-bias="ALZA"]::before,body[data-bias="BAJA"]::before{ background:radial-gradient(circle,#1a1d24 0%,transparent 70%)!important}
+body[data-bias="ALZA"]::after,body[data-bias="BAJA"]::after{background:radial-gradient(circle,#0e0f13 0%,transparent 70%)!important}
+.logo{background:linear-gradient(135deg,#e8e8e8,#555)!important;box-shadow:0 0 14px #ffffff44!important;color:#000!important}
+.flash{border-color:#ffffff88!important;animation:flashB 1.8s ease-in-out infinite}
+@keyframes flashB{0%,100%{box-shadow:0 10px 30px #0006,0 0 8px #ffffff33}50%{box-shadow:0 10px 30px #0006,0 0 28px #ffffff88}}
+#pvivo.sub{color:#fff}#pvivo.baj{color:#8a8a8a}
+.win,.tagLONG{color:#fff!important}.loss,.tagSHORT{color:#9a9a9a!important}
+.atag{color:#e8e8e8!important;border-color:#ffffff44!important;background:#1a1a1a!important}
+.tend.alcista{background:#1a1a1a!important;color:#fff!important}
+.tend.bajista{background:#1a1a1a!important;color:#9a9a9a!important}
+.fmono.b,.fmono.t,.fmono.o{background:linear-gradient(135deg,#e8e8e8,#444)!important;box-shadow:0 0 18px #ffffff33!important;color:#000!important}
+.fighter.winner{border-color:#fff!important;box-shadow:0 0 22px #ffffff44!important}
+.vs{color:#fff!important;text-shadow:0 0 12px #ffffff66!important}
+.winbanner{background:linear-gradient(90deg,#1a1a1a,#333,#1a1a1a)!important;background-size:200% 100%;border-color:#ffffff55!important;color:#fff!important}
+ul.pq li{border-left-color:#f0f0f0!important}
+svg .lvl.nsop{stroke:#e8e8e8!important;filter:drop-shadow(0 0 4px #ffffff66)!important}
+svg .lvl.nres{stroke:#8a8a8a!important;filter:drop-shadow(0 0 4px #ffffff44)!important}
+.ctit,.chev{color:#e8e8e8!important}
+.nav a:hover,.tbtn:hover{border-color:#f0f0f0!important}
+button:focus-visible,a:focus-visible{outline-color:#f0f0f0!important}
+/* ===== CUADRILLA IDLE ===== */
+.crew{display:flex;gap:8px;align-items:flex-end;margin-left:6px}
+.bot{width:34px;text-align:center}
+.bot .cuerpo{width:26px;height:26px;margin:0 auto;border-radius:50%;background:#0b0d12;border:2px solid #f0f0f0;position:relative;animation:salto 2.6s ease-in-out infinite;box-shadow:0 0 10px #ffffff22}
+.bot:nth-child(2) .cuerpo{animation-delay:.3s}.bot:nth-child(3) .cuerpo{animation-delay:.6s}
+.bot:nth-child(4) .cuerpo{animation-delay:.9s}.bot:nth-child(5) .cuerpo{animation-delay:1.2s}.bot:nth-child(6) .cuerpo{animation-delay:1.5s}
+@keyframes salto{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.bot .cuerpo::before,.bot .cuerpo::after{content:"";position:absolute;top:7px;width:4px;height:5px;border-radius:50%;background:#fff;animation:parp 4s infinite}
+.bot .cuerpo::before{left:6px}.bot .cuerpo::after{right:6px}
+@keyframes parp{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.bot small{display:block;font-size:8px;color:#9a9a9a;letter-spacing:.5px;margin-top:2px}
+.crew[data-mood="alerta"] .cuerpo{border-color:#fff;animation:salto .7s ease-in-out infinite;box-shadow:0 0 16px #ffffff66}
+.crew[data-mood="bien"] .cuerpo{box-shadow:0 0 14px #ffffff44}
+.crew[data-mood="bajo"] .cuerpo{border-color:#555;animation:none;opacity:.75}
+.idlebar{height:3px;border-radius:99px;background:#17171a;overflow:hidden;margin-top:4px}
+.idlebar i{display:block;height:100%;background:#f0f0f0;width:0%}
+.big{font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+/* ===== BOTS LIBRES ===== */
+.freebot{position:absolute;z-index:6;width:30px;pointer-events:none;transition:none}
+.freebot .cb{width:24px;height:24px;margin:0 auto;border-radius:50%;background:#0b0d12;border:2px solid #f0f0f0;position:relative;box-shadow:0 0 10px #ffffff33}
+.freebot .cb::before,.freebot .cb::after{content:"";position:absolute;top:7px;width:4px;height:5px;border-radius:50%;background:#fff}
+.freebot .cb::before{left:5px}.freebot .cb::after{right:5px}
+.freebot .lb{display:block;font-size:8px;color:#e8e8e8;text-align:center;letter-spacing:.5px;text-shadow:0 0 6px #000,0 0 3px #000}
+.freebot .bb{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(240,240,240,.95);color:#000;font-size:9px;padding:2px 6px;border-radius:4px;white-space:nowrap;display:none;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.freebot.work .bb{display:block}
+.freebot.up .cb{border-color:#fff;box-shadow:0 0 18px #ffffff88}
+.card.extract{outline:2px solid #ffffffaa!important;outline-offset:2px}
+.portal{position:fixed;right:10px;z-index:5;width:44px;height:44px;border:2px dashed #f0f0f0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;background:rgba(240,240,240,.06);box-shadow:0 0 16px #ffffff33;animation:giro 6s linear infinite;pointer-events:none}
+@keyframes giro{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+h1,.ctit,.sec{letter-spacing:1.5px}
 """
 
 
@@ -438,6 +497,22 @@ def _card(cid, titulo, cuerpo):
             f"<button class='chead' data-c='{cid}' aria-expanded='true'>"
             f"<span class='ctit'>{titulo}</span><span class='chev'>▾</span></button>"
             f"<div class='cbody'><div class='cinner'>{cuerpo}</div></div></div>")
+
+
+def _sala_html(snap, est):
+    """Sala viva: canvas grande con datos horneados (sin fetch). Siempre renderiza."""
+    try:
+        snap = snap if isinstance(snap, dict) else {}
+        est = est if isinstance(est, dict) else {}
+        niv = snap.get("niv") or {}
+        sop = (niv.get("sop") or [{}])[0] or {}
+        res = (niv.get("res") or [{}])[0] or {}
+        return ("<canvas id='salaCanvas' width='1100' height='560'></canvas>"
+                "<p class='mini'>Oficina en vivo: techo "
+                f"{_esc(res.get('precio') or 's/d')} · piso "
+                f"{_esc(sop.get('precio') or 's/d')} · sin datos = modo demo.</p>")
+    except Exception:
+        return "<canvas id='salaCanvas' width='1100' height='560'></canvas>"
 
 
 def _contexto_html(snap):
@@ -1113,6 +1188,735 @@ TF_JS = ("<script>(function(){try{"          "if(!window.fetch)return;var boxes=
           "}).catch(function(){try{svg.style.display='none';}catch(e){}});"
           "});}catch(e){}})();</script>")
 
+SALA_JS = ("<script>(function(){try{"
+           "var cv=document.getElementById('salaCanvas');if(!cv||!cv.getContext)return;"
+           "var x=cv.getContext('2d');var ds=document.body.dataset;"
+           "function num(k,d){var v=parseFloat(ds[k]);return (v>0&&isFinite(v))?v:d;}"
+           "var bias=ds.bias||'?';var conf=ds.conf||'?';"
+           "var RES=num('res',82500),SOP=num('sop',80500),BAN=num('banco',74.33);"
+           "var MOT=(ds.motivo||'').slice(0,60);var DEMO=!ds.res;"
+           "var MEM={};try{MEM=JSON.parse(ds.mem||'{}')}catch(e){MEM={};}"
+           "function ficha(n){try{var m=MEM[String(Math.round(n))];if(m&&(m.hold+m.rompe)>0)return 'aguanta '+m.hold+'/'+(m.hold+m.rompe);}catch(e){}return 'zona nueva';}"
+           "var W=cv.width,H=cv.height;function ISO(u){var S2=60;return {x:W/2+(u.x-u.y)*0.86*S2,y:H*0.44+(u.x+u.y)*0.5*S2-u.z*S2};}"
+           "var DK=[{x:0,y:0,r:'TEN'},{x:2.2,y:0,r:'TEC'},{x:4.4,y:0,r:'PIS'},{x:0,y:2.4,r:'MSJ'},{x:2.2,y:2.4,r:'SOM'},{x:4.4,y:2.4,r:'PAP'}];"
+           "function val(r){if(r==='TEN')return String(bias)+' '+(conf||'?');if(r==='TEC')return Math.round(RES);if(r==='PIS')return Math.round(SOP);if(r==='PAP')return BAN.toFixed(2);if(r==='MSJ')return MOT?('“'+MOT.slice(0,18)+'”'):'···';return '···';}"
+           "var BT=[];for(var i=0;i<6;i++)BT.push({r:DK[i].r,d:i,u:{x:DK[i].x+0.5,y:DK[i].y+1.4},t:{x:Math.random()*6.8,y:Math.random()*4},sp:.02+Math.random()*.015,esp:i*0.4,lleva:false,fr:'',dic:0});"
+           "var ND=[];for(var n=0;n<30;n++)ND.push({x:.04+Math.random()*.92,y:.06+Math.random()*.86,vx:(Math.random()-.5)*.0006,vy:(Math.random()-.5)*.0004});"
+           "var PU=[{a:0,b:1,t:0},{a:3,b:5,t:.4},{a:6,b:9,t:.7},{a:10,b:14,t:.2}];var POL=[];for(var p=0;p<24;p++)POL.push({x:Math.random(),y:Math.random()});"
+           "var lT=0;"
+           "function fr(){"
+           "var t=performance.now();var s=t/1000;var dt=Math.min(.05,(t-(lT||t))/1000)||.016;lT=t;var K=dt*60;"
+           "x.fillStyle='#020304';x.fillRect(0,0,W,H);"
+           "for(var q=0;q<POL.length;q++){var g=POL[q];g.y-=0.0004*K;if(g.y<0){g.y=1;g.x=Math.random();}x.fillStyle='rgba(240,240,240,.25)';x.fillRect(g.x*W,g.y*H,1.5,1.5);}"
+           "x.fillStyle='#f0f0f0';x.font='11px monospace';"
+           "x.fillText('TECHO '+Math.round(RES)+' '+ficha(RES),10,16);"
+           "x.fillText('PISO '+Math.round(SOP)+' '+ficha(SOP),10,30);"
+           "x.fillStyle='#aab0bb';x.fillText(String(bias)+' '+(conf||'?')+(DEMO?' · DEMO':' · NUBE'),10,44);"
+           "/* constelación a toda la tarjeta */"
+           "var NC=[];for(var m=0;m<ND.length;m++){var nn=ND[m];nn.x+=nn.vx*K;nn.y+=nn.vy*K;if(nn.x<.03||nn.x>.97)nn.vx*=-1;if(nn.y<.04||nn.y>.94)nn.vy*=-1;NC.push({x:nn.x*W,y:nn.y*H});}"
+           "for(var a=0;a<NC.length;a++)for(var b=0;b<NC.length;b++){if(b<=a)continue;var dx=NC[a].x-NC[b].x,dy=NC[a].y-NC[b].y,d=Math.sqrt(dx*dx+dy*dy);if(d<150){x.strokeStyle='rgba(240,240,240,'+(0.35*(1-d/150))+')';x.beginPath();x.moveTo(NC[a].x,NC[a].y);x.lineTo(NC[b].x,NC[b].y);x.stroke();}}"
+           "for(var k=0;k<NC.length;k++){x.fillStyle='#f0f0f0';x.beginPath();x.arc(NC[k].x,NC[k].y,2.4,0,7);x.fill();}"
+           "var BOOM=false;try{BOOM=(Date.now()-(window.__upload||0)<4000);}catch(e){BOOM=false;}"
+           "for(var u=0;u<PU.length;u++){var pp=PU[u];pp.t+=0.008*K*(BOOM?4:1);if(pp.t>1){pp.t=0;}var A=NC[pp.a%NC.length],B=NC[pp.b%NC.length];if(A&&B){var qx=A.x+(B.x-A.x)*pp.t,qy=A.y+(B.y-A.y)*pp.t;x.fillStyle='#fff';x.beginPath();x.arc(qx,qy,3,0,7);x.fill();}}"
+           "var ANCH=[['TECHO '+Math.round(RES)+' · '+ficha(RES),.08,.12],['SESGO '+String(bias)+' '+(conf||'?'),.08,.5],['PISO '+Math.round(SOP)+' · '+ficha(SOP),.08,.88]];"
+           "for(var an2=0;an2<ANCH.length;an2++){var ax=ANCH[an2][1]*W,ay2=ANCH[an2][2]*H;"
+           "x.strokeStyle='#fff';x.beginPath();x.arc(ax,ay2,10+Math.sin(s*3+an2)*2,0,7);x.stroke();"
+           "x.fillStyle='#fff';x.beginPath();x.arc(ax,ay2,4,0,7);x.fill();"
+           "x.fillStyle='#f0f0f0';x.font='11px monospace';x.fillText(ANCH[an2][0],ax+18,ay2+4);}"
+           "requestAnimationFrame(fr);}"
+           "try{requestAnimationFrame(fr);}catch(e){}}catch(e){}"
+           "})();</script>")
+
+IDLE_JS = ("<script>(function(){try{"
+           "var ds=document.body.dataset;var crew=document.getElementById('crew');"
+           "var conf=parseFloat(ds.conf)||0;"
+           "var mood='normal';"
+           "if(ds.grade==='A')mood='alerta';"
+           "else if(conf>=55)mood='bien';"
+           "else if(ds.bias==='LATERAL'&&conf<25)mood='bajo';"
+           "if(crew)crew.dataset.mood=mood;"
+           "var jobs={TEN:'mide sesgo '+ds.bias,TEC:'vigila techo '+ds.res,PIS:'cuida piso '+ds.sop,MSJ:'lleva '+(ds.motivo||'el parte'),SOM:'junta evals',PAP:'cuida '+ds.banco};"
+           "if(crew){var bs=crew.querySelectorAll('.bot');var ks=['TEN','TEC','PIS','MSJ','SOM','PAP'];"
+           "for(var i=0;i<bs.length&&i<ks.length;i++){bs[i].title=ks[i]+': '+jobs[ks[i]];}}"
+           "}catch(e){}})();</script>")
+
+FREE_JS = r"""<script>
+// FREE_JS rewrite legible (bots libres).
+// Origen: dashboard.py FREE_JS (~1254-1325). Solo lectura, sin editar dashboard.py.
+// Features conservadas: 10 bots con oficio, 7 estados, portales ETH/SOL/BNB
+// con precio Binance, charla al cruzarse, anarquía ~50s, entrega a #c-sala
+// con window.__upload, forma distinta por rol.
+// Reglas: funciones pequeñas, sin minificar, DOM con guardas,
+// requestAnimationFrame con agenda-previa (inmortal), dt normalizado.
+(function () {
+  'use strict';
+
+  try {
+    // 0. Respeto a movimiento reducido: no animar nada.
+    if (
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    // ---- Configuración -------------------------------------------------
+    var UP_ID = 'c-sala'; // tarjeta de entrega
+    var ANARCHY_EVERY = 50; // segundos entre anarquías
+    var ANARCHY_LASTS = 8; // segundos que dura el x2.2
+    var ANARCHY_SPEED = 2.2; // multiplicador durante anarquía
+    var CHAT_DIST2 = 3600; // 60px al cuadrado: distancia de charla
+    var CHAT_COOLDOWN = 20; // segundos de silencio tras charlar
+    var SPEED_GO = 230; // px/s hacia tarjeta
+    var SPEED_PORTAL = 260; // px/s hacia portal
+    var SPEED_STROLL = 200; // px/s de paseo
+    var SPEED_UP = 260; // px/s hacia sala
+
+    // Oficio de cada bot + tarjetas que visita.
+    var JOBS = [
+      { r: 'TEN', cards: ['c-conf', 'c-hero'] },
+      { r: 'TEC', cards: ['c-porque', 'c-tfs'] },
+      { r: 'PIS', cards: ['c-tfs', 'c-porque'] },
+      { r: 'MSJ', cards: ['c-alertas', 'c-seg'] },
+      { r: 'SOM', cards: ['c-sombra', 'c-prec'] },
+      { r: 'PAP', cards: ['c-banco', 'c-kpis'] },
+      { r: 'ETH', cards: ['c-macro', 'c-ctx'] },
+      { r: 'SOL', cards: ['c-dom', 'c-liqmap'] },
+      { r: 'BNB', cards: ['c-macro', 'c-calib'] },
+      { r: 'ECO', cards: ['c-alertas', 'c-banco'] }
+    ];
+
+    // Forma visual distinta por rol (border-radius del cuerpo).
+    var SHAPES = {
+      TEN: '50%',
+      TEC: '30%',
+      PIS: '50%',
+      MSJ: '8px',
+      SOM: '50%',
+      PAP: '4px',
+      ETH: '50% 50% 4px 4px',
+      SOL: '4px 4px 50% 50%',
+      BNB: '50%',
+      ECO: '30%'
+    };
+
+    // Portales a la derecha, uno por moneda escrutada.
+    var PORTS = [
+      { sym: 'ETHUSDT', tag: 'ETH' },
+      { sym: 'SOLUSDT', tag: 'SOL' },
+      { sym: 'BNBUSDT', tag: 'BNB' }
+    ];
+
+    var SCOUTS = { ETH: true, SOL: true, BNB: true }; // roles que usan portales
+    var CREW_ORDER = ['TEN', 'TEC', 'PIS', 'MSJ', 'SOM', 'PAP']; // orden en #crew
+
+    // ---- Utilidades DOM con guardas ------------------------------------
+    function byId(id) {
+      try {
+        return document.getElementById(id) || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function query(sel, root) {
+      try {
+        var base = root || document;
+        if (!base || !base.querySelector) {
+          return null;
+        }
+        return base.querySelector(sel) || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function queryAll(sel, root) {
+      try {
+        var base = root || document;
+        if (!base || !base.querySelectorAll) {
+          return [];
+        }
+        return base.querySelectorAll(sel) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function viewW() {
+      try {
+        return window.innerWidth || 800;
+      } catch (e) {
+        return 800;
+      }
+    }
+
+    function viewH() {
+      try {
+        return window.innerHeight || 600;
+      } catch (e) {
+        return 600;
+      }
+    }
+
+    function scrollX() {
+      try {
+        return window.scrollX || window.pageXOffset || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function scrollY() {
+      try {
+        return window.scrollY || window.pageYOffset || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    // Centro de una tarjeta en coords de página. Null si no visible.
+    function cardCenter(id) {
+      try {
+        var el = byId(id);
+        if (!el || !el.getBoundingClientRect) {
+          return null;
+        }
+        var r = el.getBoundingClientRect();
+        if (!r || r.width < 40 || r.height < 30) {
+          return null;
+        }
+        return {
+          x: r.left + r.width / 2 + scrollX(),
+          y: r.top + 80 + scrollY()
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Primeras palabras de una tarjeta, para llevar en la mano.
+    function cardText(id) {
+      try {
+        var el = byId(id);
+        if (!el) {
+          return '';
+        }
+        var inner = query('.cinner', el) || el;
+        var t = '';
+        try {
+          t = inner.innerText || '';
+        } catch (e) {
+          t = '';
+        }
+        return t.replace(/\s+/g, ' ').trim().slice(0, 64);
+      } catch (e) {
+        return '';
+      }
+    }
+
+    // ---- Creación de actores -------------------------------------------
+    function makeBot(job) {
+      var d = null;
+      try {
+        d = document.createElement('div');
+      } catch (e) {
+        return null;
+      }
+      if (!d) {
+        return null;
+      }
+      try {
+        d.className = 'freebot';
+        d.innerHTML =
+          '<div class="cb"></div>' +
+          '<span class="lb">' + job.r + '</span>' +
+          '<span class="bb"></span>';
+      } catch (e) {
+        return null;
+      }
+      try {
+        document.body.appendChild(d);
+      } catch (e) {
+        return null;
+      }
+      // Forma distinta por rol, con guarda.
+      try {
+        var body = query('.cb', d);
+        if (body && SHAPES[job.r]) {
+          body.style.borderRadius = SHAPES[job.r];
+        }
+      } catch (e) {
+        // decorativo: se ignora
+      }
+      return {
+        r: job.r,
+        cards: job.cards,
+        el: d,
+        bub: query('.bb', d),
+        x: Math.random() * viewW(),
+        y: scrollY() + viewH() * 0.4 + Math.random() * 200,
+        tx: 0,
+        ty: 0,
+        est: 'ir', // ir|extraer|portal|viaje|paseo|subir|volver
+        t: 0, // temporizador del estado actual
+        tarea: 0, // índice de tarjeta visitada
+        desvio: 0, // 1 si ya paseó (evita paseos encadenados)
+        carry: '', // dato en la mano
+        chat: 0, // cooldown de conversación
+        port: null // portal elegido
+      };
+    }
+
+    function makePortals() {
+      var i;
+      for (i = 0; i < PORTS.length; i++) {
+        try {
+          var pd = document.createElement('div');
+          pd.className = 'portal';
+          pd.textContent = PORTS[i].tag;
+          pd.style.top = 140 + i * 220 + 'px';
+          document.body.appendChild(pd);
+          PORTS[i].el = pd;
+        } catch (e) {
+          PORTS[i].el = null;
+        }
+      }
+    }
+
+    // ---- Diálogo (bocadillo) --------------------------------------------
+    function habla(b, txt, cls) {
+      if (!b || !b.el) {
+        return;
+      }
+      try {
+        if (b.bub) {
+          b.bub.textContent = txt;
+        }
+        b.el.classList.add('work');
+        if (cls) {
+          b.el.classList.add(cls);
+        }
+      } catch (e) {
+        // decorativo
+      }
+    }
+
+    function calla(b) {
+      if (!b || !b.el) {
+        return;
+      }
+      try {
+        b.el.classList.remove('work');
+        b.el.classList.remove('up');
+      } catch (e) {
+        // decorativo
+      }
+    }
+
+    // ---- Precio real de Binance para el portal --------------------------
+    function precioPortal(sym, cb) {
+      try {
+        fetch(
+          'https://data-api.binance.vision/api/v3/ticker/price?symbol=' + sym
+        )
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (j) {
+            var p = parseFloat(j && j.price);
+            cb(p > 0 ? p : null);
+          })
+          .catch(function () {
+            cb(null);
+          });
+      } catch (e) {
+        cb(null);
+      }
+    }
+
+    function formatPrice(p) {
+      try {
+        return p.toLocaleString('es-CO', { maximumFractionDigits: 2 });
+      } catch (e) {
+        return String(p);
+      }
+    }
+
+    // ---- Movimiento ------------------------------------------------------
+    // Avanza hacia (tx,ty) hasta speed*dt. Devuelve true si llegó.
+    function stepToward(b, tx, ty, speed, dt) {
+      var dx = tx - b.x;
+      var dy = ty - b.y;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd < 1e-6) {
+        return true;
+      }
+      var step = Math.min(speed * dt, dd);
+      b.x += (dx / dd) * step;
+      b.y += (dy / dd) * step;
+      return step >= dd - 1e-9;
+    }
+
+    function flashCard(id) {
+      var card = byId(id);
+      if (!card) {
+        return;
+      }
+      try {
+        card.classList.add('extract');
+        setTimeout(function () {
+          try {
+            card.classList.remove('extract');
+          } catch (e) {
+            // el nodo pudo desaparecer
+          }
+        }, 1200);
+      } catch (e) {
+        // decorativo
+      }
+    }
+
+    // ---- Estados (uno por función pequeña) -------------------------------
+    function tickIr(b, dt, mul) {
+      var id = b.cards[b.tarea % b.cards.length];
+      var p = cardCenter(id);
+      if (!p) {
+        // Tarjeta ausente: probar la siguiente, luego rendirse a 'subir'.
+        b.tarea++;
+        if (b.tarea > b.cards.length + 1) {
+          b.tarea = 0;
+          b.est = 'subir';
+        }
+        return;
+      }
+      var dx = p.x - b.x;
+      var dy = p.y - b.y;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd < 24) {
+        b.est = 'extraer';
+        b.t = 1.4;
+        b.carry = cardText(id);
+        flashCard(id);
+        habla(b, b.r + ': ' + cardText(id));
+        return;
+      }
+      stepToward(b, p.x, p.y, SPEED_GO * mul, dt);
+    }
+
+    function tickExtraer(b, dt) {
+      b.t -= dt;
+      if (b.t > 0) {
+        return;
+      }
+      calla(b);
+      b.tarea++;
+      if (SCOUTS[b.r] && Math.random() < 0.4) {
+        // Explorador: a veces cruza un portal antes de subir.
+        b.est = 'portal';
+        b.port = PORTS[Math.floor(Math.random() * PORTS.length)];
+      } else if (b.desvio <= 0 && Math.random() < 0.25) {
+        // Paseo ocasional, solo si no se desvió recién.
+        b.desvio = 1;
+        b.est = 'paseo';
+        b.tx = Math.random() * viewW();
+        b.ty = scrollY() + Math.random() * viewH();
+      } else {
+        b.desvio = 0;
+        // Cada 3 tareas sube directo; si no, sigue rondando.
+        b.est = b.tarea % 3 === 2 ? 'subir' : 'ir';
+      }
+    }
+
+    function tickPortal(b, dt, mul) {
+      if (!b.port) {
+        b.est = 'subir';
+        return;
+      }
+      var idx = PORTS.indexOf(b.port);
+      var px = viewW() - 32 + scrollX();
+      var py = 140 + (idx < 0 ? 0 : idx) * 220 + scrollY();
+      var dx = px - b.x;
+      var dy = py - b.y;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd < 30) {
+        // Entra al portal: se oculta 3s y trae el precio real.
+        b.est = 'viaje';
+        b.t = 3;
+        try {
+          b.el.style.display = 'none';
+        } catch (e) {
+          // decorativo
+        }
+        habla(b, b.r + ': ¡entro al portal ' + b.port.tag + '!');
+        (function (bb, pp) {
+          precioPortal(pp.sym, function (p) {
+            try {
+              bb.el.style.display = '';
+            } catch (e) {
+              // decorativo
+            }
+            bb.carry = pp.tag + ' ' + (p ? formatPrice(p) : 's/d');
+            bb.est = 'subir';
+          });
+        })(b, b.port);
+        return;
+      }
+      stepToward(b, px, py, SPEED_PORTAL * mul, dt);
+    }
+
+    function tickViaje(b, dt) {
+      // Salvavidas: si el fetch tardó, reaparece con lo que tenga.
+      b.t -= dt;
+      if (b.t <= 0 && b.est === 'viaje') {
+        try {
+          b.el.style.display = '';
+        } catch (e) {
+          // decorativo
+        }
+        b.carry = b.carry || 'nada';
+        b.est = 'subir';
+      }
+    }
+
+    function tickPaseo(b, dt, mul) {
+      var dx = b.tx - b.x;
+      var dy = b.ty - b.y;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd < 24) {
+        b.est = 'ir';
+        return;
+      }
+      stepToward(b, b.tx, b.ty, SPEED_STROLL * mul, dt);
+    }
+
+    // Dónde entregar: #c-sala, o cabecera, o centro arriba.
+    function uploadPoint() {
+      var u = cardCenter(UP_ID);
+      if (u) {
+        return u;
+      }
+      try {
+        var h = query('header');
+        var sy = scrollY();
+        if (h && h.getBoundingClientRect) {
+          var hr = h.getBoundingClientRect();
+          return {
+            x: hr.left + hr.width / 2 + scrollX(),
+            y: hr.bottom + 40 + sy
+          };
+        }
+      } catch (e) {
+        // sigue al fallback
+      }
+      return { x: viewW() / 2, y: 120 + scrollY() };
+    }
+
+    function markUpload() {
+      try {
+        window.__upload = Date.now();
+      } catch (e) {
+        // no crítico
+      }
+    }
+
+    function paintSala(b) {
+      try {
+        var sm = query('#c-sala .cinner p.mini');
+        if (sm) {
+          if (!sm.dataset.orig) {
+            sm.dataset.orig = sm.textContent;
+          }
+          sm.textContent = '✸ ' + b.r + ' aportó: ' + (b.carry || 'dato');
+        }
+      } catch (e) {
+        // decorativo
+      }
+    }
+
+    function paintCrew(b) {
+      try {
+        var btns = queryAll('#crew .bot');
+        var ki = CREW_ORDER.indexOf(b.r);
+        if (ki >= 0 && btns && btns[ki]) {
+          btns[ki].title = b.r + ': ' + (b.carry || ' dato entregado');
+          var cuerpo = query('.cuerpo', btns[ki]);
+          if (cuerpo) {
+            cuerpo.style.boxShadow = '0 0 18px #ffffff88';
+          }
+        }
+      } catch (e) {
+        // decorativo
+      }
+    }
+
+    function tickSubir(b, dt, mul) {
+      var u = uploadPoint();
+      var dx = u.x - b.x;
+      var dy = u.y - b.y;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd < 40) {
+        markUpload();
+        paintSala(b);
+        paintCrew(b);
+        habla(b, b.r + ': ¡entregado a la cuadrilla!', 'up');
+        b.est = 'volver';
+        b.t = 1.6;
+        return;
+      }
+      stepToward(b, u.x, u.y, SPEED_UP * mul, dt);
+    }
+
+    function tickVolver(b, dt) {
+      b.t -= dt;
+      if (b.t <= 0) {
+        calla(b);
+        b.est = 'ir';
+      }
+    }
+
+    function placeBot(b) {
+      if (!b || !b.el) {
+        return;
+      }
+      try {
+        b.el.style.left = b.x - 15 + 'px';
+        b.el.style.top = b.y + 'px';
+      } catch (e) {
+        // decorativo
+      }
+    }
+
+    // ---- Eventos globales --------------------------------------------------
+    function tickAnarchy(bots, dt, state) {
+      state.clock += dt;
+      if (state.clock > ANARCHY_EVERY) {
+        var i;
+        state.clock = 0;
+        state.power = ANARCHY_LASTS;
+        for (i = 0; i < bots.length; i++) {
+          habla(bots[i], '¡ANARQUÍA!');
+        }
+      }
+      if (state.power > 0) {
+        state.power -= dt;
+      }
+    }
+
+    function speedMul(state) {
+      return state.power > 0 ? ANARCHY_SPEED : 1;
+    }
+
+    // Dos bots que se cruzan conversan; ECO copia lo que oye.
+    function tickChats(bots, dt) {
+      var i;
+      var j;
+      for (i = 0; i < bots.length; i++) {
+        for (j = i + 1; j < bots.length; j++) {
+          var a = bots[i];
+          var b = bots[j];
+          if (a.chat > 0) {
+            a.chat -= dt;
+          }
+          if (b.chat > 0) {
+            b.chat -= dt;
+          }
+          var gx = a.x - b.x;
+          var gy = a.y - b.y;
+          if (gx * gx + gy * gy < CHAT_DIST2 && a.chat <= 0 && b.chat <= 0) {
+            a.chat = CHAT_COOLDOWN;
+            b.chat = CHAT_COOLDOWN;
+            var info = b.carry || cardText(b.cards[0]) || 'nada nuevo';
+            habla(a, a.r + ': ¿qué sabes?');
+            habla(b, b.r + ': ' + String(info).slice(0, 48));
+            if (a.r === 'ECO') {
+              a.carry = info;
+            }
+          }
+        }
+      }
+    }
+
+    // ---- Arranque -----------------------------------------------------------
+    var bots = [];
+    var k;
+    for (k = 0; k < JOBS.length; k++) {
+      var made = makeBot(JOBS[k]);
+      if (made) {
+        bots.push(made);
+      }
+    }
+    if (bots.length === 0) {
+      return;
+    }
+    makePortals();
+
+    var state = { clock: 0, power: 0 };
+    var lastT = 0;
+
+    // Bucle inmortal: agenda-previa primero, cuerpo con guarda, dt normalizado.
+    function fr(t) {
+      // Agenda-previa: el próximo frame queda pedido aunque esto falle.
+      try {
+        requestAnimationFrame(fr);
+      } catch (e) {
+        // sin rAF no hay animación; se sale sin romper la página
+        return;
+      }
+      try {
+        var now = typeof t === 'number' ? t : 0;
+        // dt en segundos, recortado a 50ms; k = factor a 60fps.
+        var dt = Math.min(0.05, (now - (lastT || now)) / 1000) || 0.016;
+        lastT = now;
+
+        tickAnarchy(bots, dt, state);
+        var mul = speedMul(state);
+
+        var i;
+        for (i = 0; i < bots.length; i++) {
+          var b = bots[i];
+          if (!b || !b.el) {
+            continue;
+          }
+          if (b.est === 'ir') {
+            tickIr(b, dt, mul);
+          } else if (b.est === 'extraer') {
+            tickExtraer(b, dt);
+          } else if (b.est === 'portal') {
+            tickPortal(b, dt, mul);
+          } else if (b.est === 'viaje') {
+            tickViaje(b, dt);
+          } else if (b.est === 'paseo') {
+            tickPaseo(b, dt, mul);
+          } else if (b.est === 'subir') {
+            tickSubir(b, dt, mul);
+          } else if (b.est === 'volver') {
+            tickVolver(b, dt);
+          } else {
+            // Estado desconocido: vuelve a rondar en vez de atascarse.
+            b.est = 'ir';
+          }
+          placeBot(b);
+        }
+
+        tickChats(bots, dt);
+      } catch (e) {
+        // Un frame malo no mata el bucle: el siguiente ya está agendado.
+      }
+    }
+
+    try {
+      requestAnimationFrame(fr);
+    } catch (e) {
+      // sin rAF no se anima, pero la página sigue viva
+    }
+  } catch (e) {
+    // Fallo de arranque: nunca romper la página.
+  }
+})();
+
+</script>"""
+
 VIVO_JS = ("<script>(function(){try{"
           "var el=document.getElementById('pvivo');if(!el)return;"
           "var ant=0,cur=0,tmr=0;"
@@ -1636,7 +2440,7 @@ def build_dashboard(est, hist):
         nvs, dist_txt = [], ""
     hero = (f"<div class='big'>{miles(precio)}<span class='badge {_bias_class(bias)}'>{_esc(bias)} {_esc(conf)}%</span></div>"
             f"<div class='pill'><i style='--w:{conf_w}%'></i></div>"
-            f"<div class='sub'>{_esc(delta_txt)} · {_esc(rango_txt)} · <span class='cdot'></span>{n_alertas} alertas en ventana{_esc(dist_txt)}{_esc(emp)}</div>")
+            f"<div class='sub'>{_esc(delta_txt)} · {_esc(rango_txt)} · <span class='cdot'></span>{n_alertas} alertas en ventana{_esc(dist_txt)}{_esc(emp)}</div></div>")
     curva = (f"{svg_linea(px, marcas=marcas, niveles=nvs)}"
              f"<p><span style='color:#4ade80'>─ soporte</span> · "
              f"<span style='color:#fca5a5'>─ resistencia</span> (origen al pasar el mouse).</p>")
@@ -1666,6 +2470,7 @@ def build_dashboard(est, hist):
     tarjetas.append(_sec("Precio", "s-precio"))
     tarjetas.append(_card("hero", "Precio y sesgo", hero))
     tarjetas.append(_card("curva", f"Precio · últimas {len(px)}", curva))
+    tarjetas.append(_card("sala", "Sala viva", _sala_html(est.get("snapshot"), est)))
     tarjetas.append(_sec("Señales", "s-senales"))
     tarjetas.append(_card("alertas", "Alertas", _alertas_html(est, ult, ahora_dt)))
     tarjetas.append(_card("conf", "Confianza (escala 0–100)", confb))
@@ -1725,6 +2530,21 @@ def build_dashboard(est, hist):
     except Exception:
         fpx = ""
     snap_g = est.get("snapshot") or {}
+    try:
+        _nvg = snap_g.get("niv") or {}
+        _sres = ((_nvg.get("res") or [{}])[0] or {}).get("precio", "")
+        _ssop = ((_nvg.get("sop") or [{}])[0] or {}).get("precio", "")
+        _mem = est.get("mem_zonas") or {}
+        _mem_mini = {str(k): {"hold": int((v or {}).get("hold", 0) or 0), "rompe": int((v or {}).get("rompe", 0) or 0)}
+                     for k, v in list(_mem.items())[:60]} if isinstance(_mem, dict) else {}
+        _ual = est.get("ultima_alerta") or {}
+        _mem_js = json.dumps(_mem_mini)
+        _sala_ds = (f' data-res="{_esc(_sres)}" data-sop="{_esc(_ssop)}"'
+                    f' data-banco="{_esc(est.get("banco", ""))}"'
+                    f' data-motivo="{_esc(str(_ual.get("motivo", ""))[:80])}"'
+                    f" data-mem='{_mem_js}'")
+    except Exception:
+        _sala_ds = ""
     grade = snap_g.get("grade", "?") if isinstance(snap_g, dict) else "?"
     max_cls = " alerta-max" if grade == "A" else ""
     hoy = ahora_dt.strftime("%Y-%m-%d")
@@ -1743,8 +2563,16 @@ def build_dashboard(est, hist):
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vigilante BTC</title>
-<style>{CSS}</style></head><body data-bias="{_esc(bias)}" data-conf="{_esc(conf)}" data-alertas="{n_alertas}" data-run="{_esc(est.get("runs", "?"))}" data-px="{fpx}" data-grade="{_esc(grade)}"><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
+<style>{CSS}</style></head><body data-bias="{_esc(bias)}" data-conf="{_esc(conf)}" data-alertas="{n_alertas}" data-run="{_esc(est.get("runs", "?"))}" data-px="{fpx}" data-grade="{_esc(grade)}"{_sala_ds}><canvas id="fondo"></canvas><div id="latido"></div><div id="destello"></div><div class="wrap{max_cls}">
 <header id="hdr"><h1><span class="logo">V</span>Vigilante BTC</h1>
+<div class="crew" id="crew" data-mood="normal" title="Cuadrilla: cada bot hace su oficio">
+<div class="bot"><div class="cuerpo"></div><small>TEN</small></div>
+<div class="bot"><div class="cuerpo"></div><small>TEC</small></div>
+<div class="bot"><div class="cuerpo"></div><small>PIS</small></div>
+<div class="bot"><div class="cuerpo"></div><small>MSJ</small></div>
+<div class="bot"><div class="cuerpo"></div><small>SOM</small></div>
+<div class="bot"><div class="cuerpo"></div><small>PAP</small></div>
+</div>
 <span class="saludo" id="hdr-saludo">{_esc(_saludo(ahora_dt))}</span>
 <span class="live" id="hdr-act"><span class="dot"></span>actualizado {_esc(ahora)} · recarga en <b id="recarga">{seg // 60}:{seg % 60:02d}</b></span>
 <span class="live" id="hdr-prox"><span class="dot"></span>próxima pasada ~{_esc(prox_txt)}</span>
@@ -1765,6 +2593,9 @@ if(el)el.textContent=m+':'+(s<10?'0':'')+s;RL--;if(RL<0)location.reload();}}}},1
 {UI_JS}
 {TF_JS}
 {VIVO_JS}
+{IDLE_JS}
+{FREE_JS}
+{SALA_JS}
 {FONDO_JS}
 </body></html>"""
 
