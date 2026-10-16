@@ -3170,7 +3170,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     except Exception:
         _fz, _fd, _fp, _fv = None, "", 0.0, 0.0
     if _fz is not None and _fd in ("COMPRA", "VENTA") and 0 < _fp <= 100 and _fv >= 10 and enfriar(
-            est, "foot:%s" % _fz, 4, ahora):
+            est, "foot:" + _fd, 4, ahora):
         try:
             lado = "compradora" if _fd == "COMPRA" else "vendedora"
             _contra = (_fd == "COMPRA" and bias == "BAJA") or (_fd == "VENTA" and bias == "ALZA")
