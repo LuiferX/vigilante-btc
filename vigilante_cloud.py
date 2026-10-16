@@ -676,6 +676,69 @@ def snap_nivel(v):
         return v
 
 
+def ficha_zona(est, nivel):
+    """Marcador de la zona: ' (aguanta H/R)' si tiene historia, '' si es nueva."""
+    try:
+        m = (est.get("mem_zonas") or {}).get(str(int(float(nivel))))
+        if isinstance(m, dict):
+            h, r = int(m.get("hold", 0) or 0), int(m.get("rompe", 0) or 0)
+            if h + r > 0:
+                return f" (aguanta {h}/{h + r})"
+    except Exception:
+        pass
+    return ""
+
+
+def evalua_zona(est, res, sop, high, low, close):
+    """Memoria de zonas con la vela 1H cerrada. Cuenta EPISODIOS, no pasadas:
+    mecha sin cierre = hold (aguanta); cierre mas alla = rompe (penaliza).
+    Vuelve a tocar tras alejarse = episodio nuevo."""
+    try:
+        mem = est.get("mem_zonas")
+        if not isinstance(mem, dict):
+            mem = {}
+        vig = est.get("vig_zona")
+        if not isinstance(vig, dict):
+            vig = {}
+        for lado, nueva, es_res in (("res", res, True), ("sop", sop, False)):
+            try:
+                ant = float((vig.get(lado) or {}).get("nivel"))
+            except Exception:
+                ant = None
+            if ant is None:
+                if nueva:
+                    vig[lado] = {"nivel": nueva, "toc": False}
+                continue
+            key = str(int(ant))
+            z = mem.get(key)
+            if not isinstance(z, dict):
+                z = {"hold": 0, "rompe": 0}
+            toc = bool((vig.get(lado) or {}).get("toc"))
+            if es_res:
+                roto = close is not None and close > ant
+                wherein = high is not None and high >= ant * 0.999 and (close is None or close <= ant)
+            else:
+                roto = close is not None and close < ant
+                wherein = low is not None and low <= ant * 1.001 and (close is None or close >= ant)
+            if roto:
+                z["rompe"] = int(z.get("rompe", 0) or 0) + 1
+                toc = False
+            elif wherein:
+                if not toc:
+                    z["hold"] = int(z.get("hold", 0) or 0) + 1
+                toc = True
+            else:
+                toc = False
+            mem[key] = z
+            vig[lado] = {"nivel": nueva, "toc": toc} if nueva else {"toc": False}
+        if len(mem) > 60:
+            mem = dict(sorted(mem.items(), key=lambda kv: -((kv[1] or {}).get("hold", 0) + (kv[1] or {}).get("rompe", 0)))[:60])
+        est["mem_zonas"] = mem
+        est["vig_zona"] = vig
+    except Exception:
+        pass
+
+
 def niveles(h1, h4, d1, w1, pd, pw, precio):
     sups, ress = [], []
     cands = [
@@ -3105,7 +3168,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         fade_ok = True if bias == "LATERAL" else ((bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA"))
         if not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
                 est, f"toque:{nivel}", 4, ahora):
-            return True, f"Tocando {lado}", "alerta"
+            return True, f"Tocando {lado}" + ficha_zona(est, nivel), "alerta"
     hoy = ahora.strftime("%Y-%m-%d")
     hh = ahora.hour + ahora.minute / 60
     if 13 <= hh < 13.5 and est.get("ultimo_preny") != hoy:
@@ -3526,6 +3589,14 @@ def main():
         pide = bool(est.get("pide_detalle"))
         if pide:
             est["pide_detalle"] = False
+        try:
+            _vc = kl_h1[-2] if len(kl_h1) >= 2 else {}
+            _rr = (niv.get("resistencias") or [{}])[0] or {}
+            _ss = (niv.get("soportes") or [{}])[0] or {}
+            evalua_zona(est, _rr.get("precio"), _ss.get("precio"),
+                        _vc.get("h"), _vc.get("l"), _vc.get("c"))
+        except Exception:
+            pass
         es_dup = False
         try:
             if est.get("ultimo_run"):
