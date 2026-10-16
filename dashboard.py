@@ -1560,7 +1560,7 @@ def _banner_html(est, hist, ahora_dt):
     return (f"<div class='card flash' id='c-ultima'><div class='cbody'><div class='cinner'>"
             f"<span class='atag'>ALERTA</span><b>Última alerta</b> · {hace} · "
             f"<span class='badge {cls}'>{b} {ult.get('conf', '?')}%</span> "
-            f"{miles(ult.get('precio'))} — {ult.get('motivo', '')[:140]}"
+            f"{miles(ult.get('precio'))} — {_esc(ult.get('motivo', '')[:140])}"
             f"</div></div></div>")
 
 
