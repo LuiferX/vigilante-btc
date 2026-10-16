@@ -272,6 +272,7 @@ def main():
     senales = [h for h in hist if h.get("bias") in ("ALZA", "BAJA")
                and h.get("conf", 0) >= 45 and h.get("precio")]
     print(f"Senales evaluables: {len(senales)}")
+    print("Cohorte: alertas conf>=45 (el papel real opera desde 35; el payoff usa cierre +8h, el bot usa TP/SL intrabar).")
     if len(senales) < 4:
         print("Muy pocas para backtest serio. Vuelve en unos dias.")
         return
@@ -279,6 +280,7 @@ def main():
     senales = sorted(senales, key=lambda s: str(s.get("t", "")))
     res = []
     atr_pcts = []
+    omit = 0
     for s in senales:
         try:
             t0 = datetime.datetime.fromisoformat(str(s["t"]).strip().replace("Z", "+00:00"))
@@ -290,6 +292,7 @@ def main():
         p1 = precio_en(velas, t0 + datetime.timedelta(hours=8))
         at = atr_en(velas, t0)
         if p0 is None or p1 is None or not at:
+            omit += 1
             continue
         umbral = max(0.002, (at / p0) * 0.5)
         mov = (p1 - p0) / p0
@@ -300,6 +303,7 @@ def main():
     if len(res) < 4:
         print("Velas insuficientes para evaluar. Intenta mas tarde.")
         return
+    print(f"Omitidas sin velas (recencia/ventana): {omit}")
     if len(res) >= 4:
         _tr, _te = partir_purgado(len(res))
         try:
