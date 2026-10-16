@@ -456,7 +456,7 @@ button:focus-visible,a:focus-visible{outline-color:#f0f0f0!important}
 .idlebar i{display:block;height:100%;background:#f0f0f0;width:0%}
 .big{font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 /* ===== BOTS LIBRES ===== */
-.freebot{position:absolute;z-index:6;width:30px;pointer-events:none;transition:none}
+.freebot{position:absolute;left:0;top:0;z-index:6;width:30px;pointer-events:none;transition:none;will-change:transform}
 .freebot .cb{width:24px;height:24px;margin:0 auto;border-radius:50%;background:#0b0d12;border:2px solid #f0f0f0;position:relative;box-shadow:0 0 10px #ffffff33}
 .freebot .cb::before,.freebot .cb::after{content:"";position:absolute;top:7px;width:4px;height:5px;border-radius:50%;background:#fff}
 .freebot .cb::before{left:5px}.freebot .cb::after{right:5px}
@@ -1376,8 +1376,16 @@ FREE_JS = r"""<script>
     }
 
     // Centro de una tarjeta en coords de página. Null si no visible.
+    // Con caché de 500ms: getBoundingClientRect por frame = lag.
+    var RCC = { t: 0, m: {} };
+    try {
+      window.addEventListener('scroll', function () { RCC = { t: 0, m: {} }; }, { passive: true });
+    } catch (e) {}
     function cardCenter(id) {
       try {
+        var now = Date.now();
+        if (now - RCC.t > 500) { RCC = { t: now, m: {} }; }
+        if (RCC.m[id]) { return RCC.m[id]; }
         var el = byId(id);
         if (!el || !el.getBoundingClientRect) {
           return null;
@@ -1386,10 +1394,12 @@ FREE_JS = r"""<script>
         if (!r || r.width < 40 || r.height < 30) {
           return null;
         }
-        return {
+        var o = {
           x: r.left + r.width / 2 + scrollX(),
           y: r.top + 80 + scrollY()
         };
+        RCC.m[id] = o;
+        return o;
       } catch (e) {
         return null;
       }
@@ -1780,8 +1790,7 @@ FREE_JS = r"""<script>
         return;
       }
       try {
-        b.el.style.left = b.x - 15 + 'px';
-        b.el.style.top = b.y + 'px';
+        b.el.style.transform = 'translate(' + (b.x - 15) + 'px,' + b.y + 'px)';
       } catch (e) {
         // decorativo
       }
