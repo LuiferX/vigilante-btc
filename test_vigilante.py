@@ -591,6 +591,20 @@ t("dash duelo toro", "VICTORIA DE LOS OSOS" in _db._duelo_html(
     {'bal': {'nb': 1, 'ns': 6, 'buys': 5.0, 'sells': 40.0, 'big': 9.0, 'txt': 'x'},
      'senti': {'taker': 0.75}}))
 t("dash duelo duerme", "Nadie en la arena" in _db._duelo_html({}))
+_snS = {"bias": "BAJA", "confianza": 50, "niv": {"sop": [{"precio": 80500}], "res": [{"precio": 82500}]}, "tf": {}}
+_seS = {"banco": 74.33, "mem_zonas": {"82500": {"hold": 2, "rompe": 1}}, "ultima_alerta": {"motivo": "<b>hola</b>"}}
+t("dash sala", "salaCanvas" in _db._sala_html(_snS, _seS) and "82500" in _db._sala_html(_snS, _seS))
+t("dash sala demo", "salaCanvas" in _db._sala_html({}, {}))
+t("dash sala xss", "<b>hola</b>" not in _db._sala_html(_snS, _seS))
+t("dash sala dataset", "data-res=" in _db.build_dashboard({"runs": 1, "snapshot": _snS, "banco": 74.33, "mem_zonas": {}, "ultima_alerta": {}}, []))
+t("dash mono", "--acc:#f0f0f0" in _db.CSS and "grid-column:1/-1" in _db.CSS)
+t("dash crew", 'id="crew"' in _db.build_dashboard({"runs": 1}, []) and "PAP" in _db.build_dashboard({"runs": 1}, []))
+t("dash idle js", "crew.dataset.mood" in _db.IDLE_JS)
+t("dash free", "freebot" in _db.FREE_JS and "window.__upload" in _db.FREE_JS)
+t("dash free css", ".freebot" in _db.CSS and ".card.extract" in _db.CSS)
+t("dash free doc", "position:absolute" in _db.CSS and "scrollY" in _db.FREE_JS and "aportó" in _db.FREE_JS)
+t("dash anarquia", "ANARCHY_EVERY" in _db.FREE_JS and "portal" in _db.FREE_JS and "ticker/price?symbol=" in _db.FREE_JS and ".portal" in _db.CSS)
+t("dash free limpio", "stepToward" in _db.FREE_JS and "tickIr" in _db.FREE_JS and "window.__upload" in _db.FREE_JS)
 _ban = _db._banner_html({"ultima_alerta": {"t": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "motivo": "<script>alert(1)</script>", "precio": 83000, "bias": "ALZA", "conf": 60}}, [], datetime.datetime.now(datetime.timezone.utc))
 t("banner escapa", "<script>" not in _ban and "&lt;script&gt;" in _ban)
@@ -645,7 +659,7 @@ t("dash orden", _xsec.index("s-precio") < _xsec.index("s-senales") < _xsec.index
 t("dash layout", "display:grid" in _db.CSS)
 t("dash papel quieto", "requiere 35%" in _db._ops_html(
     {"ultima_conf": 31}, datetime.datetime.now(datetime.timezone.utc)))
-t("dash masonry", ".grid{display:grid" not in _db.CSS and "columns:" in _db.CSS)
+t("dash masonry", ".grid{display:grid" in _db.CSS and "repeat(3,minmax(0,1fr))" in _db.CSS)
 t("dash nav fija", "position:sticky" in _db.CSS and 'class="nav"' in _db.build_dashboard({"runs": 1}, []))
 t("dash a11y", "focus-visible" in _db.CSS and "scrollbar-width" in _db.CSS)
 import datetime as _dt
@@ -1134,8 +1148,8 @@ t("dsr penaliza trials", _bt.deflated_sharpe(0.5, 20, 0.0, 3.0, 10) < _bt.deflat
 t("costo calibra 0.5pct", 8.0 <= _bt.costo_bps(0.005) <= 12.0)
 t("costo base spread", _bt.costo_bps(0) == 1.5 and _bt.costo_bps(-0.01) == 1.5)
 t("dash tipo sobria", "BlinkMacSystemFont" in _db.CSS and "antialiased" in _db.CSS and "background:#000" in _db.CSS)
-t("dash movil plegable", "@media(max-width:640px)" in _db.CSS and "columns:1" in _db.CSS and "min-height:36px" in _db.CSS)
-t("dash masonry sin huecos", "columns:3 330px" in _db.CSS and "break-inside:avoid" in _db.CSS and "column-span:all" in _db.CSS)
+t("dash movil plegable", "@media(max-width:640px)" in _db.CSS and "grid-template-columns:minmax(0,1fr)" in _db.CSS and "min-height:36px" in _db.CSS)
+t("dash masonry sin huecos", "align-items:start" in _db.CSS and "break-inside:avoid" in _db.CSS and "#c-sala" in _db.CSS)
 t("svg linea premium", "linearGradient" in _db.svg_linea([10, 20, 15, 30], color="#22c55e") and "stroke-opacity='.06'" in _db.svg_linea([10, 20, 15, 30]) and 'opacity=".18"' in _db.svg_linea([10, 20, 15, 30]) and "<title>cierre" in _db.svg_linea([10, 20, 15, 30]))
 t("svg fallback intacto", _db.svg_linea([1]) == "<p>sin datos aún</p>" and _db.svg_barras([], []) == "<p>sin datos aún</p>" and "<svg" in _db.svg_barras([10, 20, 30], ["0", "1", "2"]))
 t("dash ids vivos", all(s in _db.build_dashboard({"ultimo_run": "2026-10-13T12:00:00+00:00", "ultimo_bias": "LATERAL", "runs": 1}, [{"t": "2026-10-13T11:00:00+00:00", "precio": 83000, "conf": 50, "tipo": "nada", "bias": "LATERAL", "motivo": "x"}]) for s in ['id="recarga"', 'id="edad"', 'data-t=', 'id="pvivo"', 'id="plegar"', 'id="sonido"', 'id="fondo"', 'data-bias=', 'data-conf=', 'data-alertas=', 'data-run=', 'data-px=', 'data-grade=', 'content="120"']))
