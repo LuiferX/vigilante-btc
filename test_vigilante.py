@@ -605,6 +605,7 @@ t("dash free css", ".freebot" in _db.CSS and ".card.extract" in _db.CSS)
 t("dash free doc", "position:absolute" in _db.CSS and "scrollY" in _db.FREE_JS and "aportó" in _db.FREE_JS)
 t("dash anarquia", "ANARCHY_EVERY" in _db.FREE_JS and "portal" in _db.FREE_JS and "ticker/price?symbol=" in _db.FREE_JS and ".portal" in _db.CSS)
 t("dash free limpio", "stepToward" in _db.FREE_JS and "tickIr" in _db.FREE_JS and "window.__upload" in _db.FREE_JS)
+t("dash free perf", "RCC" in _db.FREE_JS and "will-change:transform" in _db.CSS and "translate(" in _db.FREE_JS)
 _ban = _db._banner_html({"ultima_alerta": {"t": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "motivo": "<script>alert(1)</script>", "precio": 83000, "bias": "ALZA", "conf": 60}}, [], datetime.datetime.now(datetime.timezone.utc))
 t("banner escapa", "<script>" not in _ban and "&lt;script&gt;" in _ban)
