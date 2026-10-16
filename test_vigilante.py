@@ -187,6 +187,7 @@ t("foot plano", v.footprint([{"p": 82250, "q": 1.0, "m": True}, {"p": 82250, "q"
 _ef = dict(eb)
 t("dec foot", "Footprint" in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82250, "dir": "VENTA", "pct": 92.0, "vol": 12.0})[1])
 t("dec foot cooldown", "Footprint" not in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82250, "dir": "VENTA", "pct": 92.0, "vol": 12.0})[1])
+t("dec foot zona camina", "Footprint" not in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82300, "dir": "VENTA", "pct": 88.0, "vol": 14.0})[1])
 t("foot corrupto no rompe", v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": None, "dir": "VENTA", "pct": "alto", "vol": 12.0})[2] in ("alerta", "nada"))
 t("foot q negativa", (lambda _f: isinstance(_f, dict) and _f["dir"] == "COMPRA" and _f["pct"] <= 100)(v.footprint([{"p": 82250, "q": 20.0, "m": False}, {"p": 82250, "q": -5.0, "m": True}])))
 t("foot bucket malo", v.footprint([{"p": 82250, "q": 12.0}], bucket=0)["zona"] == 82250)
