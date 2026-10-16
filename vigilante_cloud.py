@@ -2039,6 +2039,57 @@ def mapa_liq(kl, last, funding):
             "iman": {"lado": lado, "pct": round(100 * (tb if lado == "abajo" else ta) / tot)}}
 
 
+def footprint(data=None, bucket=50):
+    """Mini-footprint: presión compradora/vendedora por nivel con aggTrades.
+    m=True = venta agresiva. Zona = bucket con 10+ BTC y 70%+ a un lado."""
+    try:
+        bucket = int(bucket)
+        if bucket <= 0:
+            bucket = 50
+    except Exception:
+        bucket = 50
+    if data is None:
+        data = []
+        for base in (FAPI, VISION):
+            try:
+                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
+                if data:
+                    break
+            except Exception:
+                continue
+    if not data:
+        return None
+    try:
+        zones = {}
+        for tr in data:
+            try:
+                q = float(tr["q"])
+                px = float(tr["p"])
+            except Exception:
+                continue
+            if q <= 0 or px <= 0:
+                continue
+            z = int(px // bucket) * bucket
+            a = zones.setdefault(z, [0.0, 0.0])
+            if tr.get("m"):
+                a[1] += q
+            else:
+                a[0] += q
+        best = None
+        for z, (b, s) in zones.items():
+            t = b + s
+            if t < 10:
+                continue
+            dom = max(b, s) / t
+            if dom >= 0.70 and (best is None or t > best[3]):
+                best = (int(z), "COMPRA" if b > s else "VENTA", round(dom * 100, 1), round(t, 1))
+        if not best:
+            return None
+        return {"zona": best[0], "dir": best[1], "pct": best[2], "vol": best[3]}
+    except Exception:
+        return None
+
+
 def ballenas(data=None):
     """Cinta de ballenas: prints >= UMBRAL_BALLENA en ~3000 trades recientes
     (fapi, con fallback a spot). m=True = vendedor agresivo.
@@ -3079,7 +3130,7 @@ def gestion_sl(op, last, atr_h1, regimen):
         return (None, None, None)
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     try:
         res = niv["resistencias"][0]
@@ -3111,6 +3162,22 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
             est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
+    if isinstance(estir, str) and estir and (bias not in ("ALZA", "BAJA") or conf < 45) and enfriar(est, "estir:" + ("bajo" if estir.startswith("bajo") else "alto"), 4, ahora):
+        return True, f"Estirado {estir} (toma parcial, rebote probable — no es entrada)", "alerta"
+    try:
+        _fz, _fd = int(foot.get("zona")), str(foot.get("dir"))
+        _fp, _fv = float(foot.get("pct")), float(foot.get("vol"))
+    except Exception:
+        _fz, _fd, _fp, _fv = None, "", 0.0, 0.0
+    if _fz is not None and _fd in ("COMPRA", "VENTA") and 0 < _fp <= 100 and _fv >= 10 and enfriar(
+            est, "foot:%s" % _fz, 4, ahora):
+        try:
+            lado = "compradora" if _fd == "COMPRA" else "vendedora"
+            _contra = (_fd == "COMPRA" and bias == "BAJA") or (_fd == "VENTA" and bias == "ALZA")
+            _aviso = " (ojo: contra sesgo)" if _contra else ""
+            return True, f"Footprint: presión {lado} en {fmt_miles(_fz)} ({_fp:.0f}% a ese lado, {_fv:.0f} BTC){_aviso}", "alerta"
+        except Exception:
+            pass
     if rup:
         try:
             mm = re.search(r"(?:bajo|sobre)\s+([\d.]+)", rup)
@@ -3635,6 +3702,10 @@ def main():
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
         bal = ballenas()
+        try:
+            foot = footprint()
+        except Exception:
+            foot = None
         if bal is None:
             try:
                 _pb = est.get("last_bal") or {}
@@ -3874,7 +3945,20 @@ def main():
             _snap_ual = _cp.deepcopy(est.get("ultima_alerta"))
         except Exception:
             _snap_ual = est.get("ultima_alerta")
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm)
+        try:
+            _atr1 = h1.get("atr") or 0
+            _ema1 = h1.get("ema20") or 0
+            _rsi1 = h1.get("rsi", 50)
+            estir = None
+            if _atr1 > 0 and _ema1 > 0:
+                _dx = (t["last"] - _ema1) / _atr1
+                if _dx <= -2.0 and _rsi1 < 35:
+                    estir = f"bajo media {_dx:.1f}×ATR (RSI {_rsi1:.0f})"
+                elif _dx >= 2.0 and _rsi1 > 65:
+                    estir = f"sobre media +{_dx:.1f}×ATR (RSI {_rsi1:.0f})"
+        except Exception:
+            estir = None
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -3982,6 +4066,9 @@ def main():
             "bal": ({"nb": bal.get("nb", 0), "ns": bal.get("ns", 0), "buys": bal.get("buys", 0),
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
+            "foot": ({"zona": foot.get("zona"), "dir": foot.get("dir"),
+                      "pct": foot.get("pct"), "vol": foot.get("vol")}
+                     if isinstance(foot, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
             "qb": qb if isinstance(qb, dict) else None,
             "sl": list(sl) if isinstance(sl, (list, tuple)) else None,
