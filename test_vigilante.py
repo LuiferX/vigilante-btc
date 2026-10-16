@@ -341,6 +341,24 @@ t("niveles snap estable", _n1 and _n1[0]["precio"] == 82500 and [x["precio"] for
 _z1 = sorted(z["precio"] for z in v.zonas_pilas(None, {"winL": 80702, "winH": 82426}, {"winL": 79000, "winH": 83000}, 82000, None))
 _z2 = sorted(z["precio"] for z in v.zonas_pilas(None, {"winL": 80702, "winH": 82631}, {"winL": 79000, "winH": 83000}, 82000, None))
 t("pilas snap estable", _z1 == _z2 and 82500 in _z1)
+_ez = {}
+v.evalua_zona(_ez, 82500, 80500, 82490, 82300, 82400)
+t("zona init vigila", _ez.get("vig_zona", {}).get("res", {}).get("nivel") == 82500 and _ez.get("mem_zonas", {}) == {})
+v.evalua_zona(_ez, 82500, 80500, 82490, 82300, 82400)
+t("zona hold 1", _ez["mem_zonas"]["82500"]["hold"] == 1)
+v.evalua_zona(_ez, 82500, 80500, 82495, 82350, 82450)
+t("zona mismo episodio", _ez["mem_zonas"]["82500"]["hold"] == 1)
+v.evalua_zona(_ez, 82500, 80500, 82000, 81900, 81950)
+t("zona se aleja", _ez["mem_zonas"]["82500"]["hold"] == 1 and _ez["vig_zona"]["res"]["toc"] is False)
+v.evalua_zona(_ez, 82500, 80500, 82490, 82300, 82400)
+t("zona episodio 2", _ez["mem_zonas"]["82500"]["hold"] == 2)
+v.evalua_zona(_ez, 82500, 80500, 82600, 82400, 82600)
+t("zona rompe", _ez["mem_zonas"]["82500"]["rompe"] == 1)
+t("ficha zona", v.ficha_zona(_ez, 82500) == " (aguanta 2/3)")
+t("ficha nueva", v.ficha_zona({}, 82500) == "")
+_em = {"ultimo_bias": "BAJA", "mem_zonas": {"82500": {"hold": 2, "rompe": 1}}}
+t("toque con ficha", v.decidir_alerta(82450, {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 82500}]},
+    {"bias": "BAJA", "confianza": 50}, dict(_em), ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None)[1].endswith("(aguanta 2/3)"))
 
 # ---------- cinta con datos ----------
 tr = lambda p, q, m: {"p": p, "q": q, "m": m}
