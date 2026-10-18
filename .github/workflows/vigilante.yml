@@ -15,7 +15,7 @@ concurrency:
 jobs:
   vigilar:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
@@ -24,12 +24,31 @@ jobs:
         run: |
           git fetch origin estado 2>/dev/null || true
           git checkout origin/estado -- estado.json historial.jsonl 2>/dev/null || echo "sin estado previo, empezando de cero"
+          git checkout origin/estado -- micro.jsonl 2>/dev/null || true
+
+      - name: Red neuronal (opcional, no rompe nada si falla)
+        run: |
+          pip install --quiet onnxruntime \
+            || pip install --quiet --break-system-packages onnxruntime \
+            || python -m pip install --quiet --break-system-packages onnxruntime \
+            || echo "onnxruntime no instalado: el bot sigue sin red"
+          if [ -f modelo/vigilante_lstm.onnx ] && [ -f modelo/meta.json ] && [ -f modelo/scaler.json ]; then
+            echo "VIGILANTE_NN=1" >> "$GITHUB_ENV"
+            echo "Red neuronal ACTIVADA (modelo encontrado en modelo/)."
+          else
+            echo "Sin modelo en modelo/: el bot corre con su logica de siempre."
+          fi
+
+      - name: Recolectar microestructura (forward, no rompe nada)
+        run: python recolector_micro.py --append micro.jsonl || echo "recoleccion fallo, se continua"
 
       - name: Ejecutar vigilante (analisis + Telegram)
         run: python vigilante_cloud.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PAPER_BANCO: "1000"
+          PAPER_LEV: "10"
 
       - name: Generar dashboard
         run: |
@@ -44,11 +63,14 @@ jobs:
           git config user.email "vigilante-bot@users.noreply.github.com"
           cp estado.json /tmp/estado.json
           cp historial.jsonl /tmp/historial.jsonl 2>/dev/null || echo "sin historial previo (primer run)"
+          cp micro.jsonl /tmp/micro.jsonl 2>/dev/null || echo "sin micro previo (primer run)"
           git checkout --orphan estado_tmp
           git rm -rf . > /dev/null 2>&1 || true
           cp /tmp/estado.json ./estado.json
           cp /tmp/historial.jsonl ./historial.jsonl 2>/dev/null || true
+          cp /tmp/micro.jsonl ./micro.jsonl 2>/dev/null || true
           git add estado.json historial.jsonl
+          git add micro.jsonl 2>/dev/null || true
           git commit -m "estado $(date -u +%Y-%m-%dT%H:%MZ)"
           ok=0; for i in 1 2 3; do git push --force origin estado_tmp:estado && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
           git checkout -f ${GITHUB_REF_NAME}
