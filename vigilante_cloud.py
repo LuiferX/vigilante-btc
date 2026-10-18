@@ -4066,7 +4066,11 @@ def main():
         _conf_ok = True
         if os.environ.get("VIGILANTE_FILTRO_CONFLUENCIA", "1") not in ("", "0", "false", "False"):
             _conf_ok = (grade in ("A", "B")) or bool(liq) or bool(rup) or bool(mecha) or bool(pila)
-        if enviar and tipo == "alerta" and dirb["bias"] in ("ALZA", "BAJA") and dirb["confianza"] >= UMBRAL_CONF_SENAL and _z_ok and _veto_ok and _conf_ok:
+        # Toque real obligatorio (flag opt-in): solo registrar si hubo toque de nivel/liquidez/ruptura/mecha.
+        _toque_ok = True
+        if os.environ.get("VIGILANTE_SOLO_TOQUE", "0") not in ("", "0", "false", "False"):
+            _toque_ok = bool(liq) or bool(rup) or bool(mecha) or bool(pila)
+        if enviar and tipo == "alerta" and dirb["bias"] in ("ALZA", "BAJA") and dirb["confianza"] >= UMBRAL_CONF_SENAL and _z_ok and _veto_ok and _conf_ok and _toque_ok:
             reciente = False
             for p in est.get("pendientes", []):
                 try:
