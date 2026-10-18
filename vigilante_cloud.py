@@ -16,6 +16,7 @@ import datetime
 import json
 import os
 import re
+import sys
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -238,11 +239,13 @@ EVAL_HORAS = 8
 UMBRAL_MOV = 0.002
 UMBRAL_CONF_FUERTE = 55
 UMBRAL_CONF_CAMBIO = 40
-UMBRAL_CONF_SENAL = 45
-UMBRAL_PAPEL = 35         # el papel opera señales B (aprende mas); las alertas piden A
+UMBRAL_CONF_SENAL = 50    # subido de 45: menos señales, mayor calidad (replay: confluencia > umbral solo)
+UMBRAL_PAPEL = 40         # subido de 35: el papel aprende con menos ruido
 UMBRAL_TOQUE = 0.0025  # 0.25% del nivel = "tocando"
 DEDUP_HORAS = 4          # misma direccion en 4 h = 1 sola senal (sin duplicados)
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
+FEE_PCT = 0.001          # 0.10% ida+vuelta (costo de operar)
+FILTRO_VOL = False        # opt-in: descarta senales cuando FEE/umbral > 0.25 (break-even > 41.7%)
 MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 FUNDING_EXTREMO = 0.05   # |funding| >= 0.05% = un lado recargado (lectura contrarian)
 UMBRAL_BRUSCO = 0.7      # +/-0.7% en 1h = movimiento brusco (replay techo 10d: avisa ~2h antes, 1.3/dia)
@@ -771,6 +774,10 @@ def niveles(h1, h4, d1, w1, pd, pw, precio):
 
 
 def direccion(h1, h4, d1, w1):
+    # Filtro chop: si el 1H es puro ruido (ER<0.25), no sesgar (no perseguir).
+    er1 = h1.get("er") if isinstance(h1, dict) else None
+    if er1 is not None and er1 < 0.25:
+        return {"bias": "LATERAL", "score": 0.0, "confianza": 0}
     w4, wd, ws = 1.5, 2.0, 1.0
     s = h1["score"] * 1.0 + h4["score"] * w4 + d1["score"] * wd + w1["score"] * ws
     norm = s / 27.5
@@ -2071,7 +2078,11 @@ def footprint(data=None, bucket=50):
                 continue
             z = int(px // bucket) * bucket
             a = zones.setdefault(z, [0.0, 0.0])
-            if tr.get("m"):
+            # m=True en Binance aggTrades = comprador es maker (agresor = vendedor).
+            # Acepta bool real o string "true"/"false" por robustez (F1).
+            _m = tr.get("m")
+            _es_venta = (_m is True) or (isinstance(_m, str) and _m.strip().lower() == "true")
+            if _es_venta:
                 a[1] += q
             else:
                 a[0] += q
@@ -3130,7 +3141,7 @@ def gestion_sl(op, last, atr_h1, regimen):
         return (None, None, None)
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     try:
         res = niv["resistencias"][0]
@@ -3144,17 +3155,24 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     except Exception:
         dist_res, dist_sup = 1, 1
     prev = est.get("ultimo_bias", "?")
+    # Filtro de volatilidad (opt-in): si FEE/umbral > 0.25, los fees comen la senal.
+    _vol_filtrado = (FILTRO_VOL and umbral and umbral > 0
+                     and (FEE_PCT / umbral) > 0.25)
     if forzado:
         return True, forzado, "alerta"
     if gestion:
         return True, gestion, "alerta"
     if bloqueo:
         return False, f"blackout ({motivo_bloq})", "nada"
-    if prev != "?" and prev != bias and bias in ("ALZA", "BAJA") and conf >= umbral_cambio and enfriar(
-            est, "fuerte:" + bias, 4, ahora):
+    if _vol_filtrado:
+        # No envia la senal direccional, pero el resto de alertas (brusco, ritmo, etc.) siguen.
+        pass
+    if (not _vol_filtrado and prev != "?" and prev != bias
+            and bias in ("ALZA", "BAJA") and conf >= umbral_cambio and enfriar(
+            est, "fuerte:" + bias, 4, ahora)):
         return True, f"Cambio de dirección: {prev} → {bias}", "alerta"
-    if bias in ("ALZA", "BAJA") and conf >= umbral_fuerte and enfriar(
-            est, "fuerte:" + bias, 4, ahora):
+    if (not _vol_filtrado and bias in ("ALZA", "BAJA") and conf >= umbral_fuerte and enfriar(
+            est, "fuerte:" + bias, 4, ahora)):
         return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
             est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 2, ahora):
@@ -3164,13 +3182,21 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
     if isinstance(estir, str) and estir and (bias not in ("ALZA", "BAJA") or conf < 45) and enfriar(est, "estir:" + ("bajo" if estir.startswith("bajo") else "alto"), 4, ahora):
         return True, f"Estirado {estir} (toma parcial, rebote probable — no es entrada)", "alerta"
-    try:
-        _fz, _fd = int(foot.get("zona")), str(foot.get("dir"))
-        _fp, _fv = float(foot.get("pct")), float(foot.get("vol"))
-    except Exception:
+    # Guardia: foot puede ser None o no-dict (F5). No rompe, solo se ignora.
+    if not isinstance(foot, dict):
         _fz, _fd, _fp, _fv = None, "", 0.0, 0.0
-    if _fz is not None and _fd in ("COMPRA", "VENTA") and 0 < _fp <= 100 and _fv >= 10 and enfriar(
-            est, "foot:" + _fd, 4, ahora):
+    else:
+        try:
+            _fz, _fd = int(foot.get("zona")), str(foot.get("dir"))
+            _fp, _fv = float(foot.get("pct")), float(foot.get("vol"))
+        except Exception:
+            _fz, _fd, _fp, _fv = None, "", 0.0, 0.0
+    # F2: solo alerta si el precio esta cerca de la zona de presion (<0.5%),
+    # evita falsos positivos de zonas lejanas (F2).
+    _cerca = (_fz is not None and _fz != 0 and
+              abs(precio - _fz) / abs(_fz) < 0.005)
+    if (_fz is not None and _fd in ("COMPRA", "VENTA") and 0 < _fp <= 100
+            and _fv >= 10 and _cerca and enfriar(est, "foot:" + _fd, 4, ahora)):
         try:
             lado = "compradora" if _fd == "COMPRA" else "vendedora"
             _contra = (_fd == "COMPRA" and bias == "BAJA") or (_fd == "VENTA" and bias == "ALZA")
@@ -3646,10 +3672,13 @@ def main():
     try:
         t = ticker24()
         kl_h1 = klines("1h", 72)
+        kl_h4 = klines("4h", 60)
+        kl_d1 = klines("1d", 60)
+        kl_w1 = klines("1w", 52)
         h1 = analyze(kl_h1, 60, "1H")
-        h4 = analyze(klines("4h", 60), 240, "4H")
-        d1 = analyze(klines("1d", 60), 1440, "1D")
-        w1 = analyze(klines("1w", 52), 10080, "1S")
+        h4 = analyze(kl_h4, 240, "4H")
+        d1 = analyze(kl_d1, 1440, "1D")
+        w1 = analyze(kl_w1, 10080, "1S")
         pd = pivots("1d", "D")
         pw = pivots("1w", "S")
         regimen = "tendencia" if h4.get("adx", 0) >= 20 else "rango"
@@ -3744,6 +3773,45 @@ def main():
         if senti["funding"] is not None or senti["taker"] is not None:
             est["last_senti"] = {"funding": senti["funding"], "taker": senti["taker"],
                                  "t": ahora.isoformat()}
+        # --- RED NEURONAL (OPT-IN) ----------------------------------------------
+        # Solo actua si VIGILANTE_NN=1. Reconstruye la ventana viva con las MISMAS
+        # funciones del bot y reescribe dirb["bias"]/["confianza"] con la clase mas
+        # probable (ALZA/BAJA/LATERAL). Si falta el modelo, onnxruntime o falla algo,
+        # el bot sigue con su logica de siempre: no se rompe nada.
+        if os.environ.get("VIGILANTE_NN", "0") not in ("", "0", "false", "False"):
+            try:
+                import nn_infer
+                if not nn_infer.disponible():
+                    print(nn_infer.info())
+                else:
+                    _bias_bot, _conf_bot = dirb["bias"], dirb["confianza"]
+                    _basis = None
+                    try:
+                        _pi = fetch(f"{FAPI}/premiumIndex?symbol=BTCUSDT", tries=1)
+                        _mp = float(_pi.get("markPrice") or 0)
+                        _ix = float(_pi.get("indexPrice") or 0)
+                        if _ix > 0:
+                            _basis = (_mp - _ix) / _ix * 100.0
+                    except Exception:
+                        _basis = None
+                    _mod = sys.modules.get(__name__)
+                    if _mod is None or not hasattr(_mod, "analyze"):
+                        import types
+                        _mod = types.SimpleNamespace(analyze=analyze, niveles=niveles)
+                    _ventana = nn_infer.ventana_vivo(
+                        _mod, kl_h1, kl_h4, kl_d1, kl_w1, t["last"],
+                        {"funding": senti.get("funding"), "taker": senti.get("taker")},
+                        {"basis": _basis, "premium": (cb or {}).get("prem"), "niv": niv},
+                        ahora)
+                    if nn_infer.aplicar(dirb, _ventana):
+                        _p = dirb["nn"]["probs"]
+                        print(f"  red: {dirb['bias']} {dirb['confianza']}% "
+                              f"(bot decia {_bias_bot} {_conf_bot}%) "
+                              f"probs A/B/L={_p[0]:.2f}/{_p[1]:.2f}/{_p[2]:.2f}")
+                    else:
+                        print(nn_infer.info())
+            except Exception as _enn:
+                print(f"red neuronal omitida: {type(_enn).__name__}: {_enn}")
         macro_viejo = ""
         if mx is None and est.get("last_macro"):
             try:
@@ -3958,7 +4026,7 @@ def main():
                     estir = f"sobre media +{_dx:.1f}×ATR (RSI {_rsi1:.0f})"
         except Exception:
             estir = None
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -3987,7 +4055,18 @@ def main():
             est["ultimo_preny"] = hoy
         elif tipo == "madrugada":
             est["ultimo_madrugada"] = hoy
-        if enviar and tipo == "alerta" and dirb["bias"] in ("ALZA", "BAJA") and dirb["confianza"] >= UMBRAL_CONF_SENAL:
+        # Veto z-score: no registrar senal si el precio esta estirado (|z|>=2) -> no perseguir.
+        _z1 = h1.get("z") if isinstance(h1, dict) else None
+        _z_ok = (_z1 is None) or (abs(_z1) < 2)
+        # Puerta dura: no registrar senal si veto institucional o blackout activo.
+        _veto_ok = True
+        if os.environ.get("VIGILANTE_FILTRO_VETO", "1") not in ("", "0", "false", "False"):
+            _veto_ok = (not bloqueo) and (not veto)
+        # Confluencia: registrar solo si hay grado B+ o evidencia (liquidez/ruptura/mecha/PILAS).
+        _conf_ok = True
+        if os.environ.get("VIGILANTE_FILTRO_CONFLUENCIA", "1") not in ("", "0", "false", "False"):
+            _conf_ok = (grade in ("A", "B")) or bool(liq) or bool(rup) or bool(mecha) or bool(pila)
+        if enviar and tipo == "alerta" and dirb["bias"] in ("ALZA", "BAJA") and dirb["confianza"] >= UMBRAL_CONF_SENAL and _z_ok and _veto_ok and _conf_ok:
             reciente = False
             for p in est.get("pendientes", []):
                 try:
