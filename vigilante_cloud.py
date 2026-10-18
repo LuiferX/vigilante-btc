@@ -254,8 +254,8 @@ UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
 SEMILLA_SESION = {"NY": 1.0, "Londres": 1.0, "noche": 1.0, "Asia": 1.0}  # neutra: ver doc
-PAPER_BANCO = 100.0    # perfil XLX: banco virtual en USDT
-PAPER_LEV = 50         # apalancamiento: solo dimensiona la liquidacion estimada
+PAPER_BANCO = float(os.environ.get("PAPER_BANCO", "100.0"))   # perfil XLX: banco virtual en USDT
+PAPER_LEV = int(os.environ.get("PAPER_LEV", "50"))   # apalancamiento: solo dimensiona la liquidacion estimada
 PAPER_RIESGO = 0.01    # 1% por idea (0.5% en racha de 3+ perdidas)
 
 
