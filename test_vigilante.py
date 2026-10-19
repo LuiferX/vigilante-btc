@@ -44,6 +44,7 @@ t("ema corta", v.ema([1.0, 2.0, 3.0], 20) == 3.0)
 t("rsi sube", v.rsi([float(100 + i) for i in range(20)]) == 100.0)
 t("rsi baja", v.rsi([float(100 - i) for i in range(20)]) == 0.0)
 t("rsi corto", v.rsi([1.0, 2.0]) == 50.0)
+t("rsi plano 50", v.rsi([100.0] * 20) == 50.0)
 t("slope sube", v.slope([1.0, 2.0, 3.0, 4.0, 5.0]) > 0)
 t("slope baja", v.slope([5.0, 4.0, 3.0, 2.0, 1.0]) < 0)
 t("slope plano", v.slope([5.0, 5.0, 5.0]) == 0.0)
@@ -198,7 +199,8 @@ t("dec dia", "NY mueve" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "con
 t("dec toque chop", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "rango", False, "", None, None, None)[2] == "nada")
 t("dec toque trend", v.decidir_alerta(83900, niv, {"bias": "BAJA", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "alerta")
 t("dec toque contra", v.decidir_alerta(83900, niv, {"bias": "ALZA", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "nada")
-t("dec blackout", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, None, None, "tendencia", True, "FOMC", None, None, None)[2] == "nada")
+t("dec blackout", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah.replace(hour=10, minute=5), None, None, "tendencia", True, "FOMC", None, None, None)[2] == "nada")
+t("blackout deja reporte fijo", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=8, minute=5), None, None, "tendencia", True, "FOMC", None, None, None)[2] == "manana")
 t("dec pila", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=3, minute=5), None, None, "tendencia", False, "", None, None, "EYY PILAS test")[1] == "EYY PILAS test")
 t("dec manana", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=8, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "manana")
 t("dec silencio", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=3, minute=5), None, None, "tendencia", False, "", None, None, None)[2] == "nada")
@@ -301,10 +303,22 @@ t("journal sl ticker", ci and ci[0]["res"] == "SL")
 oS = [{"dir": "SHORT", "entrada": 83000, "stop": 83600, "tp": 82000, "tam": 0.2, "riesgo": 100.0, "t": "x"}]
 ab, ci = v.journal_check(oS, kl10, 83300)
 t("journal short abierto", ab == oS and ci == [])
+# A2: no cerrar con la vela previa a la entrada
+_rr_old = v.ref_rango([{"t": datetime.datetime(2026, 10, 14, 1, tzinfo=datetime.timezone.utc), "h": 5, "l": 4},
+                       {"t": datetime.datetime(2026, 10, 14, 2, tzinfo=datetime.timezone.utc), "h": 6, "l": 5}],
+                      "2026-10-14T02:00:00+00:00")
+_rr_ok = v.ref_rango([{"t": datetime.datetime(2026, 10, 14, 3, tzinfo=datetime.timezone.utc), "h": 5, "l": 4},
+                      {"t": datetime.datetime(2026, 10, 14, 4, tzinfo=datetime.timezone.utc), "h": 6, "l": 5}],
+                     "2026-10-14T02:00:00+00:00")
+t("ref_rango vela previa None", _rr_old == (None, None) and _rr_ok == (5, 4))
+t("cierre_papel ref None solo ticker", v.cierre_papel(
+    {"dir": "LONG", "entrada": 83000, "tam": 0.2, "stop": 82500, "tp": 83400, "liq": 81000},
+    None, None, 82600) is None)
 
 # ---------- institucional extra ----------
 t("lectura macro", v.lectura_macro({"dxy": {"chg": -0.5}, "spx": {"chg": 1.0}}).startswith("macro a favor"))
 t("psico", v.psico(83006) == (84000, 83000))
+t("psico multiplo exacto", v.psico(83000.0) == (84000, 82000))
 rtkl = [{"o": 82000, "h": 82000, "l": 81900, "c": 81950} for _ in range(24)]
 rtkl += [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080}]
 t("retest up", v.retest(rtkl, {"precio": 82500}, {"precio": 81000}, 82400) is not None)
@@ -577,10 +591,24 @@ t("alerta tope", (lambda: (
     v.responder_comando({"chat": 111, "texto": "/alerta", "full": "/alerta 85000", "nombre": "T"},
                         dict(CSNAP, est=dict(CSNAP["est"], mis_alertas=[{"precio": 1, "dir": "x"}] * 20)))[0].startswith("Tienes 20")
 ))())
-t("ruptura baja", (v.ruptura([{"c": 81900}, {"c": 82000}], 82000, 84000) or "").startswith("ruptura BAJISTA"))
-t("ruptura sube", (v.ruptura([{"c": 84100}, {"c": 84000}], 82000, 84000) or "").startswith("ruptura ALCISTA"))
+t("ruptura baja", (v.ruptura([{"o": 82100, "c": 82050}, {"o": 81950, "c": 81500}, {"o": 81500, "c": 81560}], 81900, 84000) or "").startswith("ruptura BAJISTA"))
+t("ruptura sube", (v.ruptura([{"o": 83900, "c": 83950}, {"o": 83950, "c": 84450}, {"o": 84450, "c": 84500}], 82000, 84000) or "").startswith("ruptura ALCISTA"))
 t("ruptura nada", v.ruptura([{"c": 82000}, {"c": 83000}], 82000, 84000) is None)
 t("ruptura poca", v.ruptura([{"c": 1}], 2, 3) is None)
+# F6: anti false-break de chop (soporte se pega al precio al subir)
+t("ruptura F6 verde no es bajista", v.ruptura(
+    [{"o": 80932, "c": 81181}, {"o": 81181, "c": 81735}, {"o": 81735, "c": 81750}], 82000, 84000) is None)
+t("ruptura F6 sin cruce real", v.ruptura(
+    [{"o": 81700, "c": 81400}, {"o": 81400, "c": 81250}, {"o": 81250, "c": 81260}], 82000, 84000) is None)
+t("ruptura F6 margen corto", v.ruptura(
+    [{"o": 82050, "c": 82030}, {"o": 82030, "c": 81970}, {"o": 81970, "c": 81960}], 82000, 84000) is None)
+_rup_orig = v.UMBRAL_RUPTURA_ESTRICTO
+v.UMBRAL_RUPTURA_ESTRICTO = False
+t("ruptura F6 off restaura legacy", (v.ruptura([{"c": 81900}, {"c": 82000}], 82000, 84000) or "").startswith("ruptura BAJISTA"))
+v.UMBRAL_RUPTURA_ESTRICTO = _rup_orig
+# F8: proxima_sesion debe dar la próxima ocurrencia real (< 24 h), no siempre mañana
+_px = v.proxima_sesion()
+t("proxima_sesion < 24h", 0 < float(_px.split("~")[1].split(" ")[0]) <= 24.0)
 _eb5 = dict(eb)
 _ahX = ah.replace(hour=10, minute=5)
 t("ruptura avisa", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb5, _ahX,
@@ -1063,6 +1091,7 @@ t("cmd papel banco malo no tumba", "Papel" in v.responder_comando({"chat": 111, 
 t("cmd noti None no tumba", isinstance(v.responder_comando({"chat": 111, "texto": "/noticias", "full": "/noticias", "nombre": "T"}, dict(CTX, notis=None))[0], str))
 t("trocear respeta palabra", all(len(p) <= 3900 for p in v.trocear("a" * 3890 + " " + "b" * 100)) and "b" in v.trocear("a" * 3890 + " " + "b" * 100)[-1])
 t("trocear vacio seguro", v.trocear(None) == [] and v.trocear("") == [])
+t("trocear u16 emojis", all(v._u16(p) <= 3900 for p in v.trocear("😀" * 5000)))
 t("build plan None no tumba", isinstance(v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("1H", "lateral", 0), tf("4H", "lateral", 0), tf("1D", "lateral", 0), tf("1S", "lateral", 0), NIV, {"bias": "LATERAL", "confianza": 10}, "p", {"funding": None, "oi": None, "taker": None}, {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "manana", [], [], ah, dict(ex, plan=None, memoria=None, vistas=None)), str))
 t("send None no tumba run", v.send_telegram(None) in (True, False))
 t("ajeno sin chat_id no fuga", v.responder_comando({"chat": 999, "texto": "/precio", "full": "/precio", "nombre": "T"}, CTX) == (None, False))
