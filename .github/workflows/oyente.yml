@@ -39,6 +39,8 @@ jobs:
       - name: Publicar dashboard (rama dashboard)
         run: |
           if [ ! -f /tmp/dash_index.html ]; then echo "sin dashboard"; exit 0; fi
+          git config user.name "vigilante-bot"
+          git config user.email "vigilante-bot@users.noreply.github.com"
           git fetch origin dashboard 2>/dev/null || true
           if git show origin/dashboard:index.html 2>/dev/null | cmp -s /tmp/dash_index.html -; then echo "dashboard sin cambios"; exit 0; fi
           git checkout --orphan dash_tmp
