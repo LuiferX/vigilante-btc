@@ -146,7 +146,9 @@ def impacto_evento(impact):
     return 'ALTO (±3-8%)' if impact == 'High' else 'MEDIO (±0.5-2%)'
 
 
-def calendario(limit=5):
+def calendario(limit=5, incluir_pasadas_h=0):
+    """Próximos eventos USD (High/Medium). Con `incluir_pasadas_h>0` también
+    devuelve los ocurridos en las últimas N horas (para el estudio de eventos)."""
     evs = []
     try:
         req = urllib.request.Request(
@@ -157,6 +159,10 @@ def calendario(limit=5):
     except Exception:
         return []
     ahora = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        limite_pasado = ahora - datetime.timedelta(hours=max(0.0, float(incluir_pasadas_h or 0)))
+    except Exception:
+        limite_pasado = ahora
     for e in data:
         if e.get('country') != 'USD':
             continue
@@ -166,7 +172,7 @@ def calendario(limit=5):
             cuando = datetime.datetime.fromisoformat(e['date'].replace('Z', '+00:00'))
         except Exception:
             continue
-        if cuando <= ahora:
+        if cuando < limite_pasado:
             continue
         evs.append({"titulo": e.get('title', ''), "cuando": cuando, "impact": e.get('impact'),
                       "forecast": e.get('forecast'), "previous": e.get('previous')})
@@ -883,13 +889,21 @@ def fmt_miles(x):
 
 
 def sesion_hora():
+    """Sesión actual en UTC, alineada con `sesion_bucket` (Asia/Londres/NY/noche).
+    Antes decía "fuera de sesion" durante Asia (00–08 UTC) y llamaba "solape" a
+    toda la tarde. Ahora: Asia 00–08, Londres 08–13:30, solape 13:30–16:30,
+    NY 16:30–21, noche 21–24."""
     now = datetime.datetime.now(datetime.timezone.utc)
     hh = now.hour + now.minute / 60
-    if 8 <= hh < 13.5:
+    if hh < 8:
+        return "Asia"
+    if hh < 13.5:
         return "Londres"
-    if 13.5 <= hh < 21.5:
+    if hh < 16.5:
         return "Londres+NY (solape)"
-    return "fuera de sesion"
+    if hh < 21:
+        return "NY"
+    return "noche"
 
 
 # ---------------- Companero: tono, narrativa, memoria, comandos ------------
@@ -2905,7 +2919,6 @@ def evaluar_mfe(est, ahora, velas=None):
                 hit = 1 if mov >= risk / entry else 0
             else:
                 hit = 1 if mov <= -risk / entry else 0
-        r = 2 if hit else -1
         if p["bias"] == "ALZA":
             est["alza"] = (est.get("alza", []) + [hit])[-50:]
         else:
@@ -3779,7 +3792,10 @@ def main():
         senti = sentiment()
         fg = fear_greed(d1, senti, t["chg"])
         notis = noticias()
-        evs = calendario()
+        # M1: una sola bajada del calendario. `evs` = solo futuros (para mostrar/avisar);
+        # `_evs_cal` incluye las últimas 24 h para que el estudio de eventos no esté muerto.
+        _evs_cal = calendario(limit=80, incluir_pasadas_h=48)
+        evs = [e for e in _evs_cal if e.get("cuando") and e["cuando"] > ahora][:5]
 
         est, hist = cargar_estado()
         pide = bool(est.get("pide_detalle"))
@@ -3817,7 +3833,7 @@ def main():
             evaluar_todo(est, ahora, _velas_ev)
         except Exception:
             pass
-        estudiar_eventos(est, hist, evs, ahora)
+        estudiar_eventos(est, hist, _evs_cal, ahora)
         mx = macro_ext()
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
