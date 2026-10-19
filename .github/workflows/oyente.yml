@@ -6,10 +6,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # solo para publicar la rama 'dashboard'
 
+# CAMBIO: grupo propio. Antes compartia 'vigilante' con el analista y GitHub
+# cancelaba ~la mitad de las pasadas (cadencia real ~8.7 min). Ahora no chocan.
+# El oyente ya NO maneja comandos ni escribe estado.json (eso lo hace el
+# analista en cada pasada y ya respondia los comandos), asi que no hay carrera
+# de escritura sobre la rama 'estado'.
 concurrency:
-  group: vigilante
+  group: oyente
   cancel-in-progress: false
 
 jobs:
@@ -20,40 +25,16 @@ jobs:
       - name: Descargar codigo
         uses: actions/checkout@v4
 
-      - name: Cargar estado previo (rama estado)
+      - name: Cargar estado previo (rama estado, SOLO LECTURA)
         run: |
           git fetch origin estado 2>/dev/null || true
-          git checkout origin/estado -- estado.json historial.jsonl 2>/dev/null || echo "sin estado previo, empezando de cero"
+          git checkout origin/estado -- estado.json historial.jsonl 2>/dev/null || echo "sin estado previo"
 
-      - name: Responder comandos
-        run: python comandos.py
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
-      - name: Refrescar dashboard (datos cada 1 min)
+      - name: Refrescar dashboard (solo lectura del estado)
         run: |
           python dashboard.py || echo "dashboard fallo"
           cp docs/index.html /tmp/dash_index.html 2>/dev/null || echo "sin dashboard"
           cp assets/melodia.mp4 /tmp/dash_melodia.mp4 2>/dev/null || true
-
-      - name: Guardar estado (rama estado, se reescribe limpio)
-        run: |
-          git config user.name "vigilante-bot"
-          git config user.email "vigilante-bot@users.noreply.github.com"
-          if [ ! -f estado.json ]; then echo "sin estado que guardar"; exit 0; fi
-          mkdir -p /tmp/oyente && cp estado.json /tmp/oyente/
-          cp historial.jsonl /tmp/oyente/ 2>/dev/null || true
-          git checkout --orphan estado_tmp
-          git rm -rf . > /dev/null 2>&1 || true
-          cp /tmp/oyente/estado.json .
-          cp /tmp/oyente/historial.jsonl . 2>/dev/null || true
-          git add estado.json
-          [ -f historial.jsonl ] && git add historial.jsonl || true
-          git commit -m "oyente $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
-          ok=0; for i in 1 2 3; do git push --force origin estado_tmp:estado && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
-          git checkout -f ${GITHUB_REF_NAME}
-          git branch -D estado_tmp
 
       - name: Publicar dashboard (rama dashboard)
         run: |

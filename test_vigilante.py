@@ -180,20 +180,10 @@ t("dec estir bajo", "Estirado bajo media" in v.decidir_alerta(80500, niv, {"bias
 t("dec estir alto", "Estirado sobre media" in v.decidir_alerta(83500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, "sobre media +2.1×ATR (RSI 72)")[1])
 t("dec estir cooldown", "Estirado" not in v.decidir_alerta(80500, niv, {"bias": "LATERAL", "confianza": 10}, _eb, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, "bajo media -2.3×ATR (RSI 28)")[1])
 t("dec estir respeta plan", "Estirado" not in v.decidir_alerta(80850, niv, {"bias": "BAJA", "confianza": 53}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, "bajo media -2.3×ATR (RSI 28)")[1])
-_ft = [{"p": 82250, "q": 3.0, "m": True}] * 4 + [{"p": 82260, "q": 1.0, "m": False}]
-_bf = v.footprint(_ft)
-t("foot zona", isinstance(_bf, dict) and _bf["zona"] == 82250 and _bf["dir"] == "VENTA" and _bf["pct"] >= 70)
-t("foot vacio", v.footprint([]) is None)
-t("foot plano", v.footprint([{"p": 82250, "q": 1.0, "m": True}, {"p": 82250, "q": 1.0, "m": False}]) is None)
+# Footprint eliminado por completo: no existe la funcion y el parametro se ignora.
+t("footprint eliminado", not hasattr(v, "footprint"))
 _ef = dict(eb)
-t("dec foot", "Footprint" in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82250, "dir": "VENTA", "pct": 92.0, "vol": 12.0})[1])
-t("dec foot cooldown", "Footprint" not in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82250, "dir": "VENTA", "pct": 92.0, "vol": 12.0})[1])
-t("dec foot zona camina", "Footprint" not in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82300, "dir": "VENTA", "pct": 88.0, "vol": 14.0})[1])
-t("foot corrupto no rompe", v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=11, minute=5), None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": None, "dir": "VENTA", "pct": "alto", "vol": 12.0})[2] in ("alerta", "nada"))
-t("foot q negativa", (lambda _f: isinstance(_f, dict) and _f["dir"] == "COMPRA" and _f["pct"] <= 100)(v.footprint([{"p": 82250, "q": 20.0, "m": False}, {"p": 82250, "q": -5.0, "m": True}])))
-t("foot bucket malo", v.footprint([{"p": 82250, "q": 12.0}], bucket=0)["zona"] == 82250)
-t("foot zona int", isinstance(v.footprint([{"p": 82250, "q": 12.0}], bucket=50.0)["zona"], int))
-t("foot contra avisa", v.decidir_alerta(82300, niv, {"bias": "ALZA", "confianza": 50}, {"ultimo_bias": "ALZA"}, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82250, "dir": "VENTA", "pct": 92.0, "vol": 12.0})[1].endswith("(ojo: contra sesgo)"))
+t("dec sin footprint", "Footprint" not in v.decidir_alerta(82300, niv, {"bias": "LATERAL", "confianza": 10}, _ef, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, None, {"zona": 82250, "dir": "VENTA", "pct": 92.0, "vol": 12.0})[1])
 t("dec liq", "iquidez" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", None, "x", None)[1])
 t("dec dia", "NY mueve" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, None, "tendencia", False, "", 2.5, None, None)[1])
 t("dec toque chop", v.decidir_alerta(83900, niv, {"bias": "LATERAL", "confianza": 20}, dict(eb), ah.replace(hour=10, minute=5), None, None, "rango", False, "", None, None, None)[2] == "nada")
@@ -1130,6 +1120,21 @@ try:
         t("ticker exige claves", True)
 finally:
     v.fetch = _of2
+# Fuente sticky: una sola por pasada (futuros si FAPI responde; spot si no).
+_of3 = v.fetch
+_o_mercado = dict(v.MERCADO)
+try:
+    v.fetch = lambda *a, **k: {}
+    v.MERCADO["base"] = None
+    t("fuente prefiere futuros", v._elegir_fuente() == v.FAPI)
+    v.MERCADO["base"] = None
+    def _sin_fapi(*a, **k):
+        raise RuntimeError("sin fapi")
+    v.fetch = _sin_fapi
+    t("fuente cae a spot", v._elegir_fuente() == v.VISION)
+finally:
+    v.MERCADO.clear(); v.MERCADO.update(_o_mercado)
+    v.fetch = _of3
 t("cb prem none", "if last else None" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
 t("offset str sana", (lambda _r: isinstance(_r, tuple) and isinstance(_r[1], int))(v.leer_comandos("5")))
 t("poda existe", hasattr(v, "_podar_estado") and len(v._podar_estado({"cools": {str(i): "x" for i in range(300)}})["cools"]) <= 200)
@@ -1216,7 +1221,7 @@ t("dash header ids", all(s in _db.build_dashboard({"runs": 1}, []) for s in ['id
 t("dash orden secciones", (_db.build_dashboard({"runs": 1}, []).index('s-precio') < _db.build_dashboard({"runs": 1}, []).index('s-senales') < _db.build_dashboard({"runs": 1}, []).index('s-mercado') < _db.build_dashboard({"runs": 1}, []).index('s-dinero') < _db.build_dashboard({"runs": 1}, []).index('s-sistema')))
 t("dash fallback roto", "construccion" in open(os.path.join(_AQUI, "dashboard.py"), encoding="utf-8").read() and "sin datos" in _db.build_dashboard(None, None))
 
-# FIX BUG1/BUG2: preaviso puro + pila con enfriar 4h por zona
+# FIX BUG1/BUG2: preaviso puro + pila con enfriar 10h por zona (anti-ruido)
 _ep1 = {}
 _txt1 = v.preaviso(_ep1, _ev3, _ahora, "2026-10-12")
 # (usa _ev3/_ahora definidos arriba; _ep1 debe quedar sin marca tras solo calcular)

@@ -27,6 +27,24 @@ FAPI = "https://fapi.binance.com/fapi/v1"
 FDATA = "https://fapi.binance.com/futures/data"
 VISION = "https://data-api.binance.vision/api/v3"
 FUENTE = {"nombre": "futuros"}
+# Fuente de mercado: se fija UNA vez por pasada para que precio y velas vengan
+# del mismo sitio. Antes cada llamada hacia su propio fallback y una pasada podia
+# quedar con klines de futuros y ticker de spot (mezcla inconsistente).
+MERCADO = {"base": None}
+
+
+def _elegir_fuente():
+    """Fija FAPI (futuros) o VISION (spot) para TODA la pasada. Devuelve la base."""
+    if MERCADO.get("base"):
+        return MERCADO["base"]
+    try:
+        fetch(f"{FAPI}/ping", tries=1)
+        MERCADO["base"] = FAPI
+        FUENTE["nombre"] = "futuros"
+    except Exception:
+        MERCADO["base"] = VISION
+        FUENTE["nombre"] = "spot"
+    return MERCADO["base"]
 
 # ---------------- Noticias (prensa) y calendario (eventos futuros) --------
 
@@ -286,11 +304,14 @@ def fetch(url, timeout=20, tries=3):
 
 
 def klines(interval, limit):
+    base = MERCADO.get("base") or FAPI
     try:
-        data = fetch(f"{FAPI}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}")
+        data = fetch(f"{base}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}")
     except Exception:
-        data = fetch(f"{VISION}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}", tries=2)
-        FUENTE["nombre"] = "spot"
+        alt = VISION if base == FAPI else FAPI
+        data = fetch(f"{alt}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}", tries=2)
+        MERCADO["base"] = alt
+        FUENTE["nombre"] = "spot" if alt == VISION else "futuros"
     if not isinstance(data, list) or not data:
         raise ValueError("klines vacías o error API")
     data = [k for k in data if isinstance(k, (list, tuple)) and len(k) >= 6]
@@ -307,11 +328,14 @@ def klines(interval, limit):
 
 
 def ticker24():
+    base = MERCADO.get("base") or FAPI
     try:
-        t = fetch(f"{FAPI}/ticker/24hr?symbol=BTCUSDT")
+        t = fetch(f"{base}/ticker/24hr?symbol=BTCUSDT")
     except Exception:
-        t = fetch(f"{VISION}/ticker/24hr?symbol=BTCUSDT", tries=2)
-        FUENTE["nombre"] = "spot"
+        alt = VISION if base == FAPI else FAPI
+        t = fetch(f"{alt}/ticker/24hr?symbol=BTCUSDT", tries=2)
+        MERCADO["base"] = alt
+        FUENTE["nombre"] = "spot" if alt == VISION else "futuros"
     try:
         last = float(t.get("lastPrice"))
         chg = float(t.get("priceChangePercent"))
@@ -2125,61 +2149,6 @@ def mapa_liq(kl, last, funding):
             "iman": {"lado": lado, "pct": round(100 * (tb if lado == "abajo" else ta) / tot)}}
 
 
-def footprint(data=None, bucket=50):
-    """Mini-footprint: presión compradora/vendedora por nivel con aggTrades.
-    m=True = venta agresiva. Zona = bucket con 10+ BTC y 70%+ a un lado."""
-    try:
-        bucket = int(bucket)
-        if bucket <= 0:
-            bucket = 50
-    except Exception:
-        bucket = 50
-    if data is None:
-        data = []
-        for base in (FAPI, VISION):
-            try:
-                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-                if data:
-                    break
-            except Exception:
-                continue
-    if not data:
-        return None
-    try:
-        zones = {}
-        for tr in data:
-            try:
-                q = float(tr["q"])
-                px = float(tr["p"])
-            except Exception:
-                continue
-            if q <= 0 or px <= 0:
-                continue
-            z = int(px // bucket) * bucket
-            a = zones.setdefault(z, [0.0, 0.0])
-            # m=True en Binance aggTrades = comprador es maker (agresor = vendedor).
-            # Acepta bool real o string "true"/"false" por robustez (F1).
-            _m = tr.get("m")
-            _es_venta = (_m is True) or (isinstance(_m, str) and _m.strip().lower() == "true")
-            if _es_venta:
-                a[1] += q
-            else:
-                a[0] += q
-        best = None
-        for z, (b, s) in zones.items():
-            t = b + s
-            if t < 10:
-                continue
-            dom = max(b, s) / t
-            if dom >= 0.70 and (best is None or t > best[3]):
-                best = (int(z), "COMPRA" if b > s else "VENTA", round(dom * 100, 1), round(t, 1))
-        if not best:
-            return None
-        return {"zona": best[0], "dir": best[1], "pct": best[2], "vol": best[3]}
-    except Exception:
-        return None
-
-
 def ballenas(data=None):
     """Cinta de ballenas: prints >= UMBRAL_BALLENA en ~3000 trades recientes
     (fapi, con fallback a spot). m=True = vendedor agresivo.
@@ -3278,28 +3247,6 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
     if isinstance(estir, str) and estir and (bias not in ("ALZA", "BAJA") or conf < 45) and enfriar(est, "estir:" + ("bajo" if estir.startswith("bajo") else "alto"), 4, ahora):
         return True, f"Estirado {estir} (toma parcial, rebote probable — no es entrada)", "alerta"
-    # Guardia: foot puede ser None o no-dict (F5). No rompe, solo se ignora.
-    if not isinstance(foot, dict):
-        _fz, _fd, _fp, _fv = None, "", 0.0, 0.0
-    else:
-        try:
-            _fz, _fd = int(foot.get("zona")), str(foot.get("dir"))
-            _fp, _fv = float(foot.get("pct")), float(foot.get("vol"))
-        except Exception:
-            _fz, _fd, _fp, _fv = None, "", 0.0, 0.0
-    # F2: solo alerta si el precio esta cerca de la zona de presion (<0.5%),
-    # evita falsos positivos de zonas lejanas (F2).
-    _cerca = (_fz is not None and _fz != 0 and
-              abs(precio - _fz) / abs(_fz) < 0.005)
-    if (_fz is not None and _fd in ("COMPRA", "VENTA") and 0 < _fp <= 100
-            and _fv >= 10 and _cerca and enfriar(est, "foot:" + _fd, 4, ahora)):
-        try:
-            lado = "compradora" if _fd == "COMPRA" else "vendedora"
-            _contra = (_fd == "COMPRA" and bias == "BAJA") or (_fd == "VENTA" and bias == "ALZA")
-            _aviso = " (ojo: contra sesgo)" if _contra else ""
-            return True, f"Footprint: presión {lado} en {fmt_miles(_fz)} ({_fp:.0f}% a ese lado, {_fv:.0f} BTC){_aviso}", "alerta"
-        except Exception:
-            pass
     if rup:
         try:
             mm = re.search(r"(?:bajo|sobre)\s+([\d.]+)", rup)
@@ -3338,7 +3285,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 _pk = "pila:" + str(_zz)
             except Exception:
                 _pk = "pila:?"
-            if enfriar(est, _pk, 4, ahora):
+            if enfriar(est, _pk, 10, ahora):
                 return True, pila, "alerta"
         except Exception:
             try:
@@ -3368,7 +3315,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
         fade_ok = True if bias == "LATERAL" else ((bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA"))
         if not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
-                est, f"toque:{nivel}", 4, ahora):
+                est, f"toque:{nivel}", 10, ahora):
             return True, f"Tocando {lado}" + ficha_zona(est, nivel), "alerta"
     _prog = _reporte_programado()
     if _prog:
@@ -3769,6 +3716,7 @@ def guardia_lectura():
 
 def main():
     guardia_lectura()
+    _elegir_fuente()  # fija spot/futuros una sola vez para toda la pasada
     ahora = datetime.datetime.now(datetime.timezone.utc)
     try:
         t = ticker24()
@@ -3838,10 +3786,7 @@ def main():
         cb = coinbase_analisis(t.get("last"), t.get("vol"))
         sm = smart_money(t, h1, senti, notis, (cb or {}).get("prem"))
         bal = ballenas()
-        try:
-            foot = footprint()
-        except Exception:
-            foot = None
+        foot = None  # footprint eliminado (era ruido); se mantiene la variable por compatibilidad
         if bal is None:
             try:
                 _pb = est.get("last_bal") or {}
@@ -4256,9 +4201,6 @@ def main():
             "bal": ({"nb": bal.get("nb", 0), "ns": bal.get("ns", 0), "buys": bal.get("buys", 0),
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
-            "foot": ({"zona": foot.get("zona"), "dir": foot.get("dir"),
-                      "pct": foot.get("pct"), "vol": foot.get("vol")}
-                     if isinstance(foot, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
             "qb": qb if isinstance(qb, dict) else None,
             "sl": list(sl) if isinstance(sl, (list, tuple)) else None,
