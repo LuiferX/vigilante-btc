@@ -319,6 +319,15 @@ t("cierre_papel ref None solo ticker", v.cierre_papel(
 t("lectura macro", v.lectura_macro({"dxy": {"chg": -0.5}, "spx": {"chg": 1.0}}).startswith("macro a favor"))
 t("psico", v.psico(83006) == (84000, 83000))
 t("psico multiplo exacto", v.psico(83000.0) == (84000, 82000))
+t("sesion_hora valida", v.sesion_hora() in ("Asia", "Londres", "Londres+NY (solape)", "NY", "noche"))
+# M1: el estudio de eventos debe aprender de un evento ya ocurrido (>=2h)
+_eh = [{"t": "2026-10-14T07:00:00+00:00", "precio": 100.0},
+       {"t": "2026-10-14T09:00:00+00:00", "precio": 102.0}]
+_ev = [{"cuando": datetime.datetime(2026, 10, 14, 8, tzinfo=datetime.timezone.utc), "titulo": "Algo", "impact": "High"}]
+_an = datetime.datetime(2026, 10, 14, 12, tzinfo=datetime.timezone.utc)
+_es = {}
+_n = v.estudiar_eventos(_es, _eh, _ev, _an)
+t("estudio eventos aprende", _n == 1 and _es.get("ev_study", {}).get("OTRO") == [2.0])
 rtkl = [{"o": 82000, "h": 82000, "l": 81900, "c": 81950} for _ in range(24)]
 rtkl += [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080}]
 t("retest up", v.retest(rtkl, {"precio": 82500}, {"precio": 81000}, 82400) is not None)
