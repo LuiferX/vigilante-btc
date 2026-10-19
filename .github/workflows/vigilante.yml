@@ -40,7 +40,12 @@ jobs:
           fi
 
       - name: Recolectar microestructura (forward, no rompe nada)
-        run: python recolector_micro.py --append micro.jsonl || echo "recoleccion fallo, se continua"
+        run: |
+          if [ -f recolector_micro.py ]; then
+            python recolector_micro.py --append micro.jsonl || echo "recoleccion fallo, se continua"
+          else
+            echo "sin recolector_micro.py en el repo: se omite el paso (el bot no se ve afectado)"
+          fi
 
       - name: Ejecutar vigilante (analisis + Telegram)
         run: python vigilante_cloud.py
