@@ -242,6 +242,12 @@ UMBRAL_CONF_CAMBIO = 40
 UMBRAL_CONF_SENAL = 50    # subido de 45: menos señales, mayor calidad (replay: confluencia > umbral solo)
 UMBRAL_PAPEL = 40         # subido de 35: el papel aprende con menos ruido
 UMBRAL_TOQUE = 0.0025  # 0.25% del nivel = "tocando"
+# F6: anti "ruptura de chop". Una ruptura confirmada DEBE tener la vela en la
+# direccion del break (roja=bajista, verde=alcista), cruzar el nivel de verdad
+# (la vela previa cerraba al otro lado) y superar un margen minimo. Evita cantar
+# "ruptura BAJISTA" cuando el soporte mas cercano sube pegado al precio en subida.
+UMBRAL_RUPTURA_MIN = float(os.environ.get("VIGILANTE_RUPTURA_MIN", "0.30"))   # margen minimo % mas alla del nivel
+UMBRAL_RUPTURA_ESTRICTO = os.environ.get("VIGILANTE_RUPTURA_ESTRICTO", "1") not in ("", "0", "false", "False")
 DEDUP_HORAS = 4          # misma direccion en 4 h = 1 sola senal (sin duplicados)
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
 FEE_PCT = 0.001          # 0.10% ida+vuelta (costo de operar)
@@ -386,7 +392,8 @@ def rsi(closes):
         else:
             p -= d
     if p == 0:
-        return 100.0
+        # B1: sin bajadas, pero si tampoco hay subidas el RSI es 50 (no 100)
+        return 100.0 if g > 0 else 50.0
     return round(100 - 100 / (1 + g / p), 1)
 
 
@@ -852,8 +859,18 @@ def fear_greed(d1, senti, chg24):
 
 def proxima_sesion():
     now = datetime.datetime.now(datetime.timezone.utc)
-    ld = (now + datetime.timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
-    ny = (now + datetime.timedelta(days=1)).replace(hour=13, minute=30, second=0, microsecond=0)
+
+    def _siguiente(hora, minuto):
+        # F8: antes siempre sumaba +1 día, así que a las 03:00 UTC decía que la
+        # próxima Londres era "en ~29 h" (mañana) en vez de hoy. Ahora calcula la
+        # próxima ocurrencia real (hoy si aún no pasó, si no mañana).
+        d = now.replace(hour=hora, minute=minuto, second=0, microsecond=0)
+        if d <= now:
+            d += datetime.timedelta(days=1)
+        return d
+
+    ld = _siguiente(8, 0)
+    ny = _siguiente(13, 30)
     h_l = (ld - now).total_seconds() / 3600
     h_n = (ny - now).total_seconds() / 3600
     if h_l <= h_n:
@@ -1556,6 +1573,9 @@ def abrir_papel(est, dirb, niv, precio, ahora):
 
 def cierre_papel(o, ref_h, ref_l, last):
     """Cierre de papel XLX: la LIQUIDACION manda sobre SL/TP.
+    `ref_h`/`ref_l` son el rango de la última vela 1H CERRADA. Van como None
+    cuando esa vela terminó ANTES de abrir la posición (no se puede cerrar una
+    operación con el rango de una hora anterior a su entrada: daba SL/TP falsos).
     Devuelve (px, donde, pnl) o None si sigue abierta."""
     try:
         lev = float(o.get("lev") or PAPER_LEV)
@@ -1563,22 +1583,48 @@ def cierre_papel(o, ref_h, ref_l, last):
         liq = float(o.get("liq") or (ent * (1 - 1.0 / lev) if o["dir"] == "LONG"
                                      else ent * (1 + 1.0 / lev)))
         if o["dir"] == "LONG":
-            if ref_l <= liq or last <= liq:
+            if (ref_l is not None and ref_l <= liq) or last <= liq:
                 return liq, "LIQ", round(-(tam * ent) / lev, 2)
-            if ref_l <= o["stop"] or last <= o["stop"]:
+            if (ref_l is not None and ref_l <= o["stop"]) or last <= o["stop"]:
                 return float(o["stop"]), "SL", round((float(o["stop"]) - ent) * tam, 2)
-            if ref_h >= o["tp"] or last >= o["tp"]:
+            if (ref_h is not None and ref_h >= o["tp"]) or last >= o["tp"]:
                 return float(o["tp"]), "TP", round((float(o["tp"]) - ent) * tam, 2)
         else:
-            if ref_h >= liq or last >= liq:
+            if (ref_h is not None and ref_h >= liq) or last >= liq:
                 return liq, "LIQ", round(-(tam * ent) / lev, 2)
-            if ref_h >= o["stop"] or last >= o["stop"]:
+            if (ref_h is not None and ref_h >= o["stop"]) or last >= o["stop"]:
                 return float(o["stop"]), "SL", round((ent - float(o["stop"])) * tam, 2)
-            if ref_l <= o["tp"] or last <= o["tp"]:
+            if (ref_l is not None and ref_l <= o["tp"]) or last <= o["tp"]:
                 return float(o["tp"]), "TP", round((ent - float(o["tp"])) * tam, 2)
         return None
     except Exception:
         return None
+
+
+def ref_rango(kl_h1, t_iso):
+    """Rango (h, l) de la última vela 1H cerrada, SOLO si esa vela empezó en/después
+    de la entrada `t_iso`. Si la vela es anterior a la operación devuelve (None, None):
+    así no se cierra una posición con el rango de una hora previa a su apertura."""
+    try:
+        if not kl_h1 or len(kl_h1) < 2:
+            return None, None
+        v = kl_h1[-2]
+        if not isinstance(v, dict):
+            return None, None
+        vt = v.get("t")
+        if t_iso and vt is not None:
+            try:
+                if vt < datetime.datetime.fromisoformat(t_iso):
+                    return None, None
+            except Exception:
+                pass
+        h = v.get("h")
+        l = v.get("l")
+        if h is None or l is None:
+            return None, None
+        return h, l
+    except Exception:
+        return None, None
 
 
 def journal_check(ops, kl_h1, last):
@@ -1586,10 +1632,11 @@ def journal_check(ops, kl_h1, last):
     Devuelve (abiertas, cierres[{txt, r, dir, res}])."""
     msgs = []
     abiertas = []
-    ref_h = kl_h1[-2]["h"] if len(kl_h1) >= 2 else last
-    ref_l = kl_h1[-2]["l"] if len(kl_h1) >= 2 else last
     for o in ops:
         try:
+            ref_h, ref_l = ref_rango(kl_h1, o.get("t"))
+            if ref_h is None:
+                ref_h = ref_l = last
             d, e, s, tp = o["dir"], o["entrada"], o["stop"], o["tp"]
             cerrada = None
             if d == "LONG":
@@ -1773,6 +1820,8 @@ def psico(last):
     """Niveles psicologicos (miles redondos) mas cercanos arriba/abajo."""
     up = (int(last // 1000) + 1) * 1000
     down = int(last // 1000) * 1000
+    if down >= last:  # B5: si last es multiplo exacto, el de abajo es 1000 menos
+        down -= 1000
     return up, down
 
 
@@ -1792,22 +1841,34 @@ def retest(kl, res, sup, last):
 
 def ruptura(kl_h1, sup, res):
     """Ruptura confirmada: la última vela 1H CERRADA quedó más allá del
-    soporte (bajista) o la resistencia (alcista) más cercanos."""
+    soporte (bajista) o la resistencia (alcista) más cercanos.
+    F6: exige vela en dirección del break, cruce real del nivel (la vela previa
+    cerraba al otro lado) y margen mínimo, para no cantar "rupturas" de chop
+    cuando el soporte/resistencia más cercano se pega al precio.
+    Reversible: VIGILANTE_RUPTURA_ESTRICTO=0 vuelve al comportamiento anterior."""
     try:
         if not kl_h1 or len(kl_h1) < 2:
             return None
         vc = kl_h1[-2]
         c = vc["c"]
+        o = vc.get("o", c)
+        prev = kl_h1[-3] if len(kl_h1) >= 3 else None
+        pc = prev.get("c", c) if prev else None
         hh = ""
         try:
             hh = vc["t"].strftime("%H:%M")
         except Exception:
             pass
+        estricto = UMBRAL_RUPTURA_ESTRICTO
         if sup and c < sup:
             d = (sup - c) / sup * 100
+            if estricto and not (c < o and pc is not None and pc >= sup and d >= UMBRAL_RUPTURA_MIN):
+                return None
             return f"ruptura BAJISTA confirmada bajo {fmt_miles(sup)} (cierre 1H {hh} en {fmt_miles(c)}, {d:.2f}% debajo)"
         if res and c > res:
             d = (c - res) / res * 100
+            if estricto and not (c > o and pc is not None and pc <= res and d >= UMBRAL_RUPTURA_MIN):
+                return None
             return f"ruptura ALCISTA confirmada sobre {fmt_miles(res)} (cierre 1H {hh} en {fmt_miles(c)}, {d:.2f}% encima)"
         return None
     except Exception:
@@ -1889,7 +1950,11 @@ def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
                      "zt": 0 if abs(h1.get("z") or 0) < 1.0 else (1 if abs(h1.get("z") or 0) < 2.0 else 2)}
                 p = prob_reaccion(f)
                 if p is not None:
-                    rc = f" Reacción probable {'ALTA' if p >= 0.65 else ('BAJA' if p < 0.55 else 'MEDIA')} (historial)."
+                    # F7: el puntaje de prob_reaccion vive en [0.459, 0.580] (media de 6
+                    # tablas, base 0.522). Los umbrales 0.55/0.65 dejaban "ALTA" inalcanzable
+                    # y "BAJA" en ~89% de los casos. Se alinean a los percentiles reales
+                    # (p25≈0.505, p75≈0.537) para que la etiqueta informe de verdad.
+                    rc = f" Reacción probable {'ALTA' if p >= 0.540 else ('BAJA' if p < 0.505 else 'MEDIA')} (historial)."
         except Exception:
             pass
         if zp["precio"] <= last:
@@ -3162,7 +3227,25 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         return True, forzado, "alerta"
     if gestion:
         return True, gestion, "alerta"
+    hoy = ahora.strftime("%Y-%m-%d")
+    hh = ahora.hour + ahora.minute / 60
+
+    def _reporte_programado():
+        if 13 <= hh < 13.5 and est.get("ultimo_preny") != hoy:
+            return True, "REPORTE PRE-NY (30 min para la apertura)", "preny"
+        if ahora.hour == 7 and est.get("ultimo_madrugada") != hoy:
+            return True, "Resumen nocturno (mientras dormías)", "madrugada"
+        if 8 <= hh < 9 and est.get("ultimo_resumen") != f"{hoy}-manana":
+            return True, "Buenos días, plan del día (Londres)", "manana"
+        if 2 <= hh < 3 and est.get("ultimo_resumen_noche") != hoy:
+            return True, "Buenas noches, resumen del día", "noche"
+        return None
+
     if bloqueo:
+        # B3: el blackout cancela señales NUEVAS, no los reportes fijos del día
+        _prog = _reporte_programado()
+        if _prog:
+            return _prog
         return False, f"blackout ({motivo_bloq})", "nada"
     if _vol_filtrado:
         # No envia la senal direccional, pero el resto de alertas (brusco, ritmo, etc.) siguen.
@@ -3274,16 +3357,9 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         if not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
                 est, f"toque:{nivel}", 4, ahora):
             return True, f"Tocando {lado}" + ficha_zona(est, nivel), "alerta"
-    hoy = ahora.strftime("%Y-%m-%d")
-    hh = ahora.hour + ahora.minute / 60
-    if 13 <= hh < 13.5 and est.get("ultimo_preny") != hoy:
-        return True, "REPORTE PRE-NY (30 min para la apertura)", "preny"
-    if ahora.hour == 7 and est.get("ultimo_madrugada") != hoy:
-        return True, "Resumen nocturno (mientras dormías)", "madrugada"
-    if 8 <= hh < 9 and est.get("ultimo_resumen") != f"{hoy}-manana":
-        return True, "Buenos días, plan del día (Londres)", "manana"
-    if 2 <= hh < 3 and est.get("ultimo_resumen_noche") != hoy:
-        return True, "Buenas noches, resumen del día", "noche"
+    _prog = _reporte_programado()
+    if _prog:
+        return _prog
     return False, "sin señal (rango, sin cambios)", "nada"
 
 
@@ -3569,8 +3645,18 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
         return "\n".join(L)
 
 
+def _u16(s):
+    """Longitud en unidades UTF-16 (lo que cuenta Telegram): emojis = 2."""
+    try:
+        return len(s.encode("utf-16-le")) // 2
+    except Exception:
+        return len(s or "")
+
+
 def trocear(texto, limite=3900):
-    """Parte un mensaje largo en trozos <= limite sin romper lineas."""
+    """Parte un mensaje largo en trozos <= limite (en unidades UTF-16, que es como
+    cuenta Telegram) sin romper lineas. Antes medía caracteres: muchos emojis podian
+    superar 4096 unidades y Telegram devolvia 400 (alerta perdida)."""
     try:
         texto = str(texto or "")
     except Exception:
@@ -3579,13 +3665,15 @@ def trocear(texto, limite=3900):
         return []
     partes = []
     for bloque in texto.split("\n"):
-        while len(bloque) > limite:
+        while _u16(bloque) > limite:
             corte = bloque.rfind(" ", 0, limite)
-            if corte < limite // 2:
+            if corte < limite // 2 or _u16(bloque[:corte]) > limite:
                 corte = limite
+                while corte > 1 and _u16(bloque[:corte]) > limite:
+                    corte -= 1
             partes.append(bloque[:corte])
             bloque = bloque[corte:].lstrip()
-        if not partes or len(partes[-1]) + len(bloque) + 1 > limite:
+        if not partes or _u16(partes[-1]) + _u16(bloque) + 1 > limite:
             partes.append(bloque)
         else:
             partes[-1] += "\n" + bloque
@@ -3717,7 +3805,10 @@ def main():
             _velas_ev = klines("1h", 220)
         except Exception:
             _velas_ev = None
-        evaluar_mfe(est, ahora, _velas_ev)
+        try:
+            evaluar_mfe(est, ahora, _velas_ev)
+        except Exception:
+            pass
         try:
             evaluar_sombra(est, ahora, _velas_ev)
         except Exception:
@@ -3867,7 +3958,8 @@ def main():
         poc = punto_control(kl_h1)
         rup = ruptura(kl_h1, niv["soportes"][0]["precio"], niv["resistencias"][0]["precio"])
         try:
-            qb = quiebre_estructura(kl_h1)
+            # M3: solo velas CERRADAS (antes usaba la viva y la señal repintaba)
+            qb = quiebre_estructura(kl_h1[:-1])
         except Exception:
             qb = None
         try:
@@ -3965,8 +4057,7 @@ def main():
         abiertas_p = []
         for o in est.get("paper_abiertas", []):
             try:
-                ref_h = kl_h1[-2]["h"] if len(kl_h1) >= 2 else t["last"]
-                ref_l = kl_h1[-2]["l"] if len(kl_h1) >= 2 else t["last"]
+                ref_h, ref_l = ref_rango(kl_h1, o.get("t"))
                 fin = cierre_papel(o, ref_h, ref_l, t["last"])
                 if fin:
                     px, donde, pnl = fin
@@ -4290,9 +4381,10 @@ def main():
             if abs(dd) >= 0.002:
                 direc = "se calentó" if dd > 0 else "se enfrió"
                 memoria.append(f"el funding {direc} desde tu último parte ({lf:+.4f}% → {senti['funding']:+.4f}%)")
-        nuevas = [n for n in notis if n["titulo"] not in est.get("vistas", [])][:2]
-        if nuevas:
-            est["vistas"] = (est.get("vistas", []) + [n["titulo"] for n in nuevas])[-30:]
+        # M6/M5: no marcar las noticias como vistas HASTA que el envío tenga éxito
+        # (más abajo, tras send ok). Así la sección "NOTICIAS NUEVAS" sí las muestra
+        # y, si el envío falla, no se pierden (se reintentan en la pasada siguiente).
+        nuevas = [n for n in notis if n.get("titulo") not in est.get("vistas", [])][:2]
         if tipo == "manana":
             ca = cierre_ayer(hist, ahora)
             if ca:
