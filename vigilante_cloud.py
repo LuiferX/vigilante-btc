@@ -899,24 +899,74 @@ def niveles(h1, h4, d1, w1, pd, pw, precio):
         ("S2 diario", pd["S2"] if pd else None), ("R2 diario", pd["R2"] if pd else None),
         ("S1 semanal", pw["S1"] if pw else None), ("R1 semanal", pw["R1"] if pw else None),
     ]
+    # Confluencia: varias fuentes que caen en el mismo nivel de la rejilla
+    # valen mas que una sola. Se guardan TODAS las fuentes, no solo la primera.
     for o, v in cands:
         if v is None or v <= 0:
             continue
         v = snap_nivel(v)
-        dup = lambda arr: any(abs(x["precio"] - v) < 20 for x in arr)
-        if v < precio:
-            if not dup(sups):
-                sups.append({"precio": v, "origen": o})
+        arr = sups if v < precio else ress
+        hit = next((x for x in arr if abs(x["precio"] - v) < 20), None)
+        if hit is not None:
+            ops = hit.setdefault("origenes", [hit["origen"]])
+            if o not in ops:
+                ops.append(o)
+            hit["n"] = len(ops)
         else:
-            if not dup(ress):
-                ress.append({"precio": v, "origen": o})
+            arr.append({"precio": v, "origen": o, "origenes": [o], "n": 1})
     if not sups:
-        sups.append({"precio": h1["winL"], "origen": "min14 1H cercano"})
+        sups.append({"precio": h1["winL"], "origen": "min14 1H cercano",
+                     "origenes": ["min14 1H cercano"], "n": 1})
     if not ress:
-        ress.append({"precio": h1["winH"], "origen": "max14 1H cercano"})
+        ress.append({"precio": h1["winH"], "origen": "max14 1H cercano",
+                     "origenes": ["max14 1H cercano"], "n": 1})
+    # [0] sigue siendo el nivel MAS CERCANO (asi lo espera el resto del bot y el
+    # dashboard). La confluencia viaja en "n"/"origenes" para mostrarla, no para
+    # reordenar: un techo lejano no debe tapar al que estas tocando.
     sups.sort(key=lambda x: x["precio"], reverse=True)
     ress.sort(key=lambda x: x["precio"])
     return {"soportes": sups[:3], "resistencias": ress[:3]}
+
+
+def fuentes_nivel(item, max_n=3):
+    """Texto corto de las fuentes de un nivel: 'max14 1H + R1 diario'."""
+    try:
+        ops = item.get("origenes") or ([item.get("origen")] if item.get("origen") else [])
+        ops = [o for o in ops if o]
+        if not ops:
+            return ""
+        extra = "" if len(ops) <= max_n else f" +{len(ops) - max_n}"
+        return " + ".join(ops[:max_n]) + extra
+    except Exception:
+        return ""
+
+
+def confluencia_nivel(item):
+    """Cuantas fuentes distintas forman el nivel (1 = una sola)."""
+    try:
+        return int(item.get("n") or len(item.get("origenes") or [1]))
+    except Exception:
+        return 1
+
+
+def regimen_operativo(h1, h4):
+    """Clasifica el mercado para decidir si vale la pena avisar de entradas.
+    chop    = ruido puro (1H ER bajo y 4H sin ADX): no operar.
+    rango   = lateral con algo de fuerza: solo niveles, no persecucion.
+    tendencia = hay direccion y fuerza.
+    """
+    try:
+        er = h1.get("er")
+        adx4 = h4.get("adx") or 0
+        adx1 = h1.get("adx") or 0
+        er = 1.0 if er is None else float(er)
+        if er < 0.25 and adx4 < 20 and adx1 < 20:
+            return "chop"
+        if adx4 >= 22 and (h4.get("tend") or "lateral") != "lateral":
+            return "tendencia"
+        return "rango"
+    except Exception:
+        return "rango"
 
 
 def direccion(h1, h4, d1, w1):
@@ -2268,11 +2318,13 @@ def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
             inv = (sops[0]["precio"] if sops else zp["precio"])
             return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                     f"({razones}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
-                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}{rc}", str(zp["precio"]))
+                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}{rc}"
+                    f" Zona de referencia, no una entrada.", str(zp["precio"]))
         inv = (ress[0]["precio"] if ress else zp["precio"])
         return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                 f"({razones}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
-                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}{rc}", str(zp["precio"]))
+                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}{rc}"
+                f" Zona de referencia, no una entrada.", str(zp["precio"]))
     except Exception:
         return None, None
 
@@ -2557,6 +2609,66 @@ def etiquetar_senal(senti, hora, dcvd):
         return {"funding": None, "taker": None, "sesion": "?", "cvd_div": "no"}
 
 
+def tipo_de_motivo(motivo):
+    """Clasifica el texto de una alerta en su tipo medible.
+    Sirve para el scoreboard: saber QUE tipo acierta, no solo el total."""
+    m = str(motivo or "")
+    if m.startswith("Toma de liquidez"):
+        return "liquidez"
+    if m.startswith("ruptura"):
+        return "ruptura"
+    if m.startswith("Tocando"):
+        return "toque"
+    if m.startswith("EYY PILAS"):
+        return "pila"
+    if m.startswith("COMPRA") or m.startswith("VENTA"):
+        return "estructura"
+    if m.startswith("RECHAZO"):
+        return "mecha"
+    if "Movimiento brusco" in m:
+        return "brusco"
+    if "Ritmo acelerado" in m:
+        return "ritmo"
+    if m.startswith("Señal fuerte"):
+        return "fuerte"
+    if m.startswith("Cambio de dirección"):
+        return "cambio"
+    if m.startswith("Estirado"):
+        return "estirado"
+    if m.startswith("La sesión NY"):
+        return "ny"
+    return "otro"
+
+
+def scoreboard(eval_log, min_n=1):
+    """Acierto REAL por tipo de alerta, medido en vivo (eval_log).
+    Devuelve filas (tipo, n, aciertos, pct), mejor primero. Sin promesas."""
+    acc = {}
+    for e in (eval_log or []):
+        if not isinstance(e, dict):
+            continue
+        t = e.get("tipo") or "?"
+        if t in ("?", "otro"):
+            continue
+        n, h = acc.get(t, (0, 0))
+        acc[t] = (n + 1, h + (1 if e.get("r") else 0))
+    rows = [(t, n, h, 100.0 * h / n) for t, (n, h) in acc.items() if n >= min_n]
+    rows.sort(key=lambda x: (-x[3], -x[1]))
+    return rows
+
+
+def texto_scoreboard(eval_log, min_n=5, max_filas=6):
+    """Linea(s) de scoreboard para Telegram. Vacío si no hay muestra."""
+    rows = scoreboard(eval_log, min_n=min_n)
+    if not rows:
+        return ""
+    partes = [f"{t} {h}/{n} ({p:.0f}%)" for t, n, h, p in rows[:max_filas]]
+    total_n = sum(r[1] for r in rows)
+    total_h = sum(r[2] for r in rows)
+    cab = f"📊 Medido en vivo ({total_h}/{total_n} = {100.0*total_h/total_n:.0f}%)"
+    return cab + "\n· " + "\n· ".join(partes)
+
+
 def auto_stats(eval_log):
     """Auto-aprendizaje: en que sesion rinden mejor las senales (min 10 evaluadas)."""
     if len(eval_log) < 10:
@@ -2694,8 +2806,11 @@ def hay_veto(bias, prem, dxy):
     return False
 
 
-def score_senal(dirb, h1, h4, regimen):
-    """Calidad A/B/C/D: confianza + regimen (chop capa la A) + volumen."""
+def score_senal(dirb, h1, h4, regimen, confl=0):
+    """Calidad A/B/C/D: confianza + regimen + volumen.
+    NOTA: la confluencia (confl) NO mueve el grado. Se probo en 5000 velas 1H/4H
+    y no mejoro el acierto (en 4H lo empeoro). Se deja solo como INFO (fuentes).
+    """
     if dirb["bias"] not in ("ALZA", "BAJA"):
         return "—"
     c = dirb["confianza"]
@@ -3163,7 +3278,8 @@ def evaluar_mfe(est, ahora, velas=None):
             est["baja"] = (est.get("baja", []) + [hit])[-50:]
         log = est.get("eval_log", [])
         log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
-                    "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4)})
+                    "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4),
+                    "tipo": p.get("tipo") or "?"})
         est["eval_log"] = log[-200:]
     est["pendientes"] = nuevas[-100:]
 
@@ -3457,12 +3573,13 @@ def gestion_sl(op, last, atr_h1, regimen):
         return (None, None, None)
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None, atr=None, liq_plan=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None, atr=None, liq_plan=None, chop=False):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     try:
         res = niv["resistencias"][0]
         sup = niv["soportes"][0]
         bias, conf = dirb["bias"], float(dirb["confianza"])
+        _chop = bool(chop)
     except Exception:
         return False, "estado incompleto", "nada"
     try:
@@ -3509,10 +3626,10 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
             est, "fuerte:" + bias, 4, ahora)):
         return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
-            est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 2, ahora):
+            est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 4, ahora):
         return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
-            est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 2, ahora):
+            est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 4, ahora):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
     if isinstance(estir, str) and estir and (bias not in ("ALZA", "BAJA") or conf < 45) and enfriar(est, "estir:" + ("bajo" if estir.startswith("bajo") else "alto"), 4, ahora):
         return True, f"Estirado {estir} (toma parcial, rebote probable — no es entrada)", "alerta"
@@ -3528,10 +3645,25 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         except Exception:
             _rb, _contra = True, False
         _plan = plan_trade("rup_alcista" if _rb else "rup_bajista", precio, niv, atr) if atr else None
-        if (not atr or (_plan and _plan["valido"])) and enfriar(est, rkey, 12, ahora):
-            _aviso = " (ojo: sesgo en contra, no perseguir)" if _contra else ""
+        # Medido en 5000 velas: ruptura contra el sesgo = 25% a 2R (-0.20R),
+        # a favor = 33%. Si va contra, no hay sesgo o el mercado es chop, se
+        # avisa como CONTEXTO y no se adjunta plan: no es una entrada.
+        _ctx = _contra or bias not in ("ALZA", "BAJA") or _chop
+        if _ctx:
+            _plan = None
+        if (_ctx or not atr or (_plan and _plan["valido"])) and enfriar(est, rkey, 12, ahora):
+            if _chop:
+                _aviso = " (contexto: chop, no es entrada)"
+            elif _contra:
+                _aviso = " (contexto: ruptura contra el sesgo, no es entrada)"
+            elif _ctx:
+                _aviso = " (contexto: sin sesgo direccional, no es entrada)"
+            else:
+                _aviso = ""
+            _fut = fuentes_nivel(res if _rb else sup)
+            _fut = (f" [nivel: {_fut}]" if _fut else "")
             _pt = (" · " + texto_plan(_plan)) if _plan else ""
-            return True, rup + _aviso + _pt, "alerta"
+            return True, rup + _fut + _aviso + _pt, "alerta"
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
         lado = "max" if "sobre" in liq else "min"
@@ -3546,7 +3678,9 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
             else:
                 ref = f"desvanecer hacia {fmt_miles(niv['resistencias'][0]['precio'])} (referencia)"
             _pl = ""
-            if isinstance(liq_plan, dict):
+            if _chop:
+                _pl = " · chop: contexto, no perseguir"
+            elif isinstance(liq_plan, dict):
                 if liq_plan.get("valido"):
                     _pl = " · " + texto_plan(liq_plan)
                 else:
@@ -3572,38 +3706,43 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if isinstance(qb, dict) and qb.get("dir") in ("ALZA", "BAJA") and bias == qb["dir"] and conf >= UMBRAL_CONF_SENAL:
         try:
             _stop = sl[0] if isinstance(sl, (list, tuple)) and sl else None
-            _plan = plan_trade("long" if qb["dir"] == "ALZA" else "short", precio, niv, atr, stop=_stop) if (atr and _stop) else None
-            _pasa = (not atr) or bool(_plan and _plan["valido"])
+            _plan = plan_trade("long" if qb["dir"] == "ALZA" else "short", precio, niv, atr, stop=_stop) if (atr and _stop and not _chop) else None
+            _pasa = True if _chop else ((not atr) or bool(_plan and _plan["valido"]))
             if _pasa and enfriar(est, "qb:" + qb["dir"], 4, ahora):
                 verbo = "COMPRA" if qb["dir"] == "ALZA" else "VENTA"
                 extra = (f" · {texto_plan(_plan)}" if _plan else
                          (f" · SL {fmt_miles(_stop)}" if _stop is not None else ""))
                 lejos = " (SL lejos, tamaño pequeño)" if isinstance(sl, (list, tuple)) and len(sl) > 2 and sl[2] else ""
-                return True, f"{verbo} {qb.get('tipo', 'BOS')} sobre {fmt_miles(qb.get('nivel', precio))}{extra}{lejos}", "alerta"
+                _chopn = " (chop: contexto, no entrada)" if _chop else ""
+                return True, f"{verbo} {qb.get('tipo', 'BOS')} sobre {fmt_miles(qb.get('nivel', precio))}{extra}{lejos}{_chopn}", "alerta"
         except Exception:
             pass
     if isinstance(mecha, dict) and mecha.get("dir") in ("ALZA", "BAJA") and bias == mecha["dir"] and conf >= UMBRAL_CONF_SENAL and regimen == "tendencia":
         try:
             _stopm = slm[0] if isinstance(slm, (list, tuple)) and slm else None
-            _planm = plan_trade("long" if mecha["dir"] == "ALZA" else "short", precio, niv, atr, stop=_stopm) if (atr and _stopm) else None
-            _pasam = (not atr) or bool(_planm and _planm["valido"])
+            _planm = plan_trade("long" if mecha["dir"] == "ALZA" else "short", precio, niv, atr, stop=_stopm) if (atr and _stopm and not _chop) else None
+            _pasam = True if _chop else ((not atr) or bool(_planm and _planm["valido"]))
             if _pasam and enfriar(est, "mecha:" + mecha["dir"], 4, ahora):
                 verbo = "RECHAZO ALZA" if mecha["dir"] == "ALZA" else "RECHAZO BAJA"
                 extra = (f" · {texto_plan(_planm)}" if _planm else
                          (f" · SL {fmt_miles(_stopm)}" if _stopm is not None else ""))
                 lejos = " (SL lejos, tamaño pequeño)" if isinstance(slm, (list, tuple)) and len(slm) > 2 and slm[2] else ""
-                return True, f"{verbo} {fmt_miles(mecha.get('nivel', precio))}→{fmt_miles(precio)}{extra}{lejos}", "alerta"
+                _chopm = " (chop: contexto, no entrada)" if _chop else ""
+                return True, f"{verbo} {fmt_miles(mecha.get('nivel', precio))}→{fmt_miles(precio)}{extra}{lejos}{_chopm}", "alerta"
         except Exception:
             pass
     if min(dist_res, dist_sup) <= UMBRAL_TOQUE:
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
         fade_ok = True if bias == "LATERAL" else ((bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA"))
-        _plan = plan_trade("resistencia" if dist_res <= dist_sup else "soporte", precio, niv, atr) if atr else None
-        if (not atr or (_plan and _plan["valido"])) and not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
+        _plan = plan_trade("resistencia" if dist_res <= dist_sup else "soporte", precio, niv, atr) if (atr and not _chop) else None
+        _pasa_toque = True if _chop else ((not atr) or bool(_plan and _plan["valido"]))
+        if _pasa_toque and not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
                 est, f"toque:{nivel}", 10, ahora):
-            _pt = (" · " + texto_plan(_plan)) if _plan else ""
-            return True, f"Tocando {lado}" + ficha_zona(est, nivel) + _pt, "alerta"
+            _pt = (" · " + texto_plan(_plan)) if _plan else (" · chop: contexto, no entrada" if _chop else "")
+            _fut = fuentes_nivel(res if dist_res <= dist_sup else sup)
+            _fut = (f" [fuentes: {_fut}]" if _fut else "")
+            return True, f"Tocando {lado}" + ficha_zona(est, nivel) + _fut + _pt, "alerta"
     _prog = _reporte_programado()
     if _prog:
         return _prog
@@ -3686,6 +3825,8 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append(f"📈 max {fmt_miles(t['hi'])} / min {fmt_miles(t['lo'])}")
     L.append("")
     L.append(f"🧭 MARCOS: {dirb['bias']} ({dirb['confianza']}%) · régimen {extras.get('regimen', '?')} · ADX 4H {h4.get('adx', '?')}")
+    if extras.get("confl", 0) >= 2:
+        L.append(f"🧩 Confluencia: {extras['confl']} fuentes en el nivel más cercano")
     L.append("  " + "  ".join(f"{x['tf']}{icon.get(x['tend'], '🟡')}(s{x['score']:+d})" for x in (h1, h4, d1, w1)))
     L.append("")
     L.append("📖 " + str(extras.get("narrativa") or "").strip())
@@ -4024,6 +4165,8 @@ def main():
         pd = pivots("1d", "D")
         pw = pivots("1w", "S")
         regimen = "tendencia" if h4.get("adx", 0) >= 20 else "rango"
+        # chop = ruido puro: en ese estado el bot informa pero NO invita a entrar.
+        _chop = (regimen_operativo(h1, h4) == "chop")
         if regimen == "rango":
             for _x in (h1, h4):
                 _x["score"] = _x["score"] - _x.get("macd", 0)
@@ -4168,7 +4311,16 @@ def main():
                 macro_viejo = f" (hace {int(_ed2)}h)"
         if mx:
             est["last_macro"] = {"mx": mx, "t": ahora.isoformat()}
-        grade = score_senal(dirb, h1, h4, regimen)
+        # Confluencia del nivel mas cercano: solo informativa, NO cambia el grado.
+        try:
+            _c_res = confluencia_nivel(niv["resistencias"][0])
+            _c_sup = confluencia_nivel(niv["soportes"][0])
+            _d_res = abs(niv["resistencias"][0]["precio"] - t["last"])
+            _d_sup = abs(t["last"] - niv["soportes"][0]["precio"])
+            _confl = _c_res if _d_res <= _d_sup else _c_sup
+        except Exception:
+            _confl = 0
+        grade = score_senal(dirb, h1, h4, regimen, confl=_confl)
         veto = hay_veto(dirb["bias"], (cb or {}).get("prem"), ((mx or {}).get("dxy") or {}).get("chg", 0))
         if veto and grade in ("A", "B"):
             grade = chr(ord(grade) + 2)
@@ -4388,7 +4540,7 @@ def main():
                     estir = f"sobre media +{_dx:.1f}×ATR (RSI {_rsi1:.0f})"
         except Exception:
             estir = None
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"), liq_plan=liq_plan)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"), liq_plan=liq_plan, chop=_chop)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -4445,6 +4597,7 @@ def main():
                 est["pendientes"] = est.get("pendientes", []) + [
                     {"t": ahora.isoformat(), "precio": round(t["last"]),
                      "bias": dirb["bias"], "conf": dirb["confianza"],
+                     "tipo": tipo_de_motivo(motivo),
                      "risk": round(umbral * t["last"], 1),
                      "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
                               "fund": senti["funding"], "taker": senti["taker"],
@@ -4467,10 +4620,23 @@ def main():
             pass
         guardar_estado(est, hist)
 
+        # Scoreboard semanal (domingo 12:00 UTC): acierto real por tipo, no promesas.
+        try:
+            if ahora.weekday() == 6 and ahora.hour == 12 and est.get("ultimo_score") != hoy:
+                _txt_sb = texto_scoreboard(est.get("eval_log", []), min_n=5)
+                if _txt_sb:
+                    send_telegram("🗓️ SCOREBOARD SEMANAL (señales direccionales)\n" + _txt_sb +
+                                  "\nSin promesas: es lo que pasó, no lo que va a pasar.")
+                est["ultimo_score"] = hoy
+                guardar_estado(est, hist)
+        except Exception:
+            pass
+
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
                "h1": h1, "h4": h4, "d1": d1, "w1": w1, "senti": senti,
                "notis": notis, "evs": evs, "ahora": ahora, "cb": cb, "smart": sm, "aut": aut,
-               "grade": grade, "regimen": regimen, "bloqueo": bloqueo, "pres": pres}
+               "grade": grade, "regimen": regimen, "bloqueo": bloqueo, "pres": pres,
+               "confl": _confl}
         try:
             cmds, new_off = leer_comandos(est.get("offset", 0))
         except Exception:
@@ -4498,6 +4664,7 @@ def main():
             "t": ahora.isoformat(),
             "precio": t["last"], "chg": t["chg"], "hi": t["hi"], "lo": t["lo"],
             "bias": dirb["bias"], "conf": dirb["confianza"], "grade": grade, "regimen": regimen,
+            "confl": _confl,
             "tf": {k: {"tend": x["tend"], "rsi": x["rsi"], "macd": x["macd"], "score": x["score"],
                          "er": x.get("er"), "z": x.get("z")}
                    for k, x in (("h1", h1), ("h4", h4), ("d1", d1), ("w1", w1))},

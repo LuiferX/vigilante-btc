@@ -2438,9 +2438,13 @@ def build_dashboard(est, hist):
         sops = [s for s in (niv.get("sop") or []) if isinstance(s, dict)][:2]
         ress = [r for r in (niv.get("res") or []) if isinstance(r, dict)][:2]
         for s in sops:
-            nvs.append({"precio": s.get("precio"), "etiqueta": f"SOP · {s.get('origen', 'soporte')}", "kind": "sop"})
+            _n = int(s.get("n") or len(s.get("origenes") or []) or 1)
+            _f = f" · {_n} fuentes" if _n >= 2 else ""
+            nvs.append({"precio": s.get("precio"), "etiqueta": f"SOP · {s.get('origen', 'soporte')}{_f}", "kind": "sop"})
         for r in ress:
-            nvs.append({"precio": r.get("precio"), "etiqueta": f"RES · {r.get('origen', 'resistencia')}", "kind": "res"})
+            _n = int(r.get("n") or len(r.get("origenes") or []) or 1)
+            _f = f" · {_n} fuentes" if _n >= 2 else ""
+            nvs.append({"precio": r.get("precio"), "etiqueta": f"RES · {r.get('origen', 'resistencia')}{_f}", "kind": "res"})
         if precio and sops and ress:
             ds = (precio - float(sops[0].get("precio", precio))) / precio * 100
             dr = (float(ress[0].get("precio", precio)) - precio) / precio * 100

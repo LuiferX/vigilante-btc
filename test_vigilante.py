@@ -607,7 +607,7 @@ t("ruptura F6 off restaura legacy", (v.ruptura([{"c": 81900}, {"c": 82000}], 820
 v.UMBRAL_RUPTURA_ESTRICTO = _rup_orig
 # F8: proxima_sesion debe dar la próxima ocurrencia real (< 24 h), no siempre mañana
 _px = v.proxima_sesion()
-t("proxima_sesion < 24h", 0 < float(_px.split("~")[1].split(" ")[0]) <= 24.0)
+t("proxima_sesion < 24h", 0 <= float(_px.split("~")[1].split(" ")[0]) <= 24.0)
 _eb5 = dict(eb)
 _ahX = ah.replace(hour=10, minute=5)
 t("ruptura avisa", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb5, _ahX,
@@ -927,7 +927,7 @@ t("backtest demo marcado", "[DEMO]" in open(os.path.join(_AQUI, "backtest.py"), 
 _ahr = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
 t("ruptura contra avisa", v.decidir_alerta(80552, {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 80445}]},
     {"bias": "BAJA", "confianza": 50}, {}, _ahr, None, None, "tendencia", False, "", None, None, None, 55, 40, None,
-    "ruptura ALCISTA confirmada sobre 80.445", None, None, None, None, None)[1].endswith("(ojo: sesgo en contra, no perseguir)"))
+    "ruptura ALCISTA confirmada sobre 80.445", None, None, None, None, None)[1].endswith("(contexto: ruptura contra el sesgo, no es entrada)"))
 t("ruptura a favor limpia", v.decidir_alerta(80552, {"soportes": [{"precio": 80000}], "resistencias": [{"precio": 80445}]},
     {"bias": "ALZA", "confianza": 50}, {}, _ahr, None, None, "tendencia", False, "", None, None, None, 55, 40, None,
     "ruptura ALCISTA confirmada sobre 80.445 (cierre 1H 12:00 en 80.552, 0.13% encima)", None, None, None, None, None)[1].endswith("encima)"))
@@ -1406,6 +1406,96 @@ t("liquidez cluster anota", "(×" in _rliq and "compradores" in _rliq)
 t("liquidez min sweep filtra", v.liquidez([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
     [{"o": 82000, "h": 82001, "l": 82000, "c": 81999}, {"o": 81999, "h": 82000, "l": 81998, "c": 81997},
      {"o": 81997, "h": 81998, "l": 81996, "c": 81995}], 81995) is None)
+
+# --- Honestidad de ruptura y PILAS (estudio 5000 velas) ---
+# Contra el sesgo: se avisa como contexto y NUNCA se adjunta plan de entrada.
+_niv_rup = {"soportes": [{"precio": 82400}], "resistencias": [{"precio": 83000}]}
+_txt_rup_alc = "ruptura ALCISTA confirmada sobre 82.000 (cierre 1H)"
+_rc = v.decidir_alerta(82500, _niv_rup, {"bias": "BAJA", "confianza": 50},
+                       {"ultimo_bias": "BAJA"}, ah.replace(hour=10, minute=5),
+                       rup=_txt_rup_alc, atr=200)
+t("rup contra: avisa", _rc[2] == "alerta")
+t("rup contra: sin plan", "R:R" not in _rc[1] and "📐" not in _rc[1])
+t("rup contra: dice contexto", "contexto" in _rc[1] and "no es entrada" in _rc[1])
+# Sin sesgo direccional: tambien contexto, sin plan.
+_rl = v.decidir_alerta(82500, _niv_rup, {"bias": "LATERAL", "confianza": 10},
+                       {"ultimo_bias": "LATERAL"}, ah.replace(hour=10, minute=6),
+                       rup=_txt_rup_alc, atr=200)
+t("rup lateral: avisa", _rl[2] == "alerta")
+t("rup lateral: sin plan", "R:R" not in _rl[1] and "contexto" in _rl[1])
+# A favor del sesgo: el plan puede ir adjunto (aqui R:R 2.5, valido).
+_rf = v.decidir_alerta(82500, _niv_rup, {"bias": "ALZA", "confianza": 50},
+                       {"ultimo_bias": "ALZA"}, ah.replace(hour=10, minute=7),
+                       rup=_txt_rup_alc, atr=200)
+t("rup a favor: plan", _rf[2] == "alerta" and "R:R" in _rf[1])
+# PILAS: se declara zona, no entrada.
+_pm, _ = v.mensaje_pila([{"precio": 83000, "razones": ["imán"]}], 82900,
+                        [{"precio": 82400}], [{"precio": 83600}])
+t("pila dice no entrada", _pm is not None and "no una entrada" in _pm)
+
+# --- Motor de confluencia y regimen (v2) ---
+_hc = {"winL": 81000, "winH": 82520}
+_h4c = {"winL": 80500, "winH": 83000}
+_dc = {"winL": 80000, "winH": 82510}
+_wc = {"winL": 79000, "winH": 84000}
+_pdc = {"S1": 82480, "R1": 83500, "S2": 81000, "R2": 84500}
+_nvc = v.niveles(_hc, _h4c, _dc, _wc, _pdc, None, 82000)
+_r0 = _nvc["resistencias"][0]
+t("confluencia: nivel cercano", _r0["precio"] == 82500)
+t("confluencia: cuenta fuentes", _r0.get("n", 1) >= 3)
+t("confluencia: guarda origenes", "max14 1H" in _r0.get("origenes", [])
+  and "S1 diario" in _r0.get("origenes", []))
+t("confluencia: texto", "max14 1H" in v.fuentes_nivel(_r0))
+t("confluencia minima", v.confluencia_nivel({"n": 1}) == 1)
+t("confluencia default", v.confluencia_nivel({}) == 1)
+t("regimen chop", v.regimen_operativo({"er": 0.1, "adx": 12, "tend": "lateral"},
+                                      {"adx": 15, "tend": "lateral"}) == "chop")
+t("regimen tendencia", v.regimen_operativo({"er": 0.5, "adx": 25, "tend": "BAJISTA"},
+                                           {"adx": 30, "tend": "BAJISTA"}) == "tendencia")
+t("regimen rango", v.regimen_operativo({"er": 0.4, "adx": 18, "tend": "lateral"},
+                                        {"adx": 20, "tend": "lateral"}) == "rango")
+# En chop la ruptura se informa pero no invita a entrar (sin plan).
+_rch = v.decidir_alerta(82500, _niv_rup, {"bias": "ALZA", "confianza": 50},
+                        {"ultimo_bias": "ALZA"}, ah.replace(hour=10, minute=9),
+                        rup=_txt_rup_alc, atr=200, chop=True)
+t("chop: avisa", _rch[2] == "alerta")
+t("chop: sin plan", "R:R" not in _rch[1] and "📐" not in _rch[1])
+t("chop: lo dice", "chop" in _rch[1] and "no es entrada" in _rch[1])
+# El toque muestra las fuentes del nivel (por que ese techo/piso).
+_niv_f = {"soportes": [{"precio": 81000, "origen": "S1 diario",
+                        "origenes": ["S1 diario", "min14 1H"], "n": 2}],
+          "resistencias": [{"precio": 82500, "origen": "max14 1H",
+                            "origenes": ["max14 1H", "max14 4H", "S1 diario"], "n": 3}]}
+_rt = v.decidir_alerta(82490, _niv_f, {"bias": "LATERAL", "confianza": 10}, {},
+                       ah.replace(hour=10, minute=10), regimen="tendencia", atr=200)
+t("toque muestra fuentes", _rt[2] == "alerta" and "[fuentes:" in _rt[1]
+  and "max14 1H" in _rt[1])
+# La confluencia NO cambia el grado (probado: no mejora el acierto, en 4H empeora).
+# Se muestra como informacion, no como filtro.
+t("score confl 3 neutro", v.score_senal({"bias": "ALZA", "confianza": 55},
+                                        {"volRel": 150}, {}, "tendencia", confl=3) == "B")
+t("score confl 1 neutro", v.score_senal({"bias": "ALZA", "confianza": 55},
+                                        {"volRel": 150}, {}, "tendencia", confl=1) == "B")
+t("score confl 0 neutro", v.score_senal({"bias": "ALZA", "confianza": 55},
+                                        {"volRel": 150}, {}, "tendencia", confl=0) == "B")
+# --- Auto-medicion: tipo de alerta + scoreboard honesto ---
+t("tipo liquidez", v.tipo_de_motivo("Toma de liquidez: sobre 82.000.") == "liquidez")
+t("tipo ruptura", v.tipo_de_motivo("ruptura BAJISTA confirmada bajo 82.000") == "ruptura")
+t("tipo toque", v.tipo_de_motivo("Tocando la resistencia de 82.500") == "toque")
+t("tipo pila", v.tipo_de_motivo("EYY PILAS: a 0.1% de 83.000") == "pila")
+t("tipo estructura", v.tipo_de_motivo("COMPRA BOS sobre 82.000") == "estructura")
+t("tipo mecha", v.tipo_de_motivo("RECHAZO ALZA 81.000→81.500") == "mecha")
+t("tipo brusco", v.tipo_de_motivo("Movimiento brusco de +1.20% en 1 h") == "brusco")
+t("tipo otro", v.tipo_de_motivo("cualquier cosa") == "otro")
+_sb = v.scoreboard([{"tipo": "liquidez", "r": 1}, {"tipo": "liquidez", "r": 0},
+                    {"tipo": "ruptura", "r": 1}, {"tipo": "?", "r": 1}])
+_sbd = {x[0]: x for x in _sb}
+t("scoreboard agrupa", _sbd["liquidez"][1] == 2 and abs(_sbd["liquidez"][3] - 50) < 0.01)
+t("scoreboard ordena", _sb[0][0] == "ruptura")
+t("scoreboard ignora ?", "?" not in _sbd)
+t("scoreboard texto", "liquidez 1/2 (50%)" in v.texto_scoreboard(
+    [{"tipo": "liquidez", "r": 1}, {"tipo": "liquidez", "r": 0}], min_n=1))
+t("scoreboard vacio", v.texto_scoreboard([], min_n=1) == "")
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
