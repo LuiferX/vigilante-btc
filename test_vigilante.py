@@ -1330,5 +1330,42 @@ t("texto fvg ignora lejanos", v.texto_fvg({"h1": v.fvgs_cercanos(_klf, 110.0), "
 t("fvgs_activos estructura", set(v.fvgs_activos(_klf, _klb, 102.5).keys()) == {"h1", "h4"})
 t("fvg no es alerta", "fvg" not in v.decidir_alerta(101.0, niv, {"bias": "LATERAL", "confianza": 5}, dict(eb), ah, None, None, "rango", False, "", None, None, None)[1].lower())
 
+# --- Plan con R:R: precisión por riesgo definido (no predicción) ---
+_nv_pl = {"soportes": [{"precio": 81900}], "resistencias": [{"precio": 82600}]}
+_pv = v.plan_trade("soporte", 82000, _nv_pl, 200)
+t("plan soporte valido", _pv and _pv["dir"] == "ALZA" and _pv["valido"]
+  and abs(_pv["stop"] - 81800) < 1 and abs(_pv["objetivo"] - 82600) < 1
+  and abs(_pv["rr"] - 3.0) < 0.01)
+_pi = v.plan_trade("soporte", 82000, {"soportes": [{"precio": 81900}], "resistencias": [{"precio": 82200}]}, 200)
+t("plan R:R bajo invalido", _pi and not _pi["valido"] and _pi["rr"] < 2)
+_pw = v.plan_trade("soporte", 82000, {"soportes": [{"precio": 81500}], "resistencias": [{"precio": 83200}]}, 200)
+t("plan stop ancho invalido", _pw and not _pw["valido"] and _pw["rr"] >= 2)
+_ps = v.plan_trade("resistencia", 82000, {"soportes": [{"precio": 81400}], "resistencias": [{"precio": 82100}]}, 200)
+t("plan resistencia valido", _ps and _ps["dir"] == "BAJA" and _ps["valido"] and abs(_ps["rr"] - 3.0) < 0.01)
+t("plan sin atr none", v.plan_trade("soporte", 82000, _nv_pl, 0) is None)
+_tp = v.texto_plan(_pv)
+t("texto plan", "R:R" in _tp and "objetivo" in _tp and v.texto_plan(None) == "")
+# gate en decidir_alerta: solo con ATR (produccion); sin ATR mantiene el comportamiento viejo
+_niv_ok = {"resistencias": [{"precio": 82000, "origen": "R"}], "soportes": [{"precio": 81000, "origen": "S"}]}
+_rg = v.decidir_alerta(82000, _niv_ok, {"bias": "BAJA", "confianza": 20}, {"ultimo_bias": "LATERAL"},
+                       ah.replace(hour=10, minute=5), regimen="tendencia", atr=200)
+t("toque con R:R avisa", _rg[0] is True and _rg[2] == "alerta" and "R:R" in _rg[1])
+_niv_mal = {"resistencias": [{"precio": 82000}], "soportes": [{"precio": 81900}]}
+_rb = v.decidir_alerta(82000, _niv_mal, {"bias": "BAJA", "confianza": 20}, {"ultimo_bias": "LATERAL"},
+                       ah.replace(hour=10, minute=5), regimen="tendencia", atr=200)
+t("toque sin R:R calla", _rb[2] == "nada")
+_rb0 = v.decidir_alerta(82000, _niv_mal, {"bias": "BAJA", "confianza": 20}, {"ultimo_bias": "LATERAL"},
+                        ah.replace(hour=10, minute=5), regimen="tendencia")
+t("sin ATR compatible", _rb0[2] == "alerta")
+_rup_txt = "ruptura ALCISTA confirmada sobre 81.000 (cierre 1H 10:00 en 82.000, 1.23% encima)"
+_rr_ok = v.decidir_alerta(82000, {"resistencias": [{"precio": 82600}], "soportes": [{"precio": 81800}]},
+                          {"bias": "ALZA", "confianza": 20}, {"ultimo_bias": "ALZA"},
+                          ah.replace(hour=10, minute=5), regimen="tendencia", rup=_rup_txt, atr=200)
+t("rup con R:R avisa", _rr_ok[2] == "alerta" and "R:R" in _rr_ok[1])
+_rr_bad = v.decidir_alerta(82000, {"resistencias": [{"precio": 82600}], "soportes": [{"precio": 81700}]},
+                           {"bias": "ALZA", "confianza": 20}, {"ultimo_bias": "ALZA"},
+                           ah.replace(hour=10, minute=5), regimen="tendencia", rup=_rup_txt, atr=200)
+t("rup sin R:R calla", _rr_bad[2] == "nada")
+
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)

@@ -580,6 +580,76 @@ def sl_estructura(entry, dire, ref, atr_val):
         return None
 
 
+MIN_RR_ALERTA = float(os.environ.get("VIGILANTE_MIN_RR", "2.0"))
+MAX_STOP_ATR = float(os.environ.get("VIGILANTE_MAX_STOP_ATR", "1.6"))
+
+
+def plan_trade(lado, precio, niv, atr, stop=None, min_rr=None, max_stop_atr=None):
+    """Plan con riesgo definido para una alerta (no predice: acota el riesgo).
+
+    lado: soporte|resistencia|long|short|rup_alcista|rup_bajista.
+    Objetivo = siguiente nivel opuesto; si no hay, 2R.
+    Solo es valido si rr >= MIN_RR_ALERTA y el stop <= MAX_STOP_ATR*ATR.
+    Puro: sin red ni estado. Si no hay ATR devuelve None (modo compatible).
+    """
+    try:
+        min_rr = MIN_RR_ALERTA if min_rr is None else float(min_rr)
+        max_stop_atr = MAX_STOP_ATR if max_stop_atr is None else float(max_stop_atr)
+        precio = float(precio)
+        atr = float(atr or 0)
+        if precio <= 0 or atr <= 0:
+            return None
+        res = sorted(float(x["precio"]) for x in (niv or {}).get("resistencias", [])
+                     if isinstance(x, dict) and x.get("precio"))
+        sup = sorted((float(x["precio"]) for x in (niv or {}).get("soportes", [])
+                      if isinstance(x, dict) and x.get("precio")), reverse=True)
+    except Exception:
+        return None
+    entrada = precio
+    if lado in ("soporte", "long", "rup_alcista"):
+        dir_ = "ALZA"
+        if stop is None:
+            ref = sup[0] if sup else precio - atr
+            stop = ref - 0.5*atr
+        obj = next((r for r in res if r > entrada + 0.1*atr), None)
+    elif lado in ("resistencia", "short", "rup_bajista"):
+        dir_ = "BAJA"
+        if stop is None:
+            ref = res[0] if res else precio + atr
+            stop = ref + 0.5*atr
+        obj = next((s for s in sup if s < entrada - 0.1*atr), None)
+    else:
+        return None
+    try:
+        stop = float(stop)
+    except Exception:
+        return None
+    riesgo = abs(entrada - stop)
+    if riesgo <= 1e-9:
+        return None
+    if obj is None:
+        obj = entrada + 2*riesgo if dir_ == "ALZA" else entrada - 2*riesgo
+    if (dir_ == "ALZA" and obj <= entrada) or (dir_ == "BAJA" and obj >= entrada):
+        return None
+    rr = abs(obj - entrada)/riesgo
+    stop_pct = riesgo/entrada*100
+    return {"dir": dir_, "entrada": round(entrada, 1), "stop": round(stop, 1),
+            "objetivo": round(obj, 1), "rr": round(rr, 2),
+            "stop_pct": round(stop_pct, 2),
+            "valido": bool(rr >= min_rr and riesgo <= max_stop_atr*atr)}
+
+
+def texto_plan(plan):
+    """Linea compacta del plan. Vacía si no hay plan."""
+    try:
+        if not isinstance(plan, dict):
+            return ""
+        return (f"📐 {plan['dir']}: stop {fmt_miles(plan['stop'])} (-{plan['stop_pct']:.2f}%) · "
+                f"objetivo {fmt_miles(plan['objetivo'])} · R:R {plan['rr']:.1f}")
+    except Exception:
+        return ""
+
+
 def mecha_rechazo(candles):
     """Rechazo por mecha en BTC 1H. Puro, sin red.
     ALZA = martillo (mecha inferior domina, nivel=low).
@@ -3327,7 +3397,7 @@ def gestion_sl(op, last, atr_h1, regimen):
         return (None, None, None)
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None, atr=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     try:
         res = niv["resistencias"][0]
@@ -3392,14 +3462,16 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
             rkey = "ruptura:" + (mm.group(1) if mm else rup)
         except Exception:
             rkey = "ruptura:?"
-        if enfriar(est, rkey, 12, ahora):
-            try:
-                _rb = "ALCISTA" in rup
-                _contra = (_rb and bias == "BAJA") or (not _rb and bias == "ALZA")
-            except Exception:
-                _contra = False
+        try:
+            _rb = "ALCISTA" in rup
+            _contra = (_rb and bias == "BAJA") or (not _rb and bias == "ALZA")
+        except Exception:
+            _rb, _contra = True, False
+        _plan = plan_trade("rup_alcista" if _rb else "rup_bajista", precio, niv, atr) if atr else None
+        if (not atr or (_plan and _plan["valido"])) and enfriar(est, rkey, 12, ahora):
             _aviso = " (ojo: sesgo en contra, no perseguir)" if _contra else ""
-            return True, rup + _aviso, "alerta"
+            _pt = (" · " + texto_plan(_plan)) if _plan else ""
+            return True, rup + _aviso + _pt, "alerta"
     if liq:
         contra = ("sobre" in liq and bias == "ALZA") or ("sobre" not in liq and bias == "BAJA")
         lado = "max" if "sobre" in liq else "min"
@@ -3433,18 +3505,26 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 pass
     if isinstance(qb, dict) and qb.get("dir") in ("ALZA", "BAJA") and bias == qb["dir"] and conf >= UMBRAL_CONF_SENAL:
         try:
-            if enfriar(est, "qb:" + qb["dir"], 4, ahora):
+            _stop = sl[0] if isinstance(sl, (list, tuple)) and sl else None
+            _plan = plan_trade("long" if qb["dir"] == "ALZA" else "short", precio, niv, atr, stop=_stop) if (atr and _stop) else None
+            _pasa = (not atr) or bool(_plan and _plan["valido"])
+            if _pasa and enfriar(est, "qb:" + qb["dir"], 4, ahora):
                 verbo = "COMPRA" if qb["dir"] == "ALZA" else "VENTA"
-                extra = f" · SL {fmt_miles(sl[0])}" if isinstance(sl, (list, tuple)) else ""
+                extra = (f" · {texto_plan(_plan)}" if _plan else
+                         (f" · SL {fmt_miles(_stop)}" if _stop is not None else ""))
                 lejos = " (SL lejos, tamaño pequeño)" if isinstance(sl, (list, tuple)) and len(sl) > 2 and sl[2] else ""
                 return True, f"{verbo} {qb.get('tipo', 'BOS')} sobre {fmt_miles(qb.get('nivel', precio))}{extra}{lejos}", "alerta"
         except Exception:
             pass
     if isinstance(mecha, dict) and mecha.get("dir") in ("ALZA", "BAJA") and bias == mecha["dir"] and conf >= UMBRAL_CONF_SENAL and regimen == "tendencia":
         try:
-            if enfriar(est, "mecha:" + mecha["dir"], 4, ahora):
+            _stopm = slm[0] if isinstance(slm, (list, tuple)) and slm else None
+            _planm = plan_trade("long" if mecha["dir"] == "ALZA" else "short", precio, niv, atr, stop=_stopm) if (atr and _stopm) else None
+            _pasam = (not atr) or bool(_planm and _planm["valido"])
+            if _pasam and enfriar(est, "mecha:" + mecha["dir"], 4, ahora):
                 verbo = "RECHAZO ALZA" if mecha["dir"] == "ALZA" else "RECHAZO BAJA"
-                extra = f" · SL {fmt_miles(slm[0])}" if isinstance(slm, (list, tuple)) else ""
+                extra = (f" · {texto_plan(_planm)}" if _planm else
+                         (f" · SL {fmt_miles(_stopm)}" if _stopm is not None else ""))
                 lejos = " (SL lejos, tamaño pequeño)" if isinstance(slm, (list, tuple)) and len(slm) > 2 and slm[2] else ""
                 return True, f"{verbo} {fmt_miles(mecha.get('nivel', precio))}→{fmt_miles(precio)}{extra}{lejos}", "alerta"
         except Exception:
@@ -3453,9 +3533,11 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
         lado = f"la resistencia de {fmt_miles(res['precio'])}" if dist_res <= dist_sup else f"el soporte de {fmt_miles(sup['precio'])}"
         nivel = res["precio"] if dist_res <= dist_sup else sup["precio"]
         fade_ok = True if bias == "LATERAL" else ((bias == "BAJA") if dist_res <= dist_sup else (bias == "ALZA"))
-        if not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
+        _plan = plan_trade("resistencia" if dist_res <= dist_sup else "soporte", precio, niv, atr) if atr else None
+        if (not atr or (_plan and _plan["valido"])) and not (conf < 45 and (regimen or "tendencia") == "rango") and fade_ok and enfriar(
                 est, f"toque:{nivel}", 10, ahora):
-            return True, f"Tocando {lado}" + ficha_zona(est, nivel), "alerta"
+            _pt = (" · " + texto_plan(_plan)) if _plan else ""
+            return True, f"Tocando {lado}" + ficha_zona(est, nivel) + _pt, "alerta"
     _prog = _reporte_programado()
     if _prog:
         return _prog
@@ -4227,7 +4309,7 @@ def main():
                     estir = f"sobre media +{_dx:.1f}×ATR (RSI {_rsi1:.0f})"
         except Exception:
             estir = None
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral)
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"))
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
