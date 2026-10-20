@@ -1296,5 +1296,39 @@ v.evaluar_mfe(_est_r0, _rb_ah, [{"t": _rb_ah - datetime.timedelta(hours=9) + dat
                                 "h": 83100, "l": 82950, "c": 83050} for i in range(3)])
 t("mfe risk cero no tumba", len(_est_r0.get("eval_log", [])) == 1)
 
+# --- FVG (Fair Value Gaps): deteccion + iman. Solo contexto, sin señal. ---
+def _fkl(n):
+    return [{"t": None, "o": 100.0, "h": 101.0, "l": 99.0, "c": 100.0} for _ in range(n)]
+_klf = _fkl(15)  # ATR ~2
+_klf.append({"t": None, "o": 100.0, "h": 100.5, "l": 98.5, "c": 99.0})    # i=15 (c0)
+_klf.append({"t": None, "o": 99.0, "h": 104.0, "l": 99.0, "c": 103.0})     # i=16 (desplazamiento)
+_klf.append({"t": None, "o": 103.0, "h": 105.0, "l": 102.0, "c": 104.0})   # i=17 (c2) -> hueco [100.5,102.0]
+_klf.append({"t": None, "o": 104.0, "h": 105.0, "l": 102.5, "c": 104.5})   # no lo llena
+_fz = v.fvg_velas(_klf)
+t("fvg alcista detectado", len(_fz) == 1 and _fz[0]["dir"] == "ALZA"
+  and abs(_fz[0]["lo"] - 100.5) < 1e-6 and abs(_fz[0]["hi"] - 102.0) < 1e-6)
+t("fvg size_atr y edad", isinstance(_fz[0]["size_atr"], (int, float)) and _fz[0]["edad"] == 1)
+t("fvg llenado desaparece", len(v.fvg_velas(_klf + [{"t": None, "o": 103.0, "h": 103.0, "l": 100.0, "c": 100.5}])) == 0)
+_klf3 = _fkl(15) + [{"t": None, "o": 100.0, "h": 100.0, "l": 99.0, "c": 99.5},
+                    {"t": None, "o": 99.5, "h": 101.0, "l": 99.5, "c": 100.8},
+                    {"t": None, "o": 100.8, "h": 101.0, "l": 100.05, "c": 100.9}]
+t("fvg hueco fino se filtra", len(v.fvg_velas(_klf3)) == 0)
+_klb = _fkl(15)
+_klb.append({"t": None, "o": 100.0, "h": 101.5, "l": 100.0, "c": 101.0})
+_klb.append({"t": None, "o": 101.0, "h": 101.0, "l": 96.0, "c": 97.0})
+_klb.append({"t": None, "o": 97.0, "h": 98.0, "l": 95.0, "c": 96.0})
+_klb.append({"t": None, "o": 96.0, "h": 97.5, "l": 95.0, "c": 97.0})
+t("fvg bajista detectado", any(z["dir"] == "BAJA" and abs(z["hi"] - 100.0) < 1e-6 for z in v.fvg_velas(_klb)))
+t("fvg listas cortas no tumban", v.fvg_velas([]) == [] and v.fvg_velas([{}]) == [])
+_cerc = v.fvgs_cercanos(_klf, 102.5)
+t("fvg cercano bajo el precio", bool(_cerc) and _cerc[0]["dir"] == "ALZA" and _cerc[0]["dist_pct"] < 0)
+t("fvg dentro de zona", v.fvgs_cercanos(_klf, 101.0)[0]["dentro"] is True)
+_tx = v.texto_fvg({"h1": v.fvgs_cercanos(_klf, 102.2), "h4": []}, 102.2)
+t("texto fvg sale", _tx.startswith("🧲") and "FVG 1H" in _tx)
+t("texto fvg vacio sin zonas", v.texto_fvg({"h1": [], "h4": []}, 102.0) == "")
+t("texto fvg ignora lejanos", v.texto_fvg({"h1": v.fvgs_cercanos(_klf, 110.0), "h4": []}, 110.0) == "")
+t("fvgs_activos estructura", set(v.fvgs_activos(_klf, _klb, 102.5).keys()) == {"h1", "h4"})
+t("fvg no es alerta", "fvg" not in v.decidir_alerta(101.0, niv, {"bias": "LATERAL", "confianza": 5}, dict(eb), ah, None, None, "rango", False, "", None, None, None)[1].lower())
+
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)

@@ -1464,6 +1464,145 @@ def punto_control(kl, n=168):
         return None
 
 
+def _atr_serie(kl, n=14):
+    """ATR simple por vela (sin pandas). None en las primeras n."""
+    atr = [None] * len(kl)
+    trs = []
+    for i in range(1, len(kl)):
+        try:
+            h, l, pc = float(kl[i]["h"]), float(kl[i]["l"]), float(kl[i - 1]["c"])
+        except Exception:
+            trs.append(None)
+            continue
+        trs.append(max(h - l, abs(h - pc), abs(l - pc)))
+        if i >= n and all(x is not None for x in trs[i - n:i]):
+            atr[i] = sum(trs[i - n:i]) / n
+    return atr
+
+
+def fvg_velas(kl, min_atr=0.25, max_bars=400):
+    """Fair Value Gaps SIN LLENAR (ICT) sobre velas cerradas.
+
+    Medido en BTC (5.000 velas 1H + 2.000 4H, in/out-of-sample): como señal
+    de entrada NO funciona (esperanza out-of-sample negativa, incluso con
+    barrido+recuperacion). Como IMAN si: 81-86 % de los huecos se vuelven a
+    tocar y ~69 % se llenan del todo en 1H. Uso: zona de referencia/objetivo,
+    nunca gatillo de compra/venta.
+    """
+    n = len(kl) if kl else 0
+    if n < 5:
+        return []
+    atr = _atr_serie(kl, 14)
+    desde = max(2, n - max_bars)
+    zonas = []
+    for i in range(desde, n):
+        a = atr[i]
+        if not a or a <= 0:
+            continue
+        try:
+            c0, c2 = kl[i - 2], kl[i]
+            h0, l2 = float(c0["h"]), float(c2["l"])
+            l0, h2 = float(c0["l"]), float(c2["h"])
+        except Exception:
+            continue
+        if l2 > h0:  # FVG alcista: hueco entre el alto de i-2 y el bajo de i
+            lo, hi = h0, l2
+            if hi - lo >= min_atr * a:
+                zonas.append({"dir": "ALZA", "lo": lo, "hi": hi, "i": i,
+                              "size": hi - lo, "atr": a})
+        elif h2 < l0:  # FVG bajista
+            lo, hi = h2, l0
+            if hi - lo >= min_atr * a:
+                zonas.append({"dir": "BAJA", "lo": lo, "hi": hi, "i": i,
+                              "size": hi - lo, "atr": a})
+    activas = []
+    for z in zonas:
+        lleno = False
+        for k in range(z["i"] + 1, n):
+            try:
+                if z["dir"] == "ALZA" and float(kl[k]["l"]) <= z["lo"]:
+                    lleno = True
+                    break
+                if z["dir"] == "BAJA" and float(kl[k]["h"]) >= z["hi"]:
+                    lleno = True
+                    break
+            except Exception:
+                continue
+        if lleno:
+            continue
+        z["edad"] = n - 1 - z["i"]
+        z["size_atr"] = round(z["size"] / z["atr"], 2) if z["atr"] else None
+        activas.append(z)
+    return activas
+
+
+def fvgs_cercanos(kl, precio, min_atr=0.25, max_bars=400, max_zonas=3):
+    """FVG sin llenar mas cercanos al precio, deduplicados. Solo contexto."""
+    try:
+        precio = float(precio)
+    except Exception:
+        return []
+    if precio <= 0:
+        return []
+    zonas = fvg_velas(kl, min_atr=min_atr, max_bars=max_bars)
+    for z in zonas:
+        if z["lo"] <= precio <= z["hi"]:
+            z["dist_pct"] = 0.0
+            z["dentro"] = True
+        elif precio < z["lo"]:
+            z["dist_pct"] = round((z["lo"] - precio) / precio * 100, 2)
+            z["dentro"] = False
+        else:
+            z["dist_pct"] = -round((precio - z["hi"]) / precio * 100, 2)
+            z["dentro"] = False
+    zonas.sort(key=lambda z: abs(z["dist_pct"]))
+    out = []
+    for z in zonas:
+        if len(out) >= max_zonas:
+            break
+        solapa = False
+        for q in out:
+            if q["dir"] != z["dir"]:
+                continue
+            inter = max(0.0, min(q["hi"], z["hi"]) - max(q["lo"], z["lo"]))
+            union = max(q["hi"], z["hi"]) - min(q["lo"], z["lo"])
+            if union > 0 and inter / union > 0.6:
+                solapa = True
+                break
+        if not solapa:
+            out.append(z)
+    return out
+
+
+def fvgs_activos(kl_h1, kl_h4, precio):
+    """Estructura compacta para snapshot/parte: {'h1': [...], 'h4': [...]}."""
+    return {"h1": fvgs_cercanos(kl_h1, precio),
+            "h4": fvgs_cercanos(kl_h4, precio)}
+
+
+def texto_fvg(fvg, precio, max_partes=2, max_dist=1.2):
+    """Linea corta con FVG sin llenar relevantes (iman). NO es una alerta."""
+    try:
+        dentro, cerca = [], []
+        etiqueta = {"h1": "1H", "h4": "4H"}
+        for tf in ("h1", "h4"):
+            for z in (fvg or {}).get(tf, []):
+                d = z.get("dist_pct")
+                if d is None:
+                    continue
+                _etq = etiqueta.get(tf, tf)
+                if z.get("dentro"):
+                    dentro.append(f"FVG {_etq} dentro de {fmt_miles(z['lo'])}-{fmt_miles(z['hi'])}")
+                elif abs(d) <= max_dist:
+                    cerca.append(f"FVG {_etq} {fmt_miles(z['lo'])}-{fmt_miles(z['hi'])} ({d:+.1f}%)")
+        partes = dentro + cerca
+        if not partes:
+            return ""
+        return "🧲 " + " · ".join(partes[:max_partes])
+    except Exception:
+        return ""
+
+
 def kelly_half(rs, r_mult=2.0):
     """Half-Kelly dormido: sin 10+ cerradas devuelve None (riesgo base 1%).
     Acotado [0.25%, 2%] para no volverse loco en rachas."""
@@ -3348,6 +3487,9 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
             C.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {_grade} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
             C.append(f"🎯 {accion}")
             C.append(f"Piso {fmt_miles(sup['precio'])} · Techo {fmt_miles(res['precio'])}")
+            _fvg_txt = texto_fvg(extras.get("fvg"), t["last"], max_dist=0.6)
+            if _fvg_txt:
+                C.append(_fvg_txt)
             if extras.get("fflag"):
                 C.append("⚠️ " + str(extras["fflag"]))
             if extras.get("mov_ny") is not None:
@@ -3404,6 +3546,9 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     r_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["resistencias"])
     L.append(f"🟢 SOPORTES: {s_txt}")
     L.append(f"🔴 RESISTENCIAS: {r_txt}")
+    _fvg_txt = texto_fvg(extras.get("fvg"), t["last"])
+    if _fvg_txt:
+        L.append(_fvg_txt)
     for m in (extras.get("memoria") or [])[:3]:
         _m = str(m or "").strip()
         if _m:
@@ -3917,6 +4062,10 @@ def main():
                 break
         liq = liquidez(kl_h1, t["last"])
         poc = punto_control(kl_h1)
+        try:
+            fvg = fvgs_activos(kl_h1, kl_h4, t["last"])
+        except Exception:
+            fvg = None
         rup = ruptura(kl_h1, niv["soportes"][0]["precio"], niv["resistencias"][0]["precio"])
         try:
             # M3: solo velas CERRADAS (antes usaba la viva y la señal repintaba)
@@ -4202,6 +4351,7 @@ def main():
                      "sells": bal.get("sells", 0), "big": bal.get("big", 0), "txt": bal.get("txt", "")}
                     if isinstance(bal, dict) else None),
             "poc": poc if isinstance(poc, dict) else None,
+            "fvg": fvg,
             "qb": qb if isinstance(qb, dict) else None,
             "sl": list(sl) if isinstance(sl, (list, tuple)) else None,
             "mecha": mecha if isinstance(mecha, dict) else None,
@@ -4387,6 +4537,7 @@ def main():
                   "aut": aut,
                   "liqmap": liqmap,
                   "poc": poc,
+                  "fvg": fvg,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
         # (preaviso ya enviado de forma centralizada arriba, incluso sin señal principal)
