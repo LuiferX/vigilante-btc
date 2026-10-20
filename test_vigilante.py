@@ -1499,9 +1499,9 @@ t("scoreboard vacio", v.texto_scoreboard([], min_n=1) == "")
 
 # --- Capa 1: toques multiples en niveles de 5m ---
 _kl_t = []
-for _i in range(120):
+for _i in range(360):
     _kl_t.append({"t": ah, "o": 82000, "h": 82050, "l": 81950, "c": 82000, "v": 10})
-for _i in (70, 85, 100):
+for _i in (300, 318, 336):
     _kl_t[_i] = {"t": ah, "o": 82000, "h": 82050, "l": 81000, "c": 81150, "v": 30}
 _pv = v.pivotes_micro(_kl_t)
 t("pivotes: nivel 81.000", any(abs(x["precio"] - 81000) < 20 for x in _pv))
@@ -1510,9 +1510,10 @@ _est_t = {"cools": {}}
 _mt = v.detectar_toques_multiples(_kl_t, 81100, ah, _est_t)
 t("toques: detecta 3", _mt is not None and "81.000" in _mt and "3 veces" in _mt)
 t("toques: no entrada", "No es entrada" in (_mt or ""))
+t("toques: aguante", "Aguante 4h" in (_mt or ""))
 t("toques: cooldown", v.detectar_toques_multiples(_kl_t, 81100, ah, _est_t) is None)
 _kl_t2 = [dict(x) for x in _kl_t]
-_kl_t2[100] = {"t": ah, "o": 82000, "h": 82050, "l": 81950, "c": 82000, "v": 10}
+_kl_t2[336] = {"t": ah, "o": 82000, "h": 82050, "l": 81950, "c": 82000, "v": 10}
 t("toques: 2 no avisa", v.detectar_toques_multiples(_kl_t2, 81100, ah, {"cools": {}}) is None)
 t("toques: filtro rejilla", v.detectar_toques_multiples(
     _kl_t, 81100, ah, {"cools": {}},
@@ -1521,6 +1522,11 @@ t("toques: rejilla cerca", v.detectar_toques_multiples(
     _kl_t, 81100, ah, {"cools": {}},
     niv={"soportes": [{"precio": 81000}], "resistencias": []}) is not None)
 t("tipo toques", v.tipo_de_motivo("🧱 Soporte 81.000 probado 3 veces en 6h.") == "toques")
+_f = v.features_toque(_kl_t, 81000, 81100, ah, "Soporte")
+t("features toque", _f is not None and all(k in _f for k in v.MODELO_TOQUES["features"]))
+_sc = v.score_toque(_f) if _f else None
+t("score toque rango", _sc is not None and 0.0 <= _sc <= 1.0)
+t("features toque corto", v.features_toque(_kl_t[:100], 81000, 81100, ah, "Soporte") is None)
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
