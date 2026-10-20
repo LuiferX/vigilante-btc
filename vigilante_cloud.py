@@ -2161,10 +2161,12 @@ def ruptura(kl_h1, sup, res):
         return None
 
 
-def liquidez(kl, last):
-    """Toma de liquidez: barrido de maximos/minimos 24h con cierre de vuelta.
-    Mejorado con estilo FractalTrader: cuenta niveles iguales (cluster de liquidez)
-    y exige un minimo de barrido (0.05%) para no cantar ruido."""
+def liquidez_nivel(kl, last):
+    """Toma de liquidez con datos para plan: barrido 24h + cierre de vuelta.
+
+    Devuelve {"lado": "max"|"min", "nivel", "extremo", "cluster", "texto"} o None.
+    "extremo" es la mecha del barrido: sirve de stop estructural del fade.
+    Puro, sin red."""
     if len(kl) < 27:
         return None
     base = kl[-27:-3]
@@ -2178,12 +2180,22 @@ def liquidez(kl, last):
     if (any(c["h"] > hi * (1 + MIN_SWEEP) for c in ult3)
             and last < hi and abs(last - hi) / hi <= 0.004):
         extra = f" (×{n_hi})" if n_hi >= 3 else ""
-        return f"barrido sobre máximos {fmt_miles(hi)}{extra} con devolución (trampa para compradores)"
+        return {"lado": "max", "nivel": hi,
+                "extremo": max(c["h"] for c in ult3), "cluster": n_hi,
+                "texto": f"barrido sobre máximos {fmt_miles(hi)}{extra} con devolución (trampa para compradores)"}
     if (any(c["l"] < lo * (1 - MIN_SWEEP) for c in ult3)
             and last > lo and abs(last - lo) / lo <= 0.004):
         extra = f" (×{n_lo})" if n_lo >= 3 else ""
-        return f"barrido bajo mínimos {fmt_miles(lo)}{extra} con devolución (trampa para vendedores)"
+        return {"lado": "min", "nivel": lo,
+                "extremo": min(c["l"] for c in ult3), "cluster": n_lo,
+                "texto": f"barrido bajo mínimos {fmt_miles(lo)}{extra} con devolución (trampa para vendedores)"}
     return None
+
+
+def liquidez(kl, last):
+    """Texto del barrido de liquidez (compatibilidad). None si no hay."""
+    d = liquidez_nivel(kl, last)
+    return d["texto"] if d else None
 
 
 def lado_ok(bias, texto):
@@ -3445,7 +3457,7 @@ def gestion_sl(op, last, atr_h1, regimen):
         return (None, None, None)
 
 
-def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None, atr=None):
+def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regimen=None, bloqueo=False, motivo_bloq="", mov_ny=None, liq=None, pila=None, umbral_fuerte=UMBRAL_CONF_FUERTE, umbral_cambio=UMBRAL_CONF_CAMBIO, mov30=None, rup=None, qb=None, sl=None, gestion=None, mecha=None, slm=None, estir=None, foot=None, umbral=None, atr=None, liq_plan=None):
     """Devuelve (enviar, motivo, tipo). Tipos: alerta, preny, manana, madrugada, noche, nada."""
     try:
         res = niv["resistencias"][0]
@@ -3533,7 +3545,13 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 ref = f"desvanecer hacia {fmt_miles(niv['soportes'][0]['precio'])} (referencia)"
             else:
                 ref = f"desvanecer hacia {fmt_miles(niv['resistencias'][0]['precio'])} (referencia)"
-            return True, "Toma de liquidez: " + liq + f". Quien la persigue suele quedar atrapado → {ref}.", "alerta"
+            _pl = ""
+            if isinstance(liq_plan, dict):
+                if liq_plan.get("valido"):
+                    _pl = " · " + texto_plan(liq_plan)
+                else:
+                    _pl = f" · sin plan válido (R:R {liq_plan.get('rr', 0):.1f}) — solo aviso"
+            return True, "Toma de liquidez: " + liq + f". Quien la persigue suele quedar atrapado → {ref}." + _pl, "alerta"
     if mov_ny is not None and abs(mov_ny) >= UMBRAL_DIA_NY and enfriar(est, "diadc", 24, ahora):
         return True, f"La sesión NY mueve {mov_ny:+.2f}% hoy", "alerta"
     if pila:
@@ -4190,7 +4208,20 @@ def main():
             if h.get("t", "")[:16] >= corte and h.get("precio"):
                 mov_ny = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
                 break
-        liq = liquidez(kl_h1, t["last"])
+        try:
+            _ln = liquidez_nivel(kl_h1, t["last"])
+        except Exception:
+            _ln = None
+        liq = _ln["texto"] if _ln else None
+        liq_plan = None
+        try:
+            if _ln and h1.get("atr"):
+                _buf = 0.15 * h1["atr"]
+                _stop_liq = (_ln["extremo"] + _buf) if _ln["lado"] == "max" else (_ln["extremo"] - _buf)
+                liq_plan = plan_trade("short" if _ln["lado"] == "max" else "long",
+                                      t["last"], niv, h1.get("atr"), stop=_stop_liq)
+        except Exception:
+            liq_plan = None
         poc = punto_control(kl_h1)
         try:
             fvg = fvgs_activos(kl_h1, kl_h4, t["last"])
@@ -4357,7 +4388,7 @@ def main():
                     estir = f"sobre media +{_dx:.1f}×ATR (RSI {_rsi1:.0f})"
         except Exception:
             estir = None
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"))
+        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"), liq_plan=liq_plan)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0

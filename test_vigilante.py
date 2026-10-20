@@ -749,6 +749,27 @@ t("prob rango", 0 <= (v.prob_reaccion({}) or -1) <= 1)
 t("liq claro", "compradores" in v.liquidez([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
     [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080},
      {"o": 82080, "h": 82120, "l": 82000, "c": 81990}], 81990))
+
+# --- liquidez con plan: stop estructural en la mecha del barrido ---
+_ln = v.liquidez_nivel([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
+    [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080},
+     {"o": 82080, "h": 82120, "l": 82000, "c": 81990}], 81990)
+t("liq nivel datos", bool(_ln) and _ln["lado"] == "max" and _ln["nivel"] == 82000 and _ln["extremo"] == 82600)
+t("liq nivel cluster", _ln["cluster"] == 24)
+t("liq nivel texto", "compradores" in (_ln["texto"] or ""))
+_niv_liq = {"soportes": [{"precio": 80500}], "resistencias": [{"precio": 82600}]}
+_plq = v.plan_trade("short", 81990, _niv_liq, 450, stop=82600 + 0.15 * 450)
+t("liq plan valido", bool(_plq) and _plq["valido"] and _plq["dir"] == "BAJA")
+_rl = v.decidir_alerta(81990, _niv_liq, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=10, minute=5),
+                       None, None, "tendencia", False, "", None,
+                       "barrido sobre máximos 82.000 (trampa para compradores)", None,
+                       atr=450, liq_plan=_plq)
+t("liq plan en alerta", _rl[0] and "📐" in _rl[1])
+_rl2 = v.decidir_alerta(81990, _niv_liq, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah.replace(hour=10, minute=5),
+                        None, None, "tendencia", False, "", None,
+                        "barrido sobre máximos 82.000 (trampa para compradores)", None,
+                        atr=450, liq_plan={"valido": False, "rr": 1.1})
+t("liq sin plan avisa", _rl2[0] and "sin plan válido" in _rl2[1])
 t("version", v.VERSION == "v6")
 
 # ---------- anti-spam (solo lo importante) ----------
