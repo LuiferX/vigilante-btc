@@ -1140,6 +1140,107 @@ def toques_hoy(hist, nivel, ahora):
     return n
 
 
+def pivotes_micro(kl, k=5, tol=0.0015):
+    """Niveles locales de corto plazo a partir de pivotes (por defecto 5m).
+    Agrupa pivotes cercanos para que un triple toque sea UN nivel, no tres."""
+    try:
+        if not kl or len(kl) < 2 * k + 3:
+            return []
+        crudos = []
+        for i in range(k, len(kl) - k):
+            ventana = kl[i - k:i + k + 1]
+            if kl[i]["h"] >= max(x["h"] for x in ventana):
+                crudos.append(kl[i]["h"])
+            if kl[i]["l"] <= min(x["l"] for x in ventana):
+                crudos.append(kl[i]["l"])
+        out = []
+        for p in sorted(crudos):
+            hit = next((o for o in out if abs(o["precio"] - p) / p <= tol), None)
+            if hit is None:
+                out.append({"precio": p, "n": 1})
+            else:
+                n = hit["n"]
+                hit["precio"] = (hit["precio"] * n + p) / (n + 1)
+                hit["n"] = n + 1
+        return out
+    except Exception:
+        return []
+
+
+def toques_en_nivel(kl, nivel, tol=0.0015, salida=0.003, sep=12):
+    """Cuenta visitas DISTINTAS: entra en la zona, se aleja 0.3%, y vuelve
+    al menos `sep` velas despues (1 h en 5m). Un rango pegado al nivel no cuenta."""
+    try:
+        n, dentro, last = 0, False, -999
+        for i, x in enumerate(kl):
+            en_zona = x["l"] <= nivel * (1 + tol) and x["h"] >= nivel * (1 - tol)
+            if en_zona and not dentro and (i - last) >= sep:
+                n += 1
+                dentro = True
+                last = i
+            elif not en_zona and abs(x["c"] - nivel) / nivel >= salida:
+                dentro = False
+        return n
+    except Exception:
+        return 0
+
+
+def detectar_toques_multiples(kl, precio, ahora, est, niv=None, min_toques=3, horas=6,
+                              cerca=0.003, por_hora=12):
+    """Avisa cuando un nivel local se prueba varias veces seguidas.
+    Es CONTEXTO, no entrada: sirve para ver defensa o desgaste del nivel.
+    Si se pasa `niv`, exige que el nivel micro este cerca de la rejilla mayor
+    (asi no avisa de cualquier ruido de 5m). Por defecto asume velas de 5m."""
+    try:
+        if not kl or not precio:
+            return None
+        mayores = []
+        if isinstance(niv, dict):
+            for _k in ("soportes", "resistencias"):
+                for _x in (niv.get(_k) or []):
+                    try:
+                        mayores.append(float(_x["precio"]))
+                    except Exception:
+                        continue
+        n_win = max(24, int(horas * por_hora))
+        klw = kl[-n_win:]
+        klp = kl[-max(2 * n_win, 144):]
+        cands = []
+        for nv in pivotes_micro(klp):
+            p = nv["precio"]
+            if nv.get("n", 1) < 3:  # nivel formado por al menos 3 pivotes
+                continue
+            if mayores and min(abs(p - m) / p for m in mayores) > 0.006:
+                continue  # nivel micro lejos de la rejilla mayor = ruido
+            if abs(precio - p) / precio > cerca:
+                continue
+            n = toques_en_nivel(klw, p)
+            if n < min_toques:
+                continue
+            ult = None
+            for x in reversed(klw):
+                if x["l"] <= p * (1 + UMBRAL_TOQUE) and x["h"] >= p * (1 - UMBRAL_TOQUE):
+                    ult = x
+                    break
+            if not ult:
+                continue
+            lado = "Soporte" if p <= precio else "Resistencia"
+            # Si el ultimo toque cerro del otro lado, el nivel se rompio: no es defensa.
+            if lado == "Soporte" and ult["c"] < p * (1 - UMBRAL_TOQUE):
+                continue
+            if lado == "Resistencia" and ult["c"] > p * (1 + UMBRAL_TOQUE):
+                continue
+            cands.append((n, abs(precio - p) / precio, p, lado))
+        cands.sort(key=lambda z: (-z[0], z[1]))
+        for n, _, p, lado in cands[:4]:
+            if enfriar(est, f"toques:{int(p / 500) * 500}", 6, ahora):
+                return (f"🧱 {lado} {fmt_miles(p)} probado {n} veces en {horas}h. "
+                        f"Zona de decisión; vigilar cierre 1H. No es entrada.")
+        return None
+    except Exception:
+        return None
+
+
 def vs_ayer(hist, precio, ahora):
     obj = (ahora - datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H")
     cand = None
@@ -2613,6 +2714,8 @@ def tipo_de_motivo(motivo):
     """Clasifica el texto de una alerta en su tipo medible.
     Sirve para el scoreboard: saber QUE tipo acierta, no solo el total."""
     m = str(motivo or "")
+    if m.startswith("🧱"):
+        return "toques"
     if m.startswith("Toma de liquidez"):
         return "liquidez"
     if m.startswith("ruptura"):
@@ -4158,6 +4261,10 @@ def main():
         kl_h4 = klines("4h", 60)
         kl_d1 = klines("1d", 60)
         kl_w1 = klines("1w", 52)
+        try:
+            kl_m5 = klines("5m", 576)  # 48 h: niveles y toques de corto plazo
+        except Exception:
+            kl_m5 = None
         h1 = analyze(kl_h1, 60, "1H")
         h4 = analyze(kl_h4, 240, "4H")
         d1 = analyze(kl_d1, 1440, "1D")
@@ -4541,6 +4648,15 @@ def main():
         except Exception:
             estir = None
         enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"), liq_plan=liq_plan, chop=_chop)
+        # Capa 1: toques multiples (contexto, no entrada). Solo si no hay otro
+        # mensaje programado (manana/noche/preny) para no pisarlo.
+        if (not es_dup) and kl_m5 and not (enviar and tipo != "alerta"):
+            _toques_multi = detectar_toques_multiples(kl_m5, t["last"], ahora, est, niv=niv)
+            if _toques_multi:
+                if enviar and tipo == "alerta":
+                    motivo = motivo + "\n" + _toques_multi
+                else:
+                    enviar, motivo, tipo = True, _toques_multi, "alerta"
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
