@@ -528,6 +528,45 @@ def swings_idx(candles, k=2):
         return [], []
 
 
+def find_swing_points(h, l, n=3):
+    """Swing points estrictos (n velas a cada lado), estilo FractalTrader."""
+    try:
+        hs, ls = [], []
+        nn = len(h)
+        if nn < 2 * n + 1:
+            return hs, ls
+        for i in range(n, nn - n):
+            left_h = [h[j] for j in range(i - n, i)]
+            right_h = [h[j] for j in range(i + 1, i + n + 1)]
+            if h[i] > max(left_h + right_h):
+                hs.append((i, float(h[i])))
+            left_l = [l[j] for j in range(i - n, i)]
+            right_l = [l[j] for j in range(i + 1, i + n + 1)]
+            if l[i] < min(left_l + right_l):
+                ls.append((i, float(l[i])))
+        return hs, ls
+    except Exception:
+        return [], []
+
+
+def find_equal_levels(swings, tolerance=0.001):
+    """Agrupa swings iguales (dentro de tolerance) → liquidez más fuerte."""
+    if not swings:
+        return []
+    try:
+        ordenados = sorted(swings, key=lambda x: x[1])
+        clusters = []
+        for idx, price in ordenados:
+            if clusters and abs(price - clusters[-1][1]) / clusters[-1][1] <= tolerance:
+                clusters[-1][0].append((idx, price))
+                clusters[-1][1] = sum(p for _, p in clusters[-1][0]) / len(clusters[-1][0])
+            else:
+                clusters.append([[(idx, price)], price])
+        return [(c[0][-1][0], round(c[1], 2), len(c[0])) for c in clusters]
+    except Exception:
+        return []
+
+
 def quiebre_estructura(candles):
     """BOS/CHoCH fresco: cruce del último swing en las últimas 2 cerradas.
     Devuelve {"dir","nivel","tipo"} o None. Puro, sin red."""
@@ -2124,17 +2163,26 @@ def ruptura(kl_h1, sup, res):
 
 def liquidez(kl, last):
     """Toma de liquidez: barrido de maximos/minimos 24h con cierre de vuelta.
-    Quien persigue el barrido suele quedar atrapado (trampa)."""
+    Mejorado con estilo FractalTrader: cuenta niveles iguales (cluster de liquidez)
+    y exige un minimo de barrido (0.05%) para no cantar ruido."""
     if len(kl) < 27:
         return None
     base = kl[-27:-3]
     hi = max(c["h"] for c in base)
     lo = min(c["l"] for c in base)
+    # niveles iguales (cluster de liquidez): cuantas velas tocan el extremo
+    n_hi = sum(1 for c in base if c["h"] >= hi * 0.999)
+    n_lo = sum(1 for c in base if c["l"] <= lo * 1.001)
     ult3 = kl[-3:]
-    if any(c["h"] > hi for c in ult3) and last < hi and abs(last - hi) / hi <= 0.004:
-        return f"barrido sobre máximos {fmt_miles(hi)} con devolución (trampa para compradores)"
-    if any(c["l"] < lo for c in ult3) and last > lo and abs(last - lo) / lo <= 0.004:
-        return f"barrido bajo mínimos {fmt_miles(lo)} con devolución (trampa para vendedores)"
+    MIN_SWEEP = 0.0005  # 0.05% minimo de barrido (evita ruido)
+    if (any(c["h"] > hi * (1 + MIN_SWEEP) for c in ult3)
+            and last < hi and abs(last - hi) / hi <= 0.004):
+        extra = f" (×{n_hi})" if n_hi >= 3 else ""
+        return f"barrido sobre máximos {fmt_miles(hi)}{extra} con devolución (trampa para compradores)"
+    if (any(c["l"] < lo * (1 - MIN_SWEEP) for c in ult3)
+            and last > lo and abs(last - lo) / lo <= 0.004):
+        extra = f" (×{n_lo})" if n_lo >= 3 else ""
+        return f"barrido bajo mínimos {fmt_miles(lo)}{extra} con devolución (trampa para vendedores)"
     return None
 
 

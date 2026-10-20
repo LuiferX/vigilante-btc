@@ -1367,5 +1367,24 @@ _rr_bad = v.decidir_alerta(82000, {"resistencias": [{"precio": 82600}], "soporte
                            ah.replace(hour=10, minute=5), regimen="tendencia", rup=_rup_txt, atr=200)
 t("rup sin R:R calla", _rr_bad[2] == "nada")
 
+# --- FractalTrader-style: swing points + equal levels (liquidez cluster) ---
+_hs, _ls = v.find_swing_points([1, 2, 5, 3, 1, 0, 1, 3, 5, 2, 1],
+                               [0, 1, 4, 2, 0, -1, 0, 2, 4, 1, 0], 2)
+t("swing points highs", _hs == [(2, 5.0), (8, 5.0)])
+t("swing points lows", _ls == [(5, -1.0)])
+t("swing points corto", v.find_swing_points([1, 2, 3], [0, 1, 2], 2) == ([], []))
+_eq = v.find_equal_levels(_hs, 0.001)
+t("equal levels cluster", len(_eq) == 1 and _eq[0][2] == 2)
+t("equal levels vacio", v.find_equal_levels([], 0.001) == [])
+# liquidez mejorada (FractalTrader): cuenta niveles iguales
+_kl_liq = [{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 + \
+    [{"o": 82000, "h": 82600, "l": 82000, "c": 82100}, {"o": 82100, "h": 82200, "l": 82050, "c": 82080},
+     {"o": 82080, "h": 82120, "l": 82000, "c": 81990}]
+_rliq = v.liquidez(_kl_liq, 81990)
+t("liquidez cluster anota", "(×" in _rliq and "compradores" in _rliq)
+t("liquidez min sweep filtra", v.liquidez([{"o": 82000, "h": 82000, "l": 81900, "c": 81950}] * 24 +
+    [{"o": 82000, "h": 82001, "l": 82000, "c": 81999}, {"o": 81999, "h": 82000, "l": 81998, "c": 81997},
+     {"o": 81997, "h": 81998, "l": 81996, "c": 81995}], 81995) is None)
+
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
