@@ -1,0 +1,36 @@
+name: Collect BTC public data
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run collector
+        run: python collector/collector.py
+
+      - name: Commit data
+        run: |
+          git config user.name "trading-data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add collector/data
+          if git diff --cached --quiet; then
+            echo "No new data"
+            exit 0
+          fi
+          git commit -m "data: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push

@@ -1,35 +1,3 @@
-# --- Python ---
 __pycache__/
 *.pyc
-*.pyo
-
-# --- Entorno de entrenamiento de la red neuronal (pesado, no versionar) ---
-.venv-nn/
-
-# --- Datos de entrenamiento (se regeneran con: python dataset.py --gratis) ---
-entrenamiento/nn/datos/cache/
-entrenamiento/nn/datos/dataset.json
-
-# --- Modelos de prueba/apartados (no se activan: la red solo mira modelo/) ---
-modelo_*_demo/
-
-# --- Recoleccion local de microestructura (la nube la guarda en la rama estado) ---
-micro.jsonl
-entrenamiento/nn/datos/micro_forward/
-
-# OJO: modelo/ SI se versiona a proposito:
-# la nube (GitHub Actions) necesita vigilante_lstm.onnx + scaler.json + meta.json
-# para poder inferir. No lo ignores.
-
-# datasets adicionales regenerables
-entrenamiento/nn/datos/dataset_nn_micro.json
-entrenamiento/nn/datos/_scratch_lstm_base/
-entrenamiento/nn/datos/micro_forward/
-
-# salidas/artefactos de ejecucion
-parte_cloud.txt
-entrenamiento/senales.jsonl
-entrenamiento/senales.bak.jsonl
-entrenamiento/progreso.jsonl
-entrenamiento/nok.jsonl
-entrenamiento/nok_base.json
+.DS_Store

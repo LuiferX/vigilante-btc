@@ -1,0 +1,46 @@
+name: BTC decision log
+
+on:
+  schedule:
+    - cron: "27 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run decision engine
+        run: |
+          python analysis/run_decision.py \
+            --klines collector/data/btcusdt/klines_5m.jsonl \
+            --out analysis/data/decisions.jsonl
+
+      - name: Evaluate decisions
+        run: |
+          python analysis/evaluate_decisions.py \
+            --decisions analysis/data/decisions.jsonl \
+            --klines collector/data/btcusdt/klines_5m.jsonl \
+            --out analysis/data/eval.json
+
+      - name: Commit decision log
+        run: |
+          git config user.name "trading-data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add analysis/data
+          if git diff --cached --quiet; then
+            echo "No new decisions"
+            exit 0
+          fi
+          git commit -m "decision: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push
