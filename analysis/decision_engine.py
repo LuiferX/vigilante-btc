@@ -956,7 +956,9 @@ def decide(
     zone_score = 1.5 * min(best_quality / 10.0, 1.0)
     hold_score = 2.0 if any(z.get("hold") for z in zones) else 0.0
     scenario_score = 1.5 if trigger and "Sin trigger" not in trigger else 0.5
-    risk_score = 1.0 if risks else 0.5
+    # La cobertura de riesgos se mide por haber evaluado el contexto, no
+    # porque siempre haya un riesgo. Un setup limpio no se penaliza.
+    risk_score = 1.0 if zones else 0.5
     fresh_score = 1.0 if data_age_min <= 20 else 0.2
     structure_score = 1.0 if zones else 0.0
     engine_quality = round(
