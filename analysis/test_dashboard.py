@@ -26,6 +26,11 @@ class DashboardTest(unittest.TestCase):
         ids = re.findall(r'\bid="([^"]+)"', self.html)
         self.assertEqual(len(ids), len(set(ids)), "IDs duplicados en el dashboard")
 
+    def test_motor_page_exists_for_pages(self):
+        motor = Path(__file__).resolve().parents[1] / "docs" / "motor.html"
+        self.assertTrue(motor.exists(), "falta docs/motor.html para GitHub Pages")
+        self.assertIn("latest_decision.json", motor.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

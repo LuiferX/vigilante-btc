@@ -45,6 +45,11 @@ class WorkflowTest(unittest.TestCase):
             crons.extend(re.findall(r'cron:\s*["\']([^"\']+)["\']', path.read_text(encoding="utf-8")))
         self.assertEqual(crons.count("17 * * * *"), 1)
 
+    def test_oyente_publishes_the_motor_page(self):
+        text = read("oyente.yml")
+        self.assertIn("dash_motor", text)
+        self.assertIn("motor.html", text)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

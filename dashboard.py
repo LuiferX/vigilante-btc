@@ -2591,6 +2591,7 @@ def build_dashboard(est, hist):
 <span class="live" id="hdr-prox"><span class="dot"></span>próxima pasada ~{_esc(prox_txt)}</span>
 <span class="live" id="hdr-edad"><span class="dot"></span>datos de hace {f'<b id="edad" data-t="{_esc(ahora_iso)}">…</b>' if hay_dato else '<b id="edad">sin datos aún</b>'}</span>
 <span class="live" id="hdr-vivo"><span class="dot" style="background:var(--amb)"></span>BTC <b id="pvivo">…</b> <small style="color:#64748b">en vivo</small></span>
+<a class="tbtn" href="motor.html" target="_blank" rel="noopener">Motor 4h</a>
 <button class="tbtn" id="plegar">Plegar todo</button>
 <button class="tbtn" id="sonido">Sonido off</button><span id="motor"></span></header>
 <div class="nav"><a href="#s-precio">Precio</a><a href="#s-senales">Señales</a><a href="#s-mercado">Mercado</a><a href="#s-dinero">Dinero</a><a href="#s-sistema">Sistema</a></div>

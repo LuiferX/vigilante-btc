@@ -34,6 +34,7 @@ jobs:
         run: |
           python dashboard.py || echo "dashboard fallo"
           cp docs/index.html /tmp/dash_index.html 2>/dev/null || echo "sin dashboard"
+          cp docs/motor.html /tmp/dash_motor.html 2>/dev/null || echo "sin motor"
           cp assets/melodia.mp4 /tmp/dash_melodia.mp4 2>/dev/null || true
 
       - name: Publicar dashboard (rama dashboard)
@@ -42,12 +43,19 @@ jobs:
           git config user.name "vigilante-bot"
           git config user.email "vigilante-bot@users.noreply.github.com"
           git fetch origin dashboard 2>/dev/null || true
-          if git show origin/dashboard:index.html 2>/dev/null | cmp -s /tmp/dash_index.html -; then echo "dashboard sin cambios"; exit 0; fi
+          changed=0
+          git show origin/dashboard:index.html 2>/dev/null | cmp -s /tmp/dash_index.html - || changed=1
+          if [ -f /tmp/dash_motor.html ]; then
+            git show origin/dashboard:motor.html 2>/dev/null | cmp -s /tmp/dash_motor.html - || changed=1
+          fi
+          if [ "$changed" -eq 0 ]; then echo "dashboard sin cambios"; exit 0; fi
           git checkout --orphan dash_tmp
           git rm -rf . > /dev/null 2>&1 || true
           cp /tmp/dash_index.html ./index.html
+          cp /tmp/dash_motor.html ./motor.html 2>/dev/null || true
           cp /tmp/dash_melodia.mp4 ./melodia.mp4 2>/dev/null || true
-          git add index.html melodia.mp4 2>/dev/null || git add index.html
+          git add index.html motor.html
+          git add melodia.mp4 2>/dev/null || true
           git commit -m "dashboard $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
           ok=0; for i in 1 2 3; do git push --force origin dash_tmp:dashboard && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
           git checkout -f ${GITHUB_REF_NAME}

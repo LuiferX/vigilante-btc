@@ -11,10 +11,10 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **8,7/10** (ponderado).
 | Confiabilidad y cobertura de datos | 15% | 7,0 | 8,6 | fallback Binance Vision/Bybit/Kraken/OKX, `health.json`, retencion, tests de mapeo |
 | Calidad del motor de decision | 15% | 8,0 | 8,9 | zonas, HTF 1h/4h/1D, POC, sweep, aguante, guardrail de frescura |
 | Medicion y calibracion | 15% | 6,5 | 8,7 | Brier, Brier skill, Wilson, calibracion, corte por lado, backtest OOS |
-| Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 3 dashboard + 5 workflows + 10 colector; compileall |
+| Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 4 dashboard + 6 workflows + 10 colector; compileall |
 | Confiabilidad operativa | 10% | 6,5 | 8,6 | pipeline unico, concurrency, rebase, health al final del job, backtest manual, health JSON |
 | Seguridad y guardrails | 10% | 8,0 | 9,2 | sin claves, sin ordenes, permisos minimos, bloqueo por datos vencidos |
-| Dashboard y UX | 10% | 6,5 | 8,7 | lee decision/eval, frescura, niveles, trigger, invalidacion, Brier |
+| Dashboard y UX | 10% | 6,5 | 8,7 | `/motor.html` en Pages, lee decision/eval, frescura, niveles, trigger, invalidacion, Brier |
 | Documentacion y runbook | 5% | 7,0 | 9,0 | README, arquitectura, runbook, scorecard, caveats |
 | Reproducibilidad y code quality | 5% | 7,5 | 8,6 | stdlib, paths, tests sin red, model card, CI |
 | Validacion del modelo | 5% | 7,0 | 7,5 | holdout 2026 AUC 0,665 / Brier 0,175; OOS 39 muestras sin edge demostrado |
@@ -55,6 +55,6 @@ La calibracion es razonable, pero **no hay evidencia de edge** frente a predecir
 
 1. Backtest OOS con 100+ muestras y Brier skill positivo y estable.
 2. Mejor cobertura de top traders (fallback o fuente alternativa).
-3. Dashboard publicado en Pages con la tarjeta del motor.
+3. Mantener `/motor.html` publicado y enlazado sin romper el dashboard actual.
 4. Monitoreo de drift mensual y recalibracion documentada.
 5. Revision externa de la rubrica.

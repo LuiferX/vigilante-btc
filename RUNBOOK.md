@@ -13,7 +13,7 @@
 4. Abrir `analysis/data/eval.json`:
    - `samples` crece con el tiempo.
    - Menos de 30 muestras = no sacar conclusiones.
-5. Abrir el dashboard y verificar que la tarjeta del motor muestra datos frescos.
+5. Abrir el dashboard y verificar que el boton `Motor 4h` lleva a `/motor.html` y muestra datos frescos.
 
 ## Comandos locales
 

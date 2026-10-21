@@ -80,6 +80,8 @@ GitHub puede demorar o limitar los `schedule` cuando hay muchos workflows progra
 
 `dashboard/index.html` se puede abrir local o publicar con GitHub Pages. Lee el mercado y derivados en vivo, y ademas `latest_decision.json`, `eval.json` y el estado de frescura del motor. Es solo lectura; el diario manual se guarda en `localStorage` del navegador.
 
+El dashboard actual de Pages se conserva. La version nueva del motor se publica en `https://luiferx.github.io/vigilante-btc/motor.html` y se enlaza desde el dashboard con el boton `Motor 4h`.
+
 ## Limites honestos
 
 - La probabilidad de aguante es condicional a 4h y no es win rate.

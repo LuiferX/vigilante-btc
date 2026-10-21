@@ -67,6 +67,7 @@ Binance Futures / Binance Vision / Bybit / Kraken / OKX / RSS
 - Solo lectura, negro/blanco/gris con acentos neon.
 - Mercado y derivados en vivo desde Binance en el navegador.
 - Lee `latest_decision.json` y `eval.json` desde `raw.githubusercontent.com`.
+- Se publica como `motor.html` en GitHub Pages sin reemplazar el dashboard actual.
 - Diario manual en `localStorage`; no se envia a ningun servidor.
 - No tiene botones de compra/venta ni ejecucion.
 
