@@ -12,7 +12,7 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **8,7/10** (ponderado).
 | Calidad del motor de decision | 15% | 8,0 | 8,9 | zonas, HTF 1h/4h/1D, POC, sweep, aguante, guardrail de frescura |
 | Medicion y calibracion | 15% | 6,5 | 8,7 | Brier, Brier skill, Wilson, calibracion, corte por lado, backtest OOS |
 | Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 4 dashboard + 6 workflows + 10 colector; compileall |
-| Confiabilidad operativa | 10% | 6,5 | 8,6 | pipeline unico, concurrency, rebase, health al final del job, backtest manual, health JSON |
+| Confiabilidad operativa | 10% | 6,5 | 8,3 | pipeline unico, concurrency, rebase, health al final; GitHub puede demorar el schedule, dispatch manual documentado |
 | Seguridad y guardrails | 10% | 8,0 | 9,2 | sin claves, sin ordenes, permisos minimos, bloqueo por datos vencidos |
 | Dashboard y UX | 10% | 6,5 | 8,7 | `/motor.html` en Pages, lee decision/eval, frescura, niveles, trigger, invalidacion, Brier |
 | Documentacion y runbook | 5% | 7,0 | 9,0 | README, arquitectura, runbook, scorecard, caveats |
@@ -22,9 +22,9 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **8,7/10** (ponderado).
 ## Calculo
 
 ```text
-0.15*8.6 + 0.15*8.9 + 0.15*8.7 + 0.10*8.8 + 0.10*8.6
+0.15*8.6 + 0.15*8.9 + 0.15*8.7 + 0.10*8.8 + 0.10*8.3
 + 0.10*9.2 + 0.10*8.7 + 0.05*9.0 + 0.05*8.6 + 0.05*7.5
-= 8.715 -> 8.7/10
+= 8.685 -> 8.7/10
 ```
 
 Antes de esta iteracion: **7,2/10** aproximado con la misma rubrica.
