@@ -14,9 +14,9 @@ def read(name: str) -> str:
 
 
 class WorkflowTest(unittest.TestCase):
-    def test_pipeline_has_the_hourly_schedule(self):
+    def test_pipeline_has_the_15m_schedule(self):
         text = read("pipeline.yml")
-        self.assertIn('cron: "17 * * * *"', text)
+        self.assertIn('cron: "*/15 * * * *"', text)
         self.assertIn("workflow_dispatch", text)
         self.assertIn("concurrency:", text)
         self.assertIn("group: data-write", text)
@@ -39,11 +39,10 @@ class WorkflowTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertNotIn("pull_request_target", path.read_text(encoding="utf-8"))
 
-    def test_only_one_hourly_pipeline_cron(self):
-        crons = []
-        for path in WF.glob("*.yml"):
-            crons.extend(re.findall(r'cron:\s*["\']([^"\']+)["\']', path.read_text(encoding="utf-8")))
-        self.assertEqual(crons.count("17 * * * *"), 1)
+    def test_pipeline_has_one_cron(self):
+        text = read("pipeline.yml")
+        crons = re.findall(r'cron:\s*["\']([^"\']+)["\']', text)
+        self.assertEqual(crons, ["*/15 * * * *"])
 
     def test_dashboard_publishers_include_the_motor_page(self):
         for name in ("oyente.yml", "vigilante.yml"):

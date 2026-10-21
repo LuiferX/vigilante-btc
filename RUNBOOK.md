@@ -2,7 +2,7 @@
 
 ## Chequeo diario (2 minutos)
 
-1. Abrir Actions y confirmar que `BTC hourly pipeline` corrio en la ultima hora. Si GitHub demoro el schedule, lanzarlo con `Run workflow`.
+1. Abrir Actions y confirmar que `BTC analysis pipeline` corrio en los ultimos 30 min. Si GitHub demoro el schedule, lanzarlo con `Run workflow`.
 2. Abrir `analysis/data/latest_decision.json`:
    - `data_status.fresh` debe ser `true`.
    - `decision.action` no debe ser `datos_desactualizados`.
@@ -39,10 +39,10 @@ python test_workflows.py
 
 ## Si GitHub demora el schedule
 
-GitHub puede atrasar los workflows programados. El flujo principal es `BTC hourly pipeline`.
+GitHub puede atrasar los workflows programados. El flujo principal es `BTC analysis pipeline`.
 
-1. Actions -> `BTC hourly pipeline` -> `Run workflow` para ejecutarlo a mano.
-2. Para puntualidad estricta, configurar un cron externo (cron-job.org o similar) cada hora:
+1. Actions -> `BTC analysis pipeline` -> `Run workflow` para ejecutarlo a mano.
+2. Para puntualidad estricta, configurar un cron externo (cron-job.org o similar) cada 15 minutos:
    - Metodo: `POST`
    - URL: `https://api.github.com/repos/LuiferX/vigilante-btc/actions/workflows/pipeline.yml/dispatches`
    - Header: `Authorization: Bearer <token con permiso actions:write>`

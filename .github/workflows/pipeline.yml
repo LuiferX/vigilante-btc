@@ -1,8 +1,8 @@
-name: BTC hourly pipeline
+name: BTC analysis pipeline
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 permissions:
