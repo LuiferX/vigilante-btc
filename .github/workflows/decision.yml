@@ -1,12 +1,16 @@
-name: BTC decision log
+name: BTC decision log (manual)
 
+# El pipeline horario vive en pipeline.yml. Este workflow queda para recalcular
+# una decision sin volver a correr el colector.
 on:
-  schedule:
-    - cron: "27 * * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
 
 jobs:
   decide:
@@ -43,4 +47,5 @@ jobs:
             exit 0
           fi
           git commit -m "decision: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git pull --rebase origin main
           git push

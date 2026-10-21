@@ -1,4 +1,4 @@
-﻿# Modelo de aguante de niveles v2
+# Modelo de aguante de niveles v2
 
 Modelo logistico que estima una sola cosa:
 
@@ -35,6 +35,24 @@ Base 2026: 75,7% de los eventos aguantan. El modelo no cambia la base; ordena me
 | >= 0,80 | 167 | 89,2% | 82,8% |
 
 El tramo >= 0,80 es conservador: predice ~83% y acierta ~89% en 2026. El tramo 0,60-0,70 esta algo sobreconfiado (~7 puntos).
+
+## Backtest OOS del motor
+
+`backtest.py` recorre el historico, construye cada contexto solo con datos disponibles en ese momento y etiqueta el futuro a 4h. Es una prueba honesta, no una optimizacion.
+
+Corte del 21-10-2026 sobre datos posteriores al entrenamiento (2026-10-01 a la fecha):
+
+| Metrica | Valor |
+|---|---:|
+| Muestras | 39 |
+| Decisiones | 25 |
+| Brier | 0,1642 |
+| Tasa base | 79,5% |
+| Brier skill vs base | -0,0069 |
+| Tramo >= 0,80: n | 24 |
+| Tramo >= 0,80: real | 83,3% |
+
+Lectura: la calibracion es razonable (predice ~80%, acierta ~79,5%), pero el modelo **no demuestra edge** frente a predecir la tasa base en esta muestra chica. No se cambia el modelo por este corte; se sigue midiendo. El valor del repo esta en la calidad del contexto y la medicion, no en prometer una ventaja predictiva.
 
 ## Interpretacion
 
@@ -82,6 +100,8 @@ for d in r["drivers"]:
 - Clasifica la estructura actual: `dentro` / `arriba` / `abajo`, `recent_sweep` y `break_confirmed` (2+ cierres fuera).
 - Devuelve estado (sesgo 1h/4h, volatilidad, POC), escenarios base/alternativo/no hacer nada, trigger, invalidacion, confianza, riesgos y "no hacer nada".
 - Incluye un `summary` de una linea y `drivers` por nivel para interpretar el aguante.
+- **Guardrail de frescura:** si la ultima vela cerrada tiene mas de 20 minutos, `decision.action = datos_desactualizados`, la confianza baja y el trigger se reemplaza por "Sin trigger". No se publica una accion accionable con datos vencidos.
+- Devuelve `data_status` con `fresh`, `age_min` y `max_age_min`.
 - No ejecuta ordenes ni usa claves.
 
 ### Sesgo de mayor temporalidad
@@ -157,26 +177,42 @@ Los niveles del Vigilante traen `n` como numero de origenes/confluencia, no como
 
 La regla de ruptura es por **cierre** fuera de la zona. Mecha que sale y vuelve a entrar = sweep/falso quiebre, no continuidad.
 
-### Registro y evaluacion
+### Registro, salud y evaluacion
 
-`run_decision.py` ejecuta el motor y agrega una linea a `data/decisions.jsonl`. Evita duplicados por `event_time`. Tambien escribe `data/latest_decision.json` para leerlo desde el dashboard o cualquier otro cliente. Por defecto usa la hora actual para medir frescura; `--now` permite simular otra hora.
+`run_decision.py` ejecuta el motor y agrega una linea a `data/decisions.jsonl`. Evita duplicados por `event_time`. Tambien escribe:
+
+- `data/latest_decision.json`: lectura para dashboard/clientes.
+- `data/health.json`: frescura, accion, confianza, calidad y niveles con aguante.
+- `data/eval.json` (via evaluador): Brier, skill, calibracion e intervalos.
 
 ```bash
 python run_decision.py --out data/decisions.jsonl
 python run_decision.py --vigilante https://raw.githubusercontent.com/LuiferX/vigilante-btc/estado/estado.json
 ```
 
-`run_loop.py` repite el proceso cada hora en local y va midiendo. Es el equivalente a un workflow sin depender de GitHub:
+`run_loop.py` repite el proceso cada hora en local. Es el equivalente al workflow sin depender de GitHub:
 
 ```bash
 python run_loop.py --minutes 60
 python run_loop.py --once
 ```
 
-`evaluate_decisions.py` mide si el nivel aguanto 4h con la misma definicion del modelo (cierre 0,5% mas alla). Calcula Brier, tasa base y calibracion por tramos. No mide win rate ni ganancia.
+`evaluate_decisions.py` mide si el nivel aguanto 4h con la misma definicion del modelo (cierre 0,5% mas alla). Calcula Brier, Brier skill frente a la tasa base, calibracion, intervalos de Wilson por tramo y corte por lado. No mide win rate ni ganancia.
 
 ```bash
 python evaluate_decisions.py --decisions data/decisions.jsonl
+```
+
+`backtest.py` hace la misma medicion sobre el historico OOS, reconstruyendo el contexto sin mirar el futuro:
+
+```bash
+python backtest.py --start 2026-10-01 --out data/backtest.json
+```
+
+`check_health.py` valida que la decision sea reciente y que el colector haya traido velas. Sale con codigo 1 si algo critico falla; el workflow `Pipeline health` lo corre cada 2 horas.
+
+```bash
+python check_health.py
 ```
 
 ### Tests
@@ -185,8 +221,11 @@ python evaluate_decisions.py --decisions data/decisions.jsonl
 python test_hold_model.py
 python test_decision_engine.py
 python test_pipeline.py
+python test_dashboard.py
+python test_workflows.py
+python ../collector/test_collector.py
 ```
 
-Cobertura actual: 5 tests del modelo, 16 del motor y 3 del runner/evaluador.
+Cobertura actual: 5 del modelo, 18 del motor, 7 de runner/evaluador/backtest/salud, 3 del dashboard, 5 de workflows y 10 del colector. CI compila todo y corre la suite en cada cambio de codigo.
 
 

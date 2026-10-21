@@ -1,0 +1,76 @@
+name: BTC hourly pipeline
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Collect public data
+        run: python collector/collector.py
+
+      - name: Commit collector data
+        run: |
+          git config user.name "trading-data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add collector/data
+          if git diff --cached --quiet; then
+            echo "No new collector data"
+          else
+            git commit -m "data: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Run decision engine
+        run: |
+          python analysis/run_decision.py \
+            --klines collector/data/btcusdt/klines_5m.jsonl \
+            --out analysis/data/decisions.jsonl
+
+      - name: Evaluate decisions
+        run: |
+          python analysis/evaluate_decisions.py \
+            --decisions analysis/data/decisions.jsonl \
+            --klines collector/data/btcusdt/klines_5m.jsonl \
+            --out analysis/data/eval.json
+
+      - name: Commit analysis data
+        run: |
+          git config user.name "trading-data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add analysis/data
+          if git diff --cached --quiet; then
+            echo "No new analysis data"
+          else
+            git commit -m "decision: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Check pipeline health
+        run: |
+          python analysis/check_health.py \
+            --latest analysis/data/latest_decision.json \
+            --collector-health collector/data/health.json \
+            --eval analysis/data/eval.json \
+            --max-age 90

@@ -79,6 +79,22 @@
   .status.expired { color: var(--muted); }
   footer { padding: 10px 20px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); }
   .note { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  .decision-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 900px) { .decision-grid { grid-template-columns: 1fr 1fr; } }
+  .decision-grid .box { border: 1px solid #181818; border-radius: 6px; padding: 8px 10px; background: #090909; }
+  .decision-grid .box .k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .decision-grid .box .v { font-size: 15px; font-weight: 700; margin-top: 3px; }
+  .decision-grid .box .v.good { color: var(--neon); }
+  .decision-grid .box .v.bad { color: var(--warn); }
+  .decision-grid .box .v.warn { color: var(--gold); }
+  .decision-wide { margin-top: 10px; }
+  .decision-wide .row { align-items: flex-start; gap: 12px; }
+  .decision-wide .row .val { text-align: right; max-width: 75%; }
+  .decision-table { margin-top: 8px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 10px; color: var(--muted); }
+  .pill.ok { color: var(--neon); border-color: rgba(0,255,136,.5); }
+  .pill.bad { color: var(--warn); border-color: rgba(255,59,59,.5); }
+  .pill.warn { color: var(--gold); border-color: rgba(255,213,74,.5); }
 </style>
 </head>
 <body>
@@ -120,6 +136,31 @@
     <h3>Contexto</h3>
     <div id="flags"></div>
     <div class="note" id="contextNote">—</div>
+  </div>
+
+  <!-- Decision engine -->
+  <div class="card span-12">
+    <h3>Motor de decisión 1h / 4h / 1D <span id="dStatus" class="status pending">cargando</span></h3>
+    <div class="decision-grid">
+      <div class="box"><div class="k">Datos</div><div class="v" id="dData">—</div></div>
+      <div class="box"><div class="k">Sesgo</div><div class="v" id="dBias">—</div></div>
+      <div class="box"><div class="k">Acción</div><div class="v" id="dAction">—</div></div>
+      <div class="box"><div class="k">Calidad compuesta</div><div class="v" id="dQuality">—</div></div>
+      <div class="box"><div class="k">Motor</div><div class="v" id="dEngine">—</div></div>
+      <div class="box"><div class="k">Setup</div><div class="v" id="dSetup">—</div></div>
+      <div class="box"><div class="k">Soporte</div><div class="v" id="dSupport">—</div></div>
+      <div class="box"><div class="k">Resistencia</div><div class="v" id="dResistance">—</div></div>
+    </div>
+    <div class="decision-wide">
+      <div class="row"><span class="label">Evento / edad</span><span class="val" id="dEvent">—</span></div>
+      <div class="row"><span class="label">Trigger</span><span class="val" id="dTrigger">—</span></div>
+      <div class="row"><span class="label">Invalidación</span><span class="val" id="dInvalidation">—</span></div>
+      <div class="row"><span class="label">Riesgos</span><span class="val" id="dRisks">—</span></div>
+      <div class="row"><span class="label">Escenario alternativo</span><span class="val" id="dAlt">—</span></div>
+      <div class="row"><span class="label">Evaluación Brier</span><span class="val" id="dEval">—</span></div>
+    </div>
+    <div class="decision-table" id="dLevels"></div>
+    <div class="note" id="dEvalNote">El aguante es probabilidad condicional a 4h, no win rate. Sin ejecución de órdenes.</div>
   </div>
 
   <!-- Chart -->
@@ -169,7 +210,7 @@
 </div>
 
 <footer>
-  Solo lectura. Datos públicos de Binance. No es asesoría financiera. Medir ≠ garantizar.
+  Solo lectura. Datos públicos (Binance / OKX / fallbacks) y motor local. No es asesoría financiera. Medir ≠ garantizar. Sin ejecución de órdenes.
 </footer>
 
 <script>
@@ -179,10 +220,107 @@ let chart = null;
 function fmt(n, d=2) { return Number(n).toLocaleString('es-ES', {minimumFractionDigits:d, maximumFractionDigits:d}); }
 function fmtPct(n) { return (n*100).toFixed(2) + '%'; }
 
+const DECISION_BASE = 'https://raw.githubusercontent.com/LuiferX/vigilante-btc/main/analysis/data/';
+const ACTION_LABEL = {
+  esperar_confirmacion: 'Esperar confirmación',
+  observar: 'Observar',
+  sin_escenario: 'Sin escenario',
+  datos_desactualizados: 'Datos vencidos',
+};
+
 async function getJSON(url) {
-  const r = await fetch(url);
+  const r = await fetch(url, {cache: 'no-store'});
   if (!r.ok) throw new Error(r.status);
   return r.json();
+}
+
+function bestLevel(levels, role) {
+  return (levels || [])
+    .filter(z => z.role === role)
+    .sort((a, b) => Math.abs((a.distance_pct ?? 0)) - Math.abs((b.distance_pct ?? 0)))[0] || null;
+}
+
+function levelText(z) {
+  if (!z) return '—';
+  const hold = z.hold_prob == null ? 'sin aguante' : fmtPct(z.hold_prob) + ' aguante';
+  const q = z.quality == null ? '' : ' · q' + fmt(z.quality, 1);
+  return fmt(z.center) + ' · ' + hold + q;
+}
+
+async function loadDecision() {
+  const status = $('dStatus');
+  try {
+    const d = await getJSON(DECISION_BASE + 'latest_decision.json?x=' + Date.now());
+    const fresh = !!(d.data_status && d.data_status.fresh);
+    status.textContent = fresh ? 'datos frescos' : 'datos vencidos';
+    status.className = 'status ' + (fresh ? 'win' : 'loss');
+
+    $('dData').textContent = fresh ? 'Fresco' : 'Vencido';
+    $('dData').className = 'v ' + (fresh ? 'good' : 'bad');
+    $('dBias').textContent = d.state?.bias || '—';
+    $('dBias').className = 'v ' + (d.state?.bias === 'ALZA' ? 'good' : d.state?.bias === 'BAJA' ? 'bad' : 'warn');
+    $('dAction').textContent = ACTION_LABEL[d.decision?.action] || d.decision?.action || '—';
+    $('dAction').className = 'v ' + (d.decision?.action === 'datos_desactualizados' ? 'bad' : 'warn');
+    $('dQuality').textContent = d.quality ? `${fmt(d.quality.composite, 1)} / 10 · ${d.quality.grade}` : '—';
+    $('dQuality').className = 'v ' + (d.quality && d.quality.composite >= d.quality.target ? 'good' : 'warn');
+    $('dEngine').textContent = d.quality ? fmt(d.quality.engine, 1) + ' / 10' : '—';
+    $('dSetup').textContent = d.quality ? fmt(d.quality.setup, 1) + ' / 10' : '—';
+
+    const sup = bestLevel(d.levels, 'soporte');
+    const res = bestLevel(d.levels, 'resistencia');
+    $('dSupport').textContent = levelText(sup);
+    $('dSupport').className = 'v ' + (sup ? 'good' : 'warn');
+    $('dResistance').textContent = levelText(res);
+    $('dResistance').className = 'v ' + (res ? 'bad' : 'warn');
+
+    const age = d.data_age_min == null ? '—' : fmt(d.data_age_min, 1) + ' min';
+    $('dEvent').textContent = (d.event_time ? new Date(d.event_time).toLocaleString('es-ES') : '—') + ' · ' + age;
+    $('dTrigger').textContent = d.decision?.trigger || '—';
+    $('dInvalidation').textContent = d.decision?.invalidation || '—';
+    const risks = d.decision?.risks || [];
+    $('dRisks').textContent = risks.length ? risks.join(' · ') : 'Sin riesgos registrados.';
+    const alt = (d.scenarios || []).find(s => s.name === 'alternativo');
+    $('dAlt').textContent = alt ? (alt.trigger + ' | ' + alt.invalidation) : '—';
+
+    const rows = (d.levels || []).slice(0, 6).map(z => `<tr>
+      <td>${z.role || '—'}</td>
+      <td>${fmt(z.center)}</td>
+      <td>${fmt(z.zone_low)} – ${fmt(z.zone_high)}</td>
+      <td>${z.hold_prob == null ? '—' : fmtPct(z.hold_prob)}</td>
+      <td>${z.quality == null ? '—' : fmt(z.quality, 1)}</td>
+      <td>${z.touches_6h ?? 0}</td>
+    </tr>`).join('');
+    $('dLevels').innerHTML = rows
+      ? `<table><thead><tr><th>Rol</th><th>Centro</th><th>Zona</th><th>Aguante</th><th>Calidad</th><th>Toques 6h</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="note">Sin niveles válidos.</div>';
+  } catch (e) {
+    status.textContent = 'sin datos';
+    status.className = 'status loss';
+    $('dEvent').textContent = 'No se pudo leer latest_decision.json';
+    console.error(e);
+  }
+}
+
+async function loadEval() {
+  const out = $('dEval');
+  const note = $('dEvalNote');
+  try {
+    const e = await getJSON(DECISION_BASE + 'eval.json?x=' + Date.now());
+    if (!e.samples) {
+      out.textContent = 'Sin muestras aún (faltan 4h de futuro)';
+      out.className = 'val warn';
+      note.textContent = e.detail || 'El evaluador espera decisiones con 4h de futuro.';
+      return;
+    }
+    const skill = e.brier_skill == null ? 'n/d' : fmt(e.brier_skill, 3);
+    out.textContent = `${e.samples} muestras · Brier ${fmt(e.brier, 4)} · skill ${skill} · ${e.status}`;
+    out.className = 'val ' + (e.brier_skill > 0 ? 'up' : 'down');
+    note.textContent = `${e.disclaimer || ''} Base ${fmtPct(e.base_rate)}; calibración ${fmt(e.calibration_error, 4)}.`;
+  } catch (e) {
+    out.textContent = 'Evaluación no disponible';
+    out.className = 'val';
+    note.textContent = 'No se pudo leer eval.json.';
+  }
 }
 
 async function loadMarket() {
@@ -431,6 +569,8 @@ $('refreshBtn').addEventListener('click', async () => {
   await loadDerivatives();
   await loadKlines();
   await loadContextFlags();
+  await loadDecision();
+  await loadEval();
   $('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES');
 });
 
@@ -440,6 +580,8 @@ async function init() {
   await loadDerivatives();
   await loadKlines();
   await loadContextFlags();
+  await loadDecision();
+  await loadEval();
   $('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES');
   // auto-check pending plans (silent)
   checkAllPending().catch(()=>{});

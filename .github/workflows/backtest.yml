@@ -1,0 +1,46 @@
+name: OOS backtest (manual)
+
+# Se corre a pedido o cuando se quiera revisar drift. No agregar otro schedule
+# hasta confirmar que GitHub no esta limitando los workflows programados.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run OOS backtest
+        run: |
+          python analysis/backtest.py \
+            --klines collector/data/btcusdt/klines_5m.jsonl \
+            --start 2026-10-01 \
+            --out analysis/data/backtest.json
+
+      - name: Commit backtest
+        run: |
+          git config user.name "trading-data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add analysis/data/backtest.json
+          if git diff --cached --quiet; then
+            echo "No backtest changes"
+            exit 0
+          fi
+          git commit -m "backtest: OOS $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git pull --rebase origin main
+          git push

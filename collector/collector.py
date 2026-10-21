@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Colector de datos publicos de trading (Binance Futures + RSS).
 
 Uso:
@@ -9,6 +9,7 @@ Los datos se guardan en data/btcusdt/*.jsonl (append-only, con dedup por clave).
 """
 import json
 import os
+import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -17,8 +18,14 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent
 DATA = BASE / "data" / "btcusdt"
 DATA.mkdir(parents=True, exist_ok=True)
+HEALTH = BASE / "data" / "health.json"
 
-UA = "trading-data-collector/1.0 (+https://github.com)"
+UA = "trading-data-collector/1.1 (+https://github.com/LuiferX/vigilante-btc)"
+MAX_LINES = {"klines_5m.jsonl": 200_000, "news.jsonl": 5_000}
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def http_get_json(url: str, timeout: int = 30):
@@ -55,7 +62,36 @@ def append_jsonl(path: Path, records: list[dict], key: str) -> int:
             existing.add(k)
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
             added += 1
+        f.flush()
+        os.fsync(f.fileno())
     return added
+
+
+def trim_jsonl(path: Path, max_lines: int) -> int:
+    """Recorta un JSONL a las ultimas `max_lines`. Devuelve cuantas borro."""
+    if not path.exists():
+        return 0
+    with path.open("r", encoding="utf-8") as f:
+        lines = [line for line in f if line.strip()]
+    if len(lines) <= max_lines:
+        return 0
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        f.writelines(lines[-max_lines:])
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+    return len(lines) - max_lines
+
+
+def write_health(payload: dict) -> None:
+    HEALTH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = HEALTH.with_suffix(".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, HEALTH)
 
 
 def fetch_funding() -> list[dict]:
@@ -107,6 +143,126 @@ def fetch_long_short(name: str, endpoint: str) -> list[dict]:
             if k not in ("symbol", "timestamp"):
                 rec[k] = v
         out.append(rec)
+    return out
+
+
+def okx_data(url: str) -> list:
+    raw = http_get_json(url)
+    if str(raw.get("code")) != "0":
+        raise RuntimeError(f"OKX error {raw.get('code')}: {raw.get('msg')}")
+    return raw.get("data") or []
+
+
+def okx_value(row) -> list:
+    if isinstance(row, dict):
+        return row.get("value") or []
+    return row or []
+
+
+def fetch_funding_okx(limit: int = 100) -> list[dict]:
+    rows = okx_data(
+        "https://www.okx.com/api/v5/public/funding-rate-history"
+        f"?instId=BTC-USDT-SWAP&limit={min(limit, 100)}"
+    )
+    out = []
+    for r in rows:
+        out.append({
+            "source": "okx_funding",
+            "symbol": "BTCUSDT",
+            "fundingRate": r.get("realizedRate") or r.get("fundingRate"),
+            "fundingTime": int(r["fundingTime"]),
+            "markPrice": None,
+            "collected_at": now_iso(),
+        })
+    return out
+
+
+def fetch_open_interest_okx() -> list[dict]:
+    rows = okx_data(
+        "https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-volume"
+        "?ccy=BTC&period=5m"
+    )
+    out = []
+    for r in rows:
+        value = okx_value(r)
+        if len(value) < 2:
+            continue
+        out.append({
+            "source": "okx_oi",
+            "symbol": "BTCUSDT",
+            "sumOpenInterest": value[1],
+            "sumOpenInterestValue": value[1],
+            "oi_unit": "usd",
+            "timestamp": int(value[0]),
+            "collected_at": now_iso(),
+        })
+    return out
+
+
+def fetch_long_short_okx() -> list[dict]:
+    rows = okx_data(
+        "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio"
+        "?ccy=BTC&period=5m"
+    )
+    out = []
+    for r in rows:
+        value = okx_value(r)
+        if len(value) < 2:
+            continue
+        ratio = float(value[1])
+        long_account = ratio / (1.0 + ratio) if ratio > 0 else 0.5
+        out.append({
+            "source": "okx_global_ls",
+            "symbol": "BTCUSDT",
+            "timestamp": int(value[0]),
+            "longShortRatio": f"{ratio:.6f}",
+            "longAccount": f"{long_account:.6f}",
+            "shortAccount": f"{1.0 - long_account:.6f}",
+            "collected_at": now_iso(),
+        })
+    return out
+
+
+def fetch_taker_okx() -> list[dict]:
+    rows = okx_data(
+        "https://www.okx.com/api/v5/rubik/stat/taker-volume"
+        "?ccy=BTC&instType=CONTRACTS&period=5m"
+    )
+    out = []
+    for r in rows:
+        value = okx_value(r)
+        if len(value) < 3:
+            continue
+        buy, sell = float(value[1]), float(value[2])
+        ratio = buy / sell if sell > 0 else None
+        out.append({
+            "source": "okx_taker_ls",
+            "symbol": "BTCUSDT",
+            "timestamp": int(value[0]),
+            "buySellRatio": f"{ratio:.6f}" if ratio is not None else None,
+            "buyVol": f"{buy:.6f}",
+            "sellVol": f"{sell:.6f}",
+            "collected_at": now_iso(),
+        })
+    return out
+
+
+def with_fallback(label: str, primary, fallback) -> list[dict]:
+    try:
+        return primary()
+    except Exception as e:
+        print(f"{label}: Binance error {e}; probando OKX")
+        return fallback()
+
+
+def only_closed(records: list[dict]) -> list[dict]:
+    """Descarta la vela en curso; el motor solo debe ver velas cerradas."""
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    out = []
+    for row in records:
+        close_time = row.get("closeTime")
+        if close_time is None or int(close_time) <= now_ms:
+            out.append(row)
     return out
 
 
@@ -260,25 +416,51 @@ def fetch_rss(name: str, url: str) -> list[dict]:
     return out
 
 
-def main():
+def main() -> int:
+    started = now_iso()
     jobs = [
-        ("funding.jsonl", fetch_funding, "fundingTime"),
-        ("open_interest.jsonl", fetch_open_interest, "timestamp"),
-        ("global_ls.jsonl", lambda: fetch_long_short("binance_global_ls", "globalLongShortAccountRatio"), "timestamp"),
+        ("funding.jsonl", lambda: with_fallback("funding", fetch_funding, fetch_funding_okx), "fundingTime"),
+        ("open_interest.jsonl", lambda: with_fallback("open_interest", fetch_open_interest, fetch_open_interest_okx), "timestamp"),
+        ("global_ls.jsonl", lambda: with_fallback("global_ls", lambda: fetch_long_short("binance_global_ls", "globalLongShortAccountRatio"), fetch_long_short_okx), "timestamp"),
         ("top_ls_account.jsonl", lambda: fetch_long_short("binance_top_ls_account", "topLongShortAccountRatio"), "timestamp"),
         ("top_ls_position.jsonl", lambda: fetch_long_short("binance_top_ls_position", "topLongShortPositionRatio"), "timestamp"),
-        ("taker_ls.jsonl", lambda: fetch_long_short("binance_taker_ls", "takerlongshortRatio"), "timestamp"),
+        ("taker_ls.jsonl", lambda: with_fallback("taker_ls", lambda: fetch_long_short("binance_taker_ls", "takerlongshortRatio"), fetch_taker_okx), "timestamp"),
         ("klines_5m.jsonl", lambda: fetch_klines("5m", 1500), "openTime"),
         ("klines_1h.jsonl", lambda: fetch_klines("1h", 1000), "openTime"),
         ("klines_4h.jsonl", lambda: fetch_klines("4h", 500), "openTime"),
         ("klines_1d.jsonl", lambda: fetch_klines("1d", 200), "openTime"),
     ]
+    health = {
+        "run_at": started,
+        "ok": False,
+        "kline_ok": False,
+        "data_dir": "data/btcusdt",
+        "jobs": {},
+        "news": {},
+    }
+    kline_ok = False
     for fname, fn, key in jobs:
         try:
             records = fn()
-            n = append_jsonl(DATA / fname, records, key)
-            print(f"{fname}: +{n} (total fetched {len(records)})")
+            if fname.startswith("klines_"):
+                records = only_closed(records)
+            added = append_jsonl(DATA / fname, records, key)
+            trimmed = trim_jsonl(DATA / fname, MAX_LINES[fname]) if fname in MAX_LINES else 0
+            source = records[-1].get("source") if records else None
+            last_key = records[-1].get(key) if records else None
+            health["jobs"][fname] = {
+                "ok": True,
+                "fetched": len(records),
+                "added": added,
+                "trimmed": trimmed,
+                "source": source,
+                "last_key": last_key,
+            }
+            if fname.startswith("klines_") and records:
+                kline_ok = True
+            print(f"{fname}: +{added} (total fetched {len(records)}, source {source})")
         except Exception as e:
+            health["jobs"][fname] = {"ok": False, "error": str(e)}
             print(f"{fname}: error {e}")
 
     feeds = [
@@ -289,12 +471,33 @@ def main():
     news = []
     for name, url in feeds:
         try:
-            news.extend(fetch_rss(name, url))
+            got = fetch_rss(name, url)
+            news.extend(got)
+            health["news"][name] = {"ok": True, "fetched": len(got)}
         except Exception as e:
+            health["news"][name] = {"ok": False, "error": str(e)}
             print(f"RSS {name} error: {e}")
-    n = append_jsonl(DATA / "news.jsonl", news, "link")
-    print(f"news.jsonl: +{n} (total fetched {len(news)})")
+    try:
+        added = append_jsonl(DATA / "news.jsonl", news, "link")
+        trimmed = trim_jsonl(DATA / "news.jsonl", MAX_LINES["news.jsonl"])
+        health["news"]["ok"] = any(
+            row.get("ok") for row in health["news"].values() if isinstance(row, dict)
+        )
+        health["news"]["added"] = added
+        health["news"]["trimmed"] = trimmed
+        print(f"news.jsonl: +{added} (total fetched {len(news)})")
+    except Exception as e:
+        health["news"]["ok"] = False
+        health["news"]["error"] = str(e)
+        print(f"news.jsonl: error {e}")
+
+    health["kline_ok"] = kline_ok
+    health["ok"] = kline_ok
+    health["finished_at"] = now_iso()
+    write_health(health)
+    return 0 if kline_ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
+

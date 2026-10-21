@@ -53,6 +53,7 @@ def compact_record(out: dict) -> dict:
                 "zone_low": z["zone_low"],
                 "zone_high": z["zone_high"],
                 "role": z["role"],
+                "distance_pct": z.get("distance_pct"),
                 "touches_6h": z.get("touches_6h", 0),
                 "htf_confluence": z.get("htf_confluence", 0),
                 "quality": z.get("quality"),
@@ -69,7 +70,9 @@ def compact_record(out: dict) -> dict:
     return {
         "logged_at": datetime.now(timezone.utc).isoformat(),
         "event_time": out["event_time"],
+        "bar_close_time": out.get("bar_close_time"),
         "data_age_min": out.get("data_age_min"),
+        "data_status": out.get("data_status"),
         "price": out["price"],
         "summary": out["summary"],
         "engine_quality": out["engine_quality"],
@@ -128,9 +131,27 @@ def run(
     with open(latest_path, "w", encoding="utf-8") as fh:
         json.dump(rec, fh, ensure_ascii=False, indent=2, default=str)
 
+    health_path = os.path.join(base_dir, "health.json")
+    health = {
+        "run_at": datetime.now(timezone.utc).isoformat(),
+        "ok": True,
+        "fresh": bool(out.get("data_status", {}).get("fresh")),
+        "event_time": out["event_time"],
+        "bar_close_time": out.get("bar_close_time"),
+        "data_age_min": out.get("data_age_min"),
+        "action": out["decision"]["action"],
+        "confidence": out["decision"]["confidence"],
+        "quality": out.get("quality"),
+        "levels_with_hold": sum(1 for z in out.get("levels", []) if z.get("hold")),
+        "logged": logged,
+    }
+    with open(health_path, "w", encoding="utf-8") as fh:
+        json.dump(health, fh, ensure_ascii=False, indent=2, default=str)
+
     out["logged"] = logged
     out["log_path"] = out_path
     out["latest_path"] = latest_path
+    out["health_path"] = health_path
     return out
 
 

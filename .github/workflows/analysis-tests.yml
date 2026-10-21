@@ -7,7 +7,8 @@ on:
       - 'collector/*.py'
       - 'collector/requirements.txt'
       - 'collector/README.md'
-      - '.github/workflows/analysis-tests.yml'
+      - 'dashboard/**'
+      - '.github/workflows/**'
   workflow_dispatch: {}
 
 permissions:
@@ -26,9 +27,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Compile
+        run: python -m compileall -q analysis collector
+
+      - name: Run collector tests
+        run: python collector/test_collector.py
+
       - name: Run analysis tests
         run: |
           cd analysis
           python test_hold_model.py
           python test_decision_engine.py
           python test_pipeline.py
+          python test_dashboard.py
+          python test_workflows.py

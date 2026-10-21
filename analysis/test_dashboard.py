@@ -1,0 +1,31 @@
+"""Smoke test del dashboard: no ejecuta navegador ni red."""
+
+import re
+import unittest
+from pathlib import Path
+
+
+class DashboardTest(unittest.TestCase):
+    def setUp(self):
+        self.html = Path(__file__).resolve().parents[1].joinpath(
+            "dashboard", "index.html"
+        ).read_text(encoding="utf-8")
+
+    def test_reads_decision_and_eval(self):
+        self.assertIn("latest_decision.json", self.html)
+        self.assertIn("eval.json", self.html)
+        self.assertIn("DECISION_BASE", self.html)
+
+    def test_has_no_order_buttons(self):
+        text = self.html.lower()
+        self.assertIn("sin ejecución", text)
+        self.assertNotIn("place order", text)
+        self.assertNotIn("ejecutar orden", text)
+
+    def test_ids_are_unique(self):
+        ids = re.findall(r'\bid="([^"]+)"', self.html)
+        self.assertEqual(len(ids), len(set(ids)), "IDs duplicados en el dashboard")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

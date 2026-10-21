@@ -1,0 +1,30 @@
+name: Pipeline health (manual)
+
+# El chequeo corre al final del pipeline horario. Este workflow permite
+# inspeccionarlo a pedido sin agregar otro schedule.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check freshness and collector
+        run: |
+          python analysis/check_health.py \
+            --latest analysis/data/latest_decision.json \
+            --collector-health collector/data/health.json \
+            --eval analysis/data/eval.json \
+            --max-age 180

@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import hold_model as hm
@@ -30,6 +30,7 @@ TOUCH_WINDOW = 72            # 6h: misma ventana del evento de aguante
 MIN_TOUCHES = 3
 ZONE_MIN_PCT = 0.003         # 0,30% minimo
 ZONE_ATR_MULT = 0.30         # 0,30 * ATR 4h
+STALE_MAX_MIN = 20           # si la ultima vela cerrada tiene mas, se bloquea el trigger
 
 VIGILANTE_ESTADO_URL = (
     "https://raw.githubusercontent.com/LuiferX/vigilante-btc/estado/estado.json"
@@ -723,7 +724,10 @@ def decide(
         now = now.replace(tzinfo=timezone.utc)
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
-    data_age_min = max(0.0, (now - event_time).total_seconds() / 60.0)
+    # La vela de 5m esta cerrada al sumar 5 minutos a su openTime.
+    bar_close_time = event_time + timedelta(minutes=5)
+    data_age_min = max(0.0, (now - bar_close_time).total_seconds() / 60.0)
+    data_stale = data_age_min > STALE_MAX_MIN
 
     atr4h = atr_price(kl, 48)
     width = max(ZONE_MIN_PCT * price, ZONE_ATR_MULT * (atr4h or 0.0))
@@ -766,8 +770,11 @@ def decide(
     risks = []
     if len(kl) < MIN_KLINES:
         risks.append("Menos de 300 velas: el modelo de aguante puede no calcularse.")
-    if data_age_min > 20:
-        risks.append(f"Datos con {data_age_min:.0f} min de antiguedad; verificar que el colector este al dia.")
+    if data_stale:
+        risks.append(
+            f"Datos con {data_age_min:.0f} min de antiguedad (max {STALE_MAX_MIN}); "
+            f"trigger bloqueado hasta que el colector se actualice."
+        )
     if not zones:
         risks.append("Sin niveles validados en la ventana reciente.")
     if in_zone is not None:
@@ -911,6 +918,16 @@ def decide(
     if in_zone is not None and action != "sin_escenario":
         action = "observar"
 
+    # Guardrail operativo: con datos viejos no se publica un trigger accionable.
+    if data_stale:
+        action = "datos_desactualizados"
+        confidence = "baja"
+        trigger = (
+            f"Sin trigger: datos con {data_age_min:.0f} min de antiguedad "
+            f"(max {STALE_MAX_MIN}). Esperar actualizacion del colector."
+        )
+        invalidation = "No evaluar niveles ni triggers con datos vencidos."
+
     # Escenario alternativo: el otro lado del rango o la perdida del nivel.
     alt_trigger = "Sin escenario alternativo."
     alt_invalidation = "Sin invalidacion."
@@ -959,7 +976,7 @@ def decide(
     # La cobertura de riesgos se mide por haber evaluado el contexto, no
     # porque siempre haya un riesgo. Un setup limpio no se penaliza.
     risk_score = 1.0 if zones else 0.5
-    fresh_score = 1.0 if data_age_min <= 20 else 0.2
+    fresh_score = 0.2 if data_stale else 1.0
     structure_score = 1.0 if zones else 0.0
     engine_quality = round(
         min(10.0, data_score + zone_score + hold_score + scenario_score + risk_score + fresh_score + structure_score),
@@ -992,7 +1009,18 @@ def decide(
         "ok": True,
         "as_of": now.isoformat(),
         "event_time": event_time.isoformat(),
+        "bar_close_time": bar_close_time.isoformat(),
         "data_age_min": round(data_age_min, 1),
+        "data_status": {
+            "fresh": not data_stale,
+            "age_min": round(data_age_min, 1),
+            "max_age_min": STALE_MAX_MIN,
+            "message": (
+                "Datos al dia."
+                if not data_stale
+                else f"Datos vencidos: {data_age_min:.0f} min; trigger bloqueado."
+            ),
+        },
         "price": price,
         "summary": summary,
         "engine_quality": engine_quality,

@@ -214,12 +214,29 @@ class DecisionEngineTest(unittest.TestCase):
         self.assertEqual(out["state"]["bias"], "BAJA")
         self.assertEqual(out["state"]["bias_source"], "override")
 
-    def test_data_age(self):
+    def test_data_age_uses_bar_close(self):
         kl = make_kl()
         now = kl[-1]["t"] + timedelta(minutes=30)
         out = de.decide(kl, price=80000.0, now=now)
-        self.assertAlmostEqual(out["data_age_min"], 30.0, places=1)
+        self.assertAlmostEqual(out["data_age_min"], 25.0, places=1)
         self.assertTrue(any("antiguedad" in r for r in out["decision"]["risks"]))
+
+    def test_stale_data_blocks_trigger(self):
+        kl = make_kl()
+        stale_now = kl[-1]["t"] + timedelta(minutes=5 + de.STALE_MAX_MIN + 5)
+        out = de.decide(kl, price=80000.0, now=stale_now)
+        self.assertFalse(out["data_status"]["fresh"])
+        self.assertEqual(out["decision"]["action"], "datos_desactualizados")
+        self.assertEqual(out["decision"]["confidence"], "baja")
+        self.assertIn("Sin trigger", out["decision"]["trigger"])
+        self.assertLessEqual(out["engine_quality"], 8.5)
+
+    def test_fresh_data_keeps_action(self):
+        kl = make_kl()
+        fresh_now = kl[-1]["t"] + timedelta(minutes=6)
+        out = de.decide(kl, price=80000.0, now=fresh_now)
+        self.assertTrue(out["data_status"]["fresh"])
+        self.assertNotEqual(out["decision"]["action"], "datos_desactualizados")
 
 
 if __name__ == "__main__":

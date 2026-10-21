@@ -1,0 +1,87 @@
+{
+  "ok": true,
+  "samples": 39,
+  "decisions": 25,
+  "skipped": 0,
+  "status": "ok",
+  "brier": 0.1642,
+  "base_rate": 0.7949,
+  "mean_prob": 0.7983,
+  "brier_skill": -0.0069,
+  "high_score": {
+    "n": 24,
+    "brier": 0.1444,
+    "base_rate": 0.8333,
+    "mean_prob": 0.8371,
+    "brier_base": 0.1389,
+    "brier_skill": -0.0396,
+    "real_ci95": [
+      0.6415,
+      0.9332
+    ]
+  },
+  "by_side": {
+    "soporte": {
+      "n": 21,
+      "brier": 0.1853,
+      "base_rate": 0.7619,
+      "mean_prob": 0.7923,
+      "brier_base": 0.1814,
+      "brier_skill": -0.0217,
+      "real_ci95": [
+        0.5491,
+        0.8937
+      ]
+    },
+    "resistencia": {
+      "n": 18,
+      "brier": 0.1395,
+      "base_rate": 0.8333,
+      "mean_prob": 0.8054,
+      "brier_base": 0.1389,
+      "brier_skill": -0.0044,
+      "real_ci95": [
+        0.6078,
+        0.9416
+      ]
+    }
+  },
+  "bins": [
+    {
+      "bin": "0.60-0.70",
+      "n": 3,
+      "pred": 0.6663,
+      "real": 0.6667,
+      "real_ci95": [
+        0.2077,
+        0.9385
+      ]
+    },
+    {
+      "bin": "0.70-0.80",
+      "n": 12,
+      "pred": 0.7538,
+      "real": 0.75,
+      "real_ci95": [
+        0.4677,
+        0.9111
+      ]
+    },
+    {
+      "bin": "0.80-1.01",
+      "n": 24,
+      "pred": 0.8371,
+      "real": 0.8333,
+      "real_ci95": [
+        0.6415,
+        0.9332
+      ]
+    }
+  ],
+  "horizon_bars": 48,
+  "step_bars": 48,
+  "start": "2026-10-01T00:00:00+00:00",
+  "end": null,
+  "trained_until": "2026-09-30 22:55:00+00:00",
+  "disclaimer": "Backtest OOS del aguante, no win rate ni ganancia. No usa datos futuros para construir el contexto; solo para etiquetar."
+}
