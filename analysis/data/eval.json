@@ -1,29 +1,29 @@
 {
   "ok": true,
-  "samples": 78,
+  "samples": 79,
   "status": "ok",
-  "decisions_total": 69,
-  "decisions_evaluated": 52,
-  "coverage": 0.7536,
+  "decisions_total": 70,
+  "decisions_evaluated": 53,
+  "coverage": 0.7571,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1856,
-  "base_rate": 0.8205,
-  "mean_prob": 0.7088,
-  "brier_base": 0.1473,
-  "brier_skill": -0.2604,
-  "calibration_error": 0.2385,
+  "brier": 0.1855,
+  "base_rate": 0.8228,
+  "mean_prob": 0.7072,
+  "brier_base": 0.1458,
+  "brier_skill": -0.2724,
+  "calibration_error": 0.2409,
   "overall": {
-    "n": 78,
-    "brier": 0.1856,
-    "base_rate": 0.8205,
-    "mean_prob": 0.7088,
-    "brier_base": 0.1473,
-    "brier_skill": -0.2604,
+    "n": 79,
+    "brier": 0.1855,
+    "base_rate": 0.8228,
+    "mean_prob": 0.7072,
+    "brier_base": 0.1458,
+    "brier_skill": -0.2724,
     "real_ci95": [
-      0.721,
-      0.89
+      0.7242,
+      0.8914
     ]
   },
   "high_score": {
@@ -37,18 +37,18 @@
       0.3424,
       1.0
     ],
-    "lift_vs_base": 1.2188
+    "lift_vs_base": 1.2154
   },
   "by_side": {
     "soporte": {
-      "n": 57,
-      "brier": 0.104,
+      "n": 58,
+      "brier": 0.1052,
       "base_rate": 1.0,
-      "mean_prob": 0.6838,
+      "mean_prob": 0.682,
       "brier_base": 0.0,
       "brier_skill": null,
       "real_ci95": [
-        0.9369,
+        0.9379,
         1.0
       ]
     },
@@ -68,11 +68,11 @@
   "bins": [
     {
       "bin": "0.00-0.60",
-      "n": 7,
-      "pred": 0.5725,
+      "n": 8,
+      "pred": 0.5732,
       "real": 1.0,
       "real_ci95": [
-        0.6457,
+        0.6756,
         1.0
       ]
     },
