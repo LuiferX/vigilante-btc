@@ -136,8 +136,74 @@ def fetch_klines(interval: str = "5m", limit: int = 1500) -> list[dict]:
             })
         return out
     except Exception as e:
-        print(f"Binance klines {interval} error: {e}; probando Bybit")
-        return fetch_klines_bybit(interval, limit)
+        print(f"Binance klines {interval} error: {e}; probando data-api.binance.vision")
+        try:
+            return fetch_klines_vision(interval, limit)
+        except Exception as e2:
+            print(f"Binance Vision klines {interval} error: {e2}; probando Bybit")
+            try:
+                return fetch_klines_bybit(interval, limit)
+            except Exception as e3:
+                print(f"Bybit klines {interval} error: {e3}; probando Kraken")
+                return fetch_klines_kraken(interval, limit)
+
+
+def fetch_klines_vision(interval: str, limit: int = 1000) -> list[dict]:
+    """Klines spot publicas de Binance Vision; suele funcionar donde fapi da 451."""
+    url = (
+        "https://data-api.binance.vision/api/v3/klines"
+        f"?symbol=BTCUSDT&interval={interval}&limit={min(limit, 1000)}"
+    )
+    raw = http_get_json(url)
+    out = []
+    for k in raw:
+        out.append({
+            "source": f"binance_vision_klines_{interval}",
+            "interval": interval,
+            "openTime": k[0],
+            "open": k[1],
+            "high": k[2],
+            "low": k[3],
+            "close": k[4],
+            "volume": k[5],
+            "closeTime": k[6],
+            "quoteVolume": k[7],
+            "trades": k[8],
+            "collected_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return out
+
+
+def fetch_klines_kraken(interval: str, limit: int = 720) -> list[dict]:
+    """Fallback final: Kraken spot XBTUSD."""
+    kraken_interval = {"5m": 5, "1h": 60, "4h": 240, "1d": 1440}.get(interval, 5)
+    interval_ms = {"5m": 300000, "1h": 3600000, "4h": 14400000, "1d": 86400000}.get(interval, 300000)
+    url = (
+        "https://api.kraken.com/0/public/OHLC"
+        f"?pair=XBTUSD&interval={kraken_interval}"
+    )
+    raw = http_get_json(url)
+    if raw.get("error"):
+        raise RuntimeError(str(raw["error"]))
+    result = raw.get("result") or {}
+    rows = next((v for k, v in result.items() if k != "last"), [])
+    out = []
+    for k in rows[-min(limit, 720):]:
+        out.append({
+            "source": f"kraken_klines_{interval}",
+            "interval": interval,
+            "openTime": int(k[0]) * 1000,
+            "open": k[1],
+            "high": k[2],
+            "low": k[3],
+            "close": k[4],
+            "volume": k[6],
+            "closeTime": int(k[0]) * 1000 + interval_ms,
+            "quoteVolume": None,
+            "trades": int(k[7]) if len(k) > 7 else None,
+            "collected_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return out
 
 
 def fetch_klines_bybit(interval: str, limit: int = 1000) -> list[dict]:

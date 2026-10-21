@@ -14,7 +14,7 @@ Recolector de datos públicos de trading para GitHub Actions.
 ## Cómo funciona
 - `collector.py` hace append a `data/btcusdt/*.jsonl` con dedup por clave.
 - GitHub Actions lo ejecuta cada hora (`cron: 17 * * * *`) y commitea solo si hay datos nuevos.
-- Si Binance Futures responde 451/403 desde la IP del runner, las velas usan el fallback oficial de Bybit linear. Funding/OI/long-short se saltan con log si fallan; no rompen el job.
+- Si Binance Futures responde 451/403 desde la IP del runner, las velas usan fallback en cadena: Binance Vision (spot), Bybit linear y Kraken XBTUSD. Funding/OI/long-short se saltan con log si fallan; no rompen el job.
 
 ## Legal / uso
 - Solo endpoints públicos y feeds RSS.
