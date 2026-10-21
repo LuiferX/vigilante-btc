@@ -45,7 +45,7 @@ Es geo-bloqueo del runner, no un bug del codigo.
 - Velas: deben caer a Binance Vision, Bybit o Kraken. Revisar `source` en el ultimo registro.
 - Funding/OI/global LS/taker: deben caer a OKX.
 - Top traders: no tienen fallback; pueden quedar atrasados. Queda registrado en `health.json`.
-- Si todas las velas fallan, el job sale con error y `Pipeline health` lo detecta.
+- Si todas las velas fallan, el job sale con error y el chequeo de salud del pipeline lo detecta.
 
 ### `data_status.fresh = false`
 

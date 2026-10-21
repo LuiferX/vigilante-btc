@@ -209,7 +209,7 @@ python evaluate_decisions.py --decisions data/decisions.jsonl
 python backtest.py --start 2026-10-01 --out data/backtest.json
 ```
 
-`check_health.py` valida que la decision sea reciente y que el colector haya traido velas. Sale con codigo 1 si algo critico falla; el workflow `Pipeline health` lo corre cada 2 horas.
+`check_health.py` valida que la decision sea reciente y que el colector haya traido velas. Sale con codigo 1 si algo critico falla; el pipeline horario lo corre al final; el workflow manual permite repetirlo.
 
 ```bash
 python check_health.py

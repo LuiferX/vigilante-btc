@@ -35,7 +35,7 @@ Antes de esta iteracion: **7,2/10** aproximado con la misma rubrica.
 - Motor con `data_status` y bloqueo de trigger si los datos tienen mas de 20 minutos.
 - Evaluador con Brier skill, intervalos de Wilson, calibracion, cobertura y corte por lado.
 - Backtest OOS que reconstruye el contexto sin mirar el futuro.
-- Workflows con `concurrency`, rebase, health cada 2h y backtest semanal.
+- Workflows con `concurrency`, rebase, health al final del pipeline y backtest manual.
 - Dashboard con decision, frescura, niveles, trigger, invalidacion y Brier.
 - README, arquitectura, runbook y este scorecard.
 - Restauracion del `.gitignore` original del Vigilante, que se habia sobrescrito por error.

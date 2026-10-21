@@ -13,7 +13,7 @@ El sistema de analisis de este README es independiente y no modifica la ejecucio
 - `collector/`: datos publicos de Binance Futures y noticias RSS, con fallback oficial (Binance Vision, Bybit, Kraken, OKX) y `health.json`.
 - `analysis/`: modelo de aguante, motor de decision, registro, evaluacion, backtest OOS y chequeo de salud.
 - `dashboard/`: dashboard HTML de solo lectura que consume `latest_decision.json` y `eval.json`.
-- `.github/workflows/`: recoleccion horaria, decision horaria, tests, salud cada 2h y backtest semanal.
+- `.github/workflows/`: pipeline horario unico, tests, salud al final del pipeline y backtest manual.
 
 Documentacion: [arquitectura](ARCHITECTURE.md), [runbook](RUNBOOK.md) y [scorecard](SCORECARD.md).
 
