@@ -13,7 +13,7 @@ El sistema de analisis de este README es independiente y no modifica la ejecucio
 - `collector/`: datos publicos de Binance Futures y noticias RSS, con fallback oficial (Binance Vision, Bybit, Kraken, OKX) y `health.json`.
 - `analysis/`: modelo de aguante, motor de decision, registro, evaluacion, backtest OOS y chequeo de salud.
 - `dashboard/`: dashboard HTML de solo lectura que consume `latest_decision.json` y `eval.json`.
-- `.github/workflows/`: pipeline unico cada 15 min, tests, salud al final del pipeline y backtest manual.
+- `.github/workflows/`: pipeline unico cada 15 min, self-heal desde el Vigilante, tests, salud al final del pipeline y backtest manual.
 
 Documentacion: [arquitectura](ARCHITECTURE.md), [runbook](RUNBOOK.md) y [scorecard](SCORECARD.md).
 
@@ -67,7 +67,7 @@ python test_workflows.py
 ## GitHub Actions
 
 - `BTC analysis pipeline`: cada 15 minutos. Colecta, decide, evalua, chequea salud y commitea `collector/data/` + `analysis/data/` en un solo job. Es el flujo principal.
-- `Collect BTC public data (manual)` y `BTC decision log (manual)`: reintentos a pedido.
+- `Analysis self-heal`: se dispara al terminar `Vigilante BTC Cloud`; si `latest_decision` tiene 15 min o mas, corre colector + decision.\n- `Collect BTC public data (manual)` y `BTC decision log (manual)`: reintentos a pedido.
 - `Analysis tests`: compile + tests de collector, motor, pipeline, backtest y dashboard.
 - `Pipeline health (manual)`: inspeccion de frescura y colector a pedido.
 - `OOS backtest (manual)`: reconstruye contexto sin futuro y actualiza `analysis/data/backtest.json`.

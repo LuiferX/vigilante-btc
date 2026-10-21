@@ -75,7 +75,7 @@ Binance Futures / Binance Vision / Bybit / Kraken / OKX / RSS
 
 | Workflow | Frecuencia | Funcion |
 |---|---|---|
-| `BTC analysis pipeline` | cada 15 min | colecta, decide, evalua, chequea salud y commitea todo |
+| `BTC analysis pipeline` | cada 15 min | colecta, decide, evalua, chequea salud y commitea todo |\n| `Analysis self-heal` | al terminar `Vigilante BTC Cloud` | si la decision tiene >=15 min, corre el pipeline |
 | `Collect BTC public data (manual)` | a pedido | reintento del colector |
 | `BTC decision log (manual)` | a pedido | recalculo sin colector |
 | `Analysis tests` | push de codigo | compile + tests |

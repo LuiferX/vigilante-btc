@@ -51,6 +51,14 @@ class WorkflowTest(unittest.TestCase):
                 self.assertIn("dash_motor", text)
                 self.assertIn("motor.html", text)
 
+    def test_selfheal_runs_after_vigilante_and_shares_the_write_lock(self):
+        text = read("selfheal.yml")
+        self.assertIn("workflow_run:", text)
+        self.assertIn("Vigilante BTC Cloud", text)
+        self.assertIn("group: data-write", text)
+        self.assertIn("collector/collector.py", text)
+        self.assertIn("run_decision.py", text)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

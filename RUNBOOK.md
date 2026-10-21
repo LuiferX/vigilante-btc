@@ -2,7 +2,7 @@
 
 ## Chequeo diario (2 minutos)
 
-1. Abrir Actions y confirmar que `BTC analysis pipeline` corrio en los ultimos 30 min. Si GitHub demoro el schedule, lanzarlo con `Run workflow`.
+1. Abrir Actions y confirmar que `BTC analysis pipeline` corrio en los ultimos 30 min. Si GitHub demoro el schedule, `Analysis self-heal` lo repone al terminar el Vigilante; tambien se puede lanzar con `Run workflow`.
 2. Abrir `analysis/data/latest_decision.json`:
    - `data_status.fresh` debe ser `true`.
    - `decision.action` no debe ser `datos_desactualizados`.

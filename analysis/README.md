@@ -226,6 +226,6 @@ python test_workflows.py
 python ../collector/test_collector.py
 ```
 
-Cobertura actual: 5 del modelo, 18 del motor, 7 de runner/evaluador/backtest/salud, 4 del dashboard, 6 de workflows y 10 del colector. CI compila todo y corre la suite en cada cambio de codigo.
+Cobertura actual: 5 del modelo, 18 del motor, 7 de runner/evaluador/backtest/salud, 4 del dashboard, 7 de workflows y 10 del colector. CI compila todo y corre la suite en cada cambio de codigo.
 
 
