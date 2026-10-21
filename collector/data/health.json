@@ -1,0 +1,98 @@
+{
+  "run_at": "2026-10-21T03:56:25.503191+00:00",
+  "ok": true,
+  "kline_ok": true,
+  "data_dir": "data/btcusdt",
+  "jobs": {
+    "funding.jsonl": {
+      "ok": true,
+      "fetched": 100,
+      "added": 56,
+      "trimmed": 0,
+      "source": "okx_funding",
+      "last_key": 1789689600000
+    },
+    "open_interest.jsonl": {
+      "ok": true,
+      "fetched": 575,
+      "added": 85,
+      "trimmed": 0,
+      "source": "okx_oi",
+      "last_key": 1792382400000
+    },
+    "global_ls.jsonl": {
+      "ok": true,
+      "fetched": 576,
+      "added": 87,
+      "trimmed": 0,
+      "source": "okx_global_ls",
+      "last_key": 1792382400000
+    },
+    "top_ls_account.jsonl": {
+      "ok": false,
+      "error": "HTTP Error 451: "
+    },
+    "top_ls_position.jsonl": {
+      "ok": false,
+      "error": "HTTP Error 451: "
+    },
+    "taker_ls.jsonl": {
+      "ok": true,
+      "fetched": 72,
+      "added": 72,
+      "trimmed": 0,
+      "source": "okx_taker_ls",
+      "last_key": 1792533300000
+    },
+    "klines_5m.jsonl": {
+      "ok": true,
+      "fetched": 999,
+      "added": 26,
+      "trimmed": 0,
+      "source": "binance_vision_klines_5m",
+      "last_key": 1792554600000
+    },
+    "klines_1h.jsonl": {
+      "ok": true,
+      "fetched": 999,
+      "added": 1,
+      "trimmed": 0,
+      "source": "binance_vision_klines_1h",
+      "last_key": 1792548000000
+    },
+    "klines_4h.jsonl": {
+      "ok": true,
+      "fetched": 499,
+      "added": 0,
+      "trimmed": 0,
+      "source": "binance_vision_klines_4h",
+      "last_key": 1792526400000
+    },
+    "klines_1d.jsonl": {
+      "ok": true,
+      "fetched": 199,
+      "added": 0,
+      "trimmed": 0,
+      "source": "binance_vision_klines_1d",
+      "last_key": 1792454400000
+    }
+  },
+  "news": {
+    "coindesk": {
+      "ok": true,
+      "fetched": 25
+    },
+    "cointelegraph": {
+      "ok": true,
+      "fetched": 30
+    },
+    "bitcoinmagazine": {
+      "ok": true,
+      "fetched": 10
+    },
+    "ok": true,
+    "added": 0,
+    "trimmed": 0
+  },
+  "finished_at": "2026-10-21T03:56:32.169356+00:00"
+}
