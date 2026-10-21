@@ -111,27 +111,64 @@ def fetch_long_short(name: str, endpoint: str) -> list[dict]:
 
 
 def fetch_klines(interval: str = "5m", limit: int = 1500) -> list[dict]:
+    """Klines de Binance Futures con fallback a Bybit si Binance da 451/403."""
     url = (
         "https://fapi.binance.com/fapi/v1/klines"
         f"?symbol=BTCUSDT&interval={interval}&limit={limit}"
     )
+    try:
+        raw = http_get_json(url)
+        out = []
+        for k in raw:
+            out.append({
+                "source": f"binance_klines_{interval}",
+                "interval": interval,
+                "openTime": k[0],
+                "open": k[1],
+                "high": k[2],
+                "low": k[3],
+                "close": k[4],
+                "volume": k[5],
+                "closeTime": k[6],
+                "quoteVolume": k[7],
+                "trades": k[8],
+                "collected_at": datetime.now(timezone.utc).isoformat(),
+            })
+        return out
+    except Exception as e:
+        print(f"Binance klines {interval} error: {e}; probando Bybit")
+        return fetch_klines_bybit(interval, limit)
+
+
+def fetch_klines_bybit(interval: str, limit: int = 1000) -> list[dict]:
+    """Fallback oficial Bybit linear. Mismo esquema que el colector."""
+    bybit_interval = {"5m": "5", "1h": "60", "4h": "240", "1d": "D"}.get(interval, "5")
+    interval_ms = {"5m": 300000, "1h": 3600000, "4h": 14400000, "1d": 86400000}.get(interval, 300000)
+    url = (
+        "https://api.bybit.com/v5/market/kline"
+        f"?category=linear&symbol=BTCUSDT&interval={bybit_interval}"
+        f"&limit={min(limit, 1000)}"
+    )
     raw = http_get_json(url)
+    rows = (raw.get("result") or {}).get("list") or []
     out = []
-    for k in raw:
+    for k in rows:
+        # Bybit: start, open, high, low, close, volume, turnover; newest first.
         out.append({
-            "source": f"binance_klines_{interval}",
+            "source": f"bybit_klines_{interval}",
             "interval": interval,
-            "openTime": k[0],
+            "openTime": int(k[0]),
             "open": k[1],
             "high": k[2],
             "low": k[3],
             "close": k[4],
             "volume": k[5],
-            "closeTime": k[6],
-            "quoteVolume": k[7],
-            "trades": k[8],
+            "closeTime": int(k[0]) + interval_ms,
+            "quoteVolume": k[6] if len(k) > 6 else None,
+            "trades": None,
             "collected_at": datetime.now(timezone.utc).isoformat(),
         })
+    out.sort(key=lambda x: x["openTime"])
     return out
 
 
@@ -159,20 +196,24 @@ def fetch_rss(name: str, url: str) -> list[dict]:
 
 def main():
     jobs = [
-        ("funding.jsonl", fetch_funding(), "fundingTime"),
-        ("open_interest.jsonl", fetch_open_interest(), "timestamp"),
-        ("global_ls.jsonl", fetch_long_short("binance_global_ls", "globalLongShortAccountRatio"), "timestamp"),
-        ("top_ls_account.jsonl", fetch_long_short("binance_top_ls_account", "topLongShortAccountRatio"), "timestamp"),
-        ("top_ls_position.jsonl", fetch_long_short("binance_top_ls_position", "topLongShortPositionRatio"), "timestamp"),
-        ("taker_ls.jsonl", fetch_long_short("binance_taker_ls", "takerlongshortRatio"), "timestamp"),
-        ("klines_5m.jsonl", fetch_klines("5m", 1500), "openTime"),
-        ("klines_1h.jsonl", fetch_klines("1h", 1000), "openTime"),
-        ("klines_4h.jsonl", fetch_klines("4h", 500), "openTime"),
-        ("klines_1d.jsonl", fetch_klines("1d", 200), "openTime"),
+        ("funding.jsonl", fetch_funding, "fundingTime"),
+        ("open_interest.jsonl", fetch_open_interest, "timestamp"),
+        ("global_ls.jsonl", lambda: fetch_long_short("binance_global_ls", "globalLongShortAccountRatio"), "timestamp"),
+        ("top_ls_account.jsonl", lambda: fetch_long_short("binance_top_ls_account", "topLongShortAccountRatio"), "timestamp"),
+        ("top_ls_position.jsonl", lambda: fetch_long_short("binance_top_ls_position", "topLongShortPositionRatio"), "timestamp"),
+        ("taker_ls.jsonl", lambda: fetch_long_short("binance_taker_ls", "takerlongshortRatio"), "timestamp"),
+        ("klines_5m.jsonl", lambda: fetch_klines("5m", 1500), "openTime"),
+        ("klines_1h.jsonl", lambda: fetch_klines("1h", 1000), "openTime"),
+        ("klines_4h.jsonl", lambda: fetch_klines("4h", 500), "openTime"),
+        ("klines_1d.jsonl", lambda: fetch_klines("1d", 200), "openTime"),
     ]
-    for fname, records, key in jobs:
-        n = append_jsonl(DATA / fname, records, key)
-        print(f"{fname}: +{n} (total fetched {len(records)})")
+    for fname, fn, key in jobs:
+        try:
+            records = fn()
+            n = append_jsonl(DATA / fname, records, key)
+            print(f"{fname}: +{n} (total fetched {len(records)})")
+        except Exception as e:
+            print(f"{fname}: error {e}")
 
     feeds = [
         ("coindesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
