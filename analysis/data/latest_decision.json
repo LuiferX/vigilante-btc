@@ -1,7 +1,7 @@
 {
-  "logged_at": "2026-10-21T01:37:09.741343+00:00",
+  "logged_at": "2026-10-21T01:41:02.837789+00:00",
   "event_time": "2026-10-21T01:10:00+00:00",
-  "data_age_min": 27.2,
+  "data_age_min": 31.0,
   "price": 82783.1,
   "summary": "ALZA | vol normal | precio 82.783 | soporte 82.555 [q4.4] | resistencia 82.806 [q5.7] | observar | calidad 8.4/10",
   "engine_quality": 8.4,
@@ -33,7 +33,7 @@
     "trigger": "Cierre de 5m por encima de 82.930 y retest que no vuelva a entrar en la zona.",
     "invalidation": "Cierre de 5m por debajo de 82.430. Una mecha que vuelve a entrar no invalida.",
     "risks": [
-      "Datos con 27 min de antiguedad; verificar que el colector este al dia.",
+      "Datos con 31 min de antiguedad; verificar que el colector este al dia.",
       "Precio dentro de la zona 82.681–82.930; el trigger no esta activo.",
       "Sweep reciente en 82.681–82.930 hace 10 min; esperar cierre de confirmacion.",
       "El nivel de referencia no tiene 3+ toques en 6h; no se calculo aguante."
