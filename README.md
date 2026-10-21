@@ -2,6 +2,12 @@
 
 Sistema de **analisis y contexto** para BTC. No ejecuta ordenes, no usa claves privadas y no manda dinero a ningun exchange.
 
+## Vigilante BTC
+
+El bot de alertas sigue en `vigilante_cloud.py` (modelo de aguante v2, detector de toques y avisos). Sus pruebas estan en `test_vigilante.py`. El workflow `Vigilante BTC Cloud` corre cada 5 minutos y solo avisa; no opera.
+
+El sistema de analisis de este README es independiente y no modifica la ejecucion del Vigilante.
+
 ## Componentes
 
 - `collector/`: datos publicos de Binance Futures y noticias RSS. Guarda velas 5m/1h/4h/1D, funding, open interest, long/short y taker.
