@@ -1524,6 +1524,9 @@ t("toques: rejilla cerca", v.detectar_toques_multiples(
 t("tipo toques", v.tipo_de_motivo("🧱 Soporte 81.000 probado 3 veces en 6h.") == "toques")
 _f = v.features_toque(_kl_t, 81000, 81100, ah, "Soporte")
 t("features toque", _f is not None and all(k in _f for k in v.MODELO_TOQUES["features"]))
+t("features toque atr48", _f is not None and _f["x_atr48"] > 0)
+t("features toque atr144", _f is not None and _f["x_atr144"] > 0)
+t("features toque atr288", _f is not None and _f["x_atr288"] > 0)
 _sc = v.score_toque(_f) if _f else None
 t("score toque rango", _sc is not None and 0.0 <= _sc <= 1.0)
 t("features toque corto", v.features_toque(_kl_t[:100], 81000, 81100, ah, "Soporte") is None)
