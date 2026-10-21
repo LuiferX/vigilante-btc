@@ -34,7 +34,21 @@ python test_hold_model.py
 python test_decision_engine.py
 python test_pipeline.py
 python test_dashboard.py
+python test_workflows.py
 ```
+
+## Si GitHub demora el schedule
+
+GitHub puede atrasar los workflows programados. El flujo principal es `BTC hourly pipeline`.
+
+1. Actions -> `BTC hourly pipeline` -> `Run workflow` para ejecutarlo a mano.
+2. Para puntualidad estricta, configurar un cron externo (cron-job.org o similar) cada hora:
+   - Metodo: `POST`
+   - URL: `https://api.github.com/repos/LuiferX/vigilante-btc/actions/workflows/pipeline.yml/dispatches`
+   - Header: `Authorization: Bearer <token con permiso actions:write>`
+   - Body: `{"ref":"main"}`
+3. Guardar el token en el gestor de secretos del cron, nunca en el repo.
+4. Si el cron externo no esta configurado, el chequeo diario y `health.json` detectan los datos vencidos.
 
 ## Fallas comunes
 
