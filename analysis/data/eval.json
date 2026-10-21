@@ -1,8 +1,69 @@
 {
   "ok": true,
-  "samples": 0,
-  "status": "sin_muestras",
-  "decisions_total": 7,
+  "samples": 1,
+  "status": "muestra_chica",
+  "decisions_total": 8,
+  "decisions_evaluated": 1,
+  "coverage": 0.125,
+  "horizon_bars": 48,
+  "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "detail": "Aun no hay decisiones con 4h de futuro y aguante calculado."
+  "brier": 0.0304,
+  "base_rate": 1.0,
+  "mean_prob": 0.8258,
+  "brier_base": 0.0,
+  "brier_skill": null,
+  "calibration_error": 0.1742,
+  "overall": {
+    "n": 1,
+    "brier": 0.0304,
+    "base_rate": 1.0,
+    "mean_prob": 0.8258,
+    "brier_base": 0.0,
+    "brier_skill": null,
+    "real_ci95": [
+      0.2065,
+      1.0
+    ]
+  },
+  "high_score": {
+    "n": 1,
+    "brier": 0.0304,
+    "base_rate": 1.0,
+    "mean_prob": 0.8258,
+    "brier_base": 0.0,
+    "brier_skill": null,
+    "real_ci95": [
+      0.2065,
+      1.0
+    ],
+    "lift_vs_base": 1.0
+  },
+  "by_side": {
+    "resistencia": {
+      "n": 1,
+      "brier": 0.0304,
+      "base_rate": 1.0,
+      "mean_prob": 0.8258,
+      "brier_base": 0.0,
+      "brier_skill": null,
+      "real_ci95": [
+        0.2065,
+        1.0
+      ]
+    }
+  },
+  "bins": [
+    {
+      "bin": "0.80-1.01",
+      "n": 1,
+      "pred": 0.8258,
+      "real": 1.0,
+      "real_ci95": [
+        0.2065,
+        1.0
+      ]
+    }
+  ],
+  "disclaimer": "Mide aguante de nivel, no win rate. Muestra chica = ruido; no cambiar el modelo por un solo corte. Brier_skill > 0 es mejor que predecir la tasa base."
 }
