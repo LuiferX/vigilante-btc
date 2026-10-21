@@ -2,7 +2,7 @@
   "ok": true,
   "samples": 0,
   "status": "sin_muestras",
-  "decisions_total": 4,
+  "decisions_total": 5,
   "min_samples_recommended": 30,
   "detail": "Aun no hay decisiones con 4h de futuro y aguante calculado."
 }
