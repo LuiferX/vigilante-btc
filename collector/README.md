@@ -1,9 +1,9 @@
-# Trading Data Collector
+﻿# Trading Data Collector
 
-Recolector de datos públicos de trading para GitHub Actions.
+Recolector de datos pÃºblicos de trading para GitHub Actions.
 
-## Qué recoge
-- Binance Futures (endpoints públicos, sin claves):
+## QuÃ© recoge
+- Binance Futures (endpoints pÃºblicos, sin claves):
   - Funding rate
   - Open interest (5m)
   - Ratios long/short (global, top cuentas, top posiciones)
@@ -11,15 +11,15 @@ Recolector de datos públicos de trading para GitHub Actions.
   - Velas 5m (1500), 1h (1000), 4h (500) y 1D (200)
 - Noticias RSS: CoinDesk, Cointelegraph, Bitcoin Magazine
 
-## Cómo funciona
+## CÃ³mo funciona
 - `collector.py` hace append a `data/btcusdt/*.jsonl` con dedup por clave.
 - GitHub Actions lo ejecuta cada hora (`cron: 17 * * * *`) y commitea solo si hay datos nuevos.
 - Si Binance Futures responde 451/403 desde la IP del runner, las velas usan fallback en cadena: Binance Vision (spot), Bybit linear y Kraken XBTUSD. Funding/OI/long-short se saltan con log si fallan; no rompen el job.
 
 ## Legal / uso
-- Solo endpoints públicos y feeds RSS.
-- Sin scraping de HTML, sin saltar límites, sin claves.
-- Uso personal/investigación. Si vas a monetizar o redistribuir, revisa los términos de cada fuente.
+- Solo endpoints pÃºblicos y feeds RSS.
+- Sin scraping de HTML, sin saltar lÃ­mites, sin claves.
+- Uso personal/investigaciÃ³n. Si vas a monetizar o redistribuir, revisa los tÃ©rminos de cada fuente.
 
 ## Uso local
 ```bash
@@ -41,3 +41,5 @@ data/btcusdt/
   klines_1d.jsonl
   news.jsonl
 ```
+- Si se activa el fallback, las velas nuevas pueden ser spot (Binance Vision/Kraken) y las historicas futures. Sirve para niveles; no para basis exacto.
+
