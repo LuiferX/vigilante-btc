@@ -92,6 +92,7 @@ def compact_record(out: dict) -> dict:
             "invalidation": out["decision"]["invalidation"],
             "risks": out["decision"]["risks"],
         },
+        "scenarios": out.get("scenarios", []),
         "levels": levels,
     }
 

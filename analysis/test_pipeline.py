@@ -63,6 +63,7 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("event_time", rec)
         self.assertIn("levels", rec)
         self.assertIn("decision", rec)
+        self.assertIn("scenarios", rec)
         self.assertIn("engine_quality", rec)
 
     def test_run_dedup(self):
