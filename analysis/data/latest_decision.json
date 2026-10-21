@@ -1,18 +1,18 @@
 {
-  "logged_at": "2026-10-21T01:44:59.041409+00:00",
+  "logged_at": "2026-10-21T01:47:54.526757+00:00",
   "event_time": "2026-10-21T01:40:00+00:00",
-  "data_age_min": 5.0,
+  "data_age_min": 7.9,
   "price": 82966.0,
-  "summary": "ALZA | vol normal | precio 82.966 | soporte 82.796 (80%) [q7.7] | resistencia 83.117 (79%) [q8.1] | esperar_confirmacion | calidad 8.7/10",
-  "engine_quality": 8.7,
+  "summary": "ALZA | vol normal | precio 82.966 | soporte 82.796 (80%) [q7.7] | resistencia 83.117 (79%) [q8.1] | esperar_confirmacion | calidad 9.2/10",
+  "engine_quality": 9.2,
   "setup_quality": 8.1,
   "quality": {
-    "engine": 8.7,
+    "engine": 9.2,
     "setup": 8.1,
-    "composite": 8.4,
+    "composite": 8.6,
     "target": 8.5,
-    "gap": 0.1,
-    "grade": "B",
+    "gap": 0.0,
+    "grade": "A",
     "note": "Promedio de completitud del motor y calidad de la mejor zona. No es probabilidad de ganar. El objetivo 8,5 es una meta de calidad de contexto, no una garantia."
   },
   "state": {
