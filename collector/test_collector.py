@@ -94,6 +94,25 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(rows[0]["source"], "okx_taker_ls")
         self.assertEqual(rows[0]["buySellRatio"], "1.500000")
 
+    def test_bybit_long_short_mapping(self):
+        raw = {"retCode": 0, "result": {"list": [
+            {"symbol": "BTCUSDT", "buyRatio": "0.6088", "sellRatio": "0.3912",
+             "timestamp": "1792653600000"},
+        ]}}
+        with patch.object(c, "http_get_json", return_value=raw):
+            rows = c.fetch_long_short_bybit()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"], "bybit_account_ratio")
+        self.assertEqual(rows[0]["timestamp"], 1792653600000)
+        self.assertAlmostEqual(float(rows[0]["longAccount"]), 0.6088, places=4)
+        self.assertAlmostEqual(float(rows[0]["shortAccount"]), 0.3912, places=4)
+        self.assertAlmostEqual(float(rows[0]["longShortRatio"]), 0.6088 / 0.3912, places=4)
+
+    def test_bybit_long_short_sin_filas_falla(self):
+        with patch.object(c, "http_get_json", return_value={"retCode": 0, "result": {"list": []}}):
+            with self.assertRaises(RuntimeError):
+                c.fetch_long_short_bybit()
+
     def test_with_fallback(self):
         with patch.object(c, "fetch_funding", side_effect=RuntimeError("451")):
             rows = c.with_fallback("funding", c.fetch_funding, lambda: [{"source": "okx"}])

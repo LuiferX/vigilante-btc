@@ -1,0 +1,71 @@
+name: OOS refresh (semanal)
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'      # lunes 04:17 UTC: OOS fresco para la semana
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  refrescar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Traer estado vivo (rama estado)
+        run: |
+          git fetch origin estado 2>/dev/null || true
+
+      - name: Replay OOS (baja historial publico, sin claves)
+        run: |
+          python analysis/backfill.py --descargar \
+            --start 2026-10-01T00:00:00+00:00 \
+            --out analysis/data/decisions_hist.jsonl \
+            --eval-out analysis/data/oos_eval.json
+
+      - name: Backtest OOS
+        run: |
+          python analysis/backtest.py \
+            --klines analysis/data/cache/klines_5m.jsonl \
+            --start 2026-10-01T00:00:00+00:00 \
+            --out analysis/data/backtest.json
+
+      - name: Recalcular validation (canal OOS + deriva)
+        run: |
+          python analysis/validation.py \
+            --eval analysis/data/eval.json \
+            --backtest analysis/data/backtest.json \
+            --decisions analysis/data/decisions.jsonl \
+            --klines analysis/data/cache/klines_5m.jsonl \
+            --collector-health collector/data/health.json \
+            --out analysis/data/validation.json \
+            --history analysis/data/validation_history.jsonl
+
+      - name: Guardar evidencia OOS
+        run: |
+          git config user.name "vigilante-bot"
+          git config user.email "vigilante-bot@users.noreply.github.com"
+          git add analysis/data/backtest.json analysis/data/oos_eval.json analysis/data/validation.json || echo "nada que guardar"
+          git commit -m "oos: refresco semanal $(date -u +%Y-%m-%d)" || echo "sin cambios"
+          ok=0; for i in 1 2 3; do git pull --rebase origin main >/dev/null 2>&1; git push origin HEAD:main && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
+
+      - name: Publicar replay como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisions_hist
+          path: analysis/data/decisions_hist.jsonl
+          retention-days: 30
+          if-no-files-found: warn

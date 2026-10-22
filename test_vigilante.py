@@ -1646,5 +1646,152 @@ t("motor linea", "observar" in v.linea_motor(
     {"action": "observar", "bias": "ALZA", "age_min": 10, "trigger": "cierre sobre 83.205"}))
 t("motor vacio", v.linea_motor(None) == "")
 
+# ---------- noche 9: canal OOS de la puerta de validacion ----------
+_base_gate = {
+    "status": "muestra_chica",
+    "samples": {"effective": 8},
+    "metrics": {"brier_skill": -0.20, "calibration_error": 0.19},
+    "drift": {"status": "ok"},
+    "oos": {"available": True, "effective": 189, "brier_skill": 0.0019,
+            "ece": 0.0655, "samples": 189, "decisions": 127},
+    "gate": {"ok": True, "canal": "oos"},
+}
+_g_oos = v._gate_desde_validacion(dict(_base_gate))
+t("gate acepta canal OOS", _g_oos["ok"] is True and "OOS" in _g_oos["reason"])
+_g_oos_drift = v._gate_desde_validacion(dict(
+    _base_gate, gate={"ok": False, "canal": "ninguno"}, drift={"status": "alert"}))
+t("gate OOS vetado por drift", _g_oos_drift["ok"] is False)
+_g_oos_skill = v._gate_desde_validacion(dict(
+    _base_gate,
+    oos={"available": True, "effective": 189, "brier_skill": 0.0, "ece": 0.0655},
+    gate={"ok": True, "canal": "oos"}))
+t("gate OOS exige skill>0", _g_oos_skill["ok"] is False)
+_g_oos_chico = v._gate_desde_validacion(dict(
+    _base_gate,
+    oos={"available": True, "effective": 39, "brier_skill": 0.02, "ece": 0.06},
+    gate={"ok": True, "canal": "oos"}))
+t("gate OOS exige 100+", _g_oos_chico["ok"] is False)
+_g_oos_roto = v._gate_desde_validacion(dict(_base_gate, status="roto",
+                                           gate={"ok": False, "canal": "ninguno"}))
+t("gate OOS respeta vivo roto", _g_oos_roto["ok"] is False)
+
+# ---------- noche 9: modo PRECISION (nivel defendido) ----------
+_utc = datetime.timezone.utc
+_motor = {
+    "event_time": datetime.datetime.now(_utc).isoformat(),
+    "_edad_min": 4.0,
+    "decision": {"action": "observar", "confidence": "alta"},
+    "state": {"bias": "ALZA"},
+    "levels": [
+        {"center": 84000.0, "role": "soporte", "hold_prob": 0.88, "quality": 8.5,
+         "touches_6h": 4, "htf_confluence": 2, "break_confirmed": False},
+        {"center": 85000.0, "role": "resistencia", "hold_prob": 0.60, "quality": 7.0,
+         "touches_6h": 5, "break_confirmed": False},
+        {"center": 84500.0, "role": "resistencia", "hold_prob": 0.90, "quality": 8.9,
+         "touches_6h": 6, "break_confirmed": True},
+    ],
+}
+_np = v.nivel_precision(_motor, 84050.0)
+t("precision elige defendido", _np is not None and _np["prob"] == 0.88
+  and _np["nivel"] == 84000.0 and _np["lado"] == "soporte")
+t("precision ignora roto", v.nivel_precision(_motor, 84500.0) is None)
+t("precision ignora lejos", v.nivel_precision(_motor, 86000.0) is None)
+t("precision ignora prob baja", v.nivel_precision(_motor, 85000.0) is None)
+t("precision exige fresco", v.nivel_precision(dict(_motor, _edad_min=90.0), 84050.0) is None)
+t("precision bloquea datos viejos", v.nivel_precision(
+    dict(_motor, decision={"action": "datos_desactualizados"}), 84050.0) is None)
+t("precision sin motor", v.nivel_precision(None, 84050.0) is None)
+
+_est_p = {}
+_ahora = datetime.datetime.now(_utc)
+t("precision dedup primera", v.precision_nueva({}, _np, _ahora) is True)
+v.registrar_pend_precision(_est_p, _np, _ahora)
+t("precision dedup bloquea", v.precision_nueva(_est_p, _np, _ahora) is False)
+t("precision dedup otra clave", v.precision_nueva(
+    _est_p, dict(_np, nivel=83000.0, lado="soporte"), _ahora) is True)
+_txt = v.texto_alerta_precision(_np, 84050.0,
+                                {"muestras": 189, "real": 0.888, "inicio": "2026-10-01T00:00:00+00:00"})
+t("precision texto no es orden", v.es_alerta_direccional(_txt) is False)
+t("precision texto con muestra", "189" in _txt and "89%" in _txt)
+t("precision texto avisa anulacion", "no es orden" in _txt)
+
+# evaluacion del aviso con velas 5m sinteticas (soporte que aguanta)
+_t0 = (_ahora - datetime.timedelta(hours=5)).replace(microsecond=0)
+_vel = [{"t": _t0 + datetime.timedelta(minutes=5 * i), "o": 84100, "h": 84150,
+         "l": 84080, "c": 84120, "v": 1} for i in range(60)]
+_est_eval = {"pend_precision": [{"t": _t0.isoformat(),
+                                 "nivel": 84000.0, "lado": "soporte", "prob": 0.88}]}
+v.evaluar_precision(_est_eval, _ahora, _vel)
+t("precision evalua aguante", len(_est_eval.get("precision_log") or []) == 1
+  and _est_eval["precision_log"][0]["r"] == 1 and _est_eval["pend_precision"] == [])
+_vel_rompe = [{"t": _t0 + datetime.timedelta(minutes=5 * i), "o": 84100, "h": 84150,
+               "l": 83000, "c": 83400, "v": 1} for i in range(60)]
+_est_eval2 = {"pend_precision": [{"t": _t0.isoformat(),
+                                  "nivel": 84000.0, "lado": "soporte", "prob": 0.88}]}
+v.evaluar_precision(_est_eval2, _ahora, _vel_rompe)
+t("precision evalua rotura", _est_eval2["precision_log"][0]["r"] == 0)
+_est_eval3 = {"pend_precision": [{"t": _ahora.isoformat(), "nivel": 84000.0,
+                                  "lado": "soporte", "prob": 0.88}]}
+v.evaluar_precision(_est_eval3, _ahora, _vel)
+t("precision no evalua fresco", len(_est_eval3.get("precision_log") or []) == 0
+  and len(_est_eval3["pend_precision"]) == 1)
+_st = v.precision_stats({"precision_log": [{"prob": 0.88, "r": 1}, {"prob": 0.88, "r": 0},
+                                           {"prob": 0.70, "r": 1}]})
+t("precision stats", _st["n"] == 3 and _st["banda_alta_n"] == 2 and _st["banda_alta_ok"] == 1)
+t("precision stats vacio", v.precision_stats({}) is None)
+
+# cierre por deriva de regimen
+import json as _json
+import tempfile as _tf
+with _tf.TemporaryDirectory() as _td:
+    _pv = os.path.join(_td, "validation.json")
+    with open(_pv, "w", encoding="utf-8") as _fh:
+        _json.dump({"drift": {"status": "alert"}}, _fh)
+    t("deriva alerta", v.deriva_regimen(_pv) == "alert")
+    with open(_pv, "w", encoding="utf-8") as _fh:
+        _json.dump({"drift": {"status": "ok"}}, _fh)
+    t("deriva ok", v.deriva_regimen(_pv) == "ok")
+t("deriva sin archivo", v.deriva_regimen(os.path.join(_td, "no_existe.json")) == "sin_datos")
+
+# ---------- depuracion de ruido: un movimiento = un aviso ----------
+import os as _os
+
+_UM = "VIGILANTE_RUIDO_UNIFICADO"
+_est_r = {"cools": {}}
+_ah_r = datetime.datetime.now(datetime.timezone.utc)
+_os.environ[_UM] = "1"
+_e1 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "ALZA", "confianza": 50}, _est_r, _ah_r,
+                       mov1h=1.6, mov30=1.7)
+t("ruido: brusco gana", _e1[0] is True and "brusco" in _e1[1].lower())
+_e2 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "ALZA", "confianza": 50}, _est_r, _ah_r + datetime.timedelta(minutes=5),
+                       mov1h=1.6, mov30=1.7)
+t("ruido: ritmo mismo movimiento silenciado", _e2[0] is False)
+_est_r2 = {"cools": {}}
+_e3 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "ALZA", "confianza": 50}, _est_r2, _ah_r,
+                       mov1h=0.2, mov30=1.7)
+t("ruido: ritmo solo si es el unico", _e3[0] is True and "ritmo" in _e3[1].lower())
+_e4 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "ALZA", "confianza": 50}, _est_r2,
+                       _ah_r + datetime.timedelta(minutes=5), mov1h=1.6, mov30=1.7)
+t("ruido: brusco tras ritmo silenciado", _e4[0] is False)
+_est_r3 = {"cools": {}}
+_os.environ[_UM] = "0"
+_e5 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "ALZA", "confianza": 50}, _est_r3, _ah_r, mov1h=1.6, mov30=1.7)
+t("ruido: flag off vuelve al independiente", _e5[0] is True and "brusco" in _e5[1].lower())
+_est_r3b = {"cools": {}}
+_e6 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "ALZA", "confianza": 50}, _est_r3b, _ah_r, mov1h=0.2, mov30=1.7)
+t("ruido: flag off ritmo tambien", _e6[0] is True and "ritmo" in _e6[1].lower())
+_os.environ[_UM] = "1"
+# otra direccion sigue avisando (no se cruzan)
+_est_r4 = {"cools": {}}
+_e7 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
+                       {"bias": "BAJA", "confianza": 50}, _est_r4, _ah_r, mov1h=-1.6, mov30=-1.7)
+t("ruido: bajista avisa aunque hubo alcista", _e7[0] is True and "brusco" in _e7[1].lower())
+
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)

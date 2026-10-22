@@ -54,6 +54,49 @@ Corte del 21-10-2026 sobre datos posteriores al entrenamiento (2026-10-01 a la f
 
 Lectura: la calibracion es razonable (predice ~80%, acierta ~79,5%), pero el modelo **no demuestra edge** frente a predecir la tasa base en esta muestra chica. No se cambia el modelo por este corte; se sigue midiendo. El valor del repo esta en la calidad del contexto y la medicion, no en prometer una ventaja predictiva.
 
+### Corte OOS completo de octubre (22-10-2026, `backfill.py` + `backtest.py`)
+
+Se midio **todo el periodo fuera de muestra** (post entrenamiento), no solo el dia:
+
+| Metrica | Oct completo | Mitad A (1-12) | Mitad B (12-22) |
+|---|---:|---:|---:|
+| Muestras | 189 | 102 | 87 |
+| Decisiones | 127 | 66 | 61 |
+| Brier | 0,1333 | 0,1215 | 0,1471 |
+| Tasa base | 84,1% | 85,3% | 82,8% |
+| Brier skill | **+0,0019** | +0,031 | -0,031 |
+| ECE | 0,066 | 0,074 | 0,074 |
+| Banda >=0,80: n | 89 | 60 | 29 |
+| Banda >=0,80: real | **88,8%** | 90,0% | 86,2% |
+
+Bins del mes: 0.00-0.60 n=3 (real 100%) · 0.60-0.70 n=34 (70,6%) · 0.70-0.80 n=63
+(84,1%) · 0.80-1.01 n=89 (88,8%). La calibracion es **monotona y algo
+subconfiada**: predecir 0,85 y acertar 0,89.
+
+**Lectura honesta:** el skill ronda el cero y cambia de signo entre mitades y al
+mover la ventana un dia (-0,014 con 187 muestras). No hay edge demostrado. Lo que
+si hay: calibracion estable y una banda alta medida sobre 89 casos. Ver
+`RECALIBRACION.md` para los intentos rechazados (Platt, rebote del nivel) y sus
+numeros.
+
+### Como reproducirlo
+
+```bash
+# 1) bajar historial publico y replicar (canal OOS auditable)
+python backfill.py --descargar --start 2026-10-01T00:00:00+00:00 \
+    --out data/decisions_hist.jsonl --evaluar
+# 2) backtest OOS tradicional
+python backtest.py --start 2026-10-01T00:00:00+00:00
+# 3) validacion con canal OOS (la puerta lo consume)
+python validation.py --eval data/eval.json --backtest data/backtest.json \
+    --decisions data/decisions.jsonl --klines <velas 5m>
+```
+
+`validation.json` ahora incluye `oos` (muestras efectivas, skill, ECE del backtest
+purgado) y `gate` (canal `vivo` / `oos` / `ninguno`). El canal OOS solo califica
+con 100+ muestras, skill > 0, ECE <= 0,08 y deriva controlada; el canal vivo
+siempre puede vetar.
+
 ## Interpretacion
 
 Los `drivers` del modelo se leen como aportes al logit:

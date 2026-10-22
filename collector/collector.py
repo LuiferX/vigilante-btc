@@ -223,6 +223,41 @@ def fetch_long_short_okx() -> list[dict]:
     return out
 
 
+def fetch_long_short_bybit() -> list[dict]:
+    """Fallback de razon largas/cortas de cuentas (Bybit).
+
+    Binance bloquea con HTTP 451 (razones legales) los endpoints de top-traders
+    desde IP de EE.UU. (GitHub Actions). Bybit publica la razon de cuentas
+    largas/cortas de perpetuos BTC, que NO es exactamente "top traders" pero es
+    la mejor fuente publica alternativa. Se etiqueta con su propio `source`
+    (`bybit_account_ratio`) para no confundirla con la de Binance.
+    """
+    url = ("https://api.bybit.com/v5/market/account-ratio"
+           "?category=linear&symbol=BTCUSDT&period=5min&limit=100")
+    raw = http_get_json(url)
+    lista = (raw.get("result") or {}).get("list") or []
+    out = []
+    for r in lista:
+        try:
+            buy = float(r.get("buyRatio"))
+            sell = float(r.get("sellRatio"))
+        except (TypeError, ValueError):
+            continue
+        ratio = buy / sell if sell > 0 else None
+        out.append({
+            "source": "bybit_account_ratio",
+            "symbol": r.get("symbol"),
+            "timestamp": int(r["timestamp"]),
+            "longShortRatio": f"{ratio:.6f}" if ratio is not None else None,
+            "longAccount": f"{buy:.6f}",
+            "shortAccount": f"{sell:.6f}",
+            "collected_at": datetime.now(timezone.utc).isoformat(),
+        })
+    if not out:
+        raise RuntimeError("bybit account-ratio sin filas")
+    return out
+
+
 def fetch_taker_okx() -> list[dict]:
     rows = okx_data(
         "https://www.okx.com/api/v5/rubik/stat/taker-volume"
@@ -251,7 +286,7 @@ def with_fallback(label: str, primary, fallback) -> list[dict]:
     try:
         return primary()
     except Exception as e:
-        print(f"{label}: Binance error {e}; probando OKX")
+        print(f"{label}: fuente primaria error {e}; probando fallback")
         return fallback()
 
 
@@ -422,8 +457,11 @@ def main() -> int:
         ("funding.jsonl", lambda: with_fallback("funding", fetch_funding, fetch_funding_okx), "fundingTime"),
         ("open_interest.jsonl", lambda: with_fallback("open_interest", fetch_open_interest, fetch_open_interest_okx), "timestamp"),
         ("global_ls.jsonl", lambda: with_fallback("global_ls", lambda: fetch_long_short("binance_global_ls", "globalLongShortAccountRatio"), fetch_long_short_okx), "timestamp"),
-        ("top_ls_account.jsonl", lambda: fetch_long_short("binance_top_ls_account", "topLongShortAccountRatio"), "timestamp"),
-        ("top_ls_position.jsonl", lambda: fetch_long_short("binance_top_ls_position", "topLongShortPositionRatio"), "timestamp"),
+        ("top_ls_account.jsonl", lambda: with_fallback("top_ls_account", lambda: fetch_long_short("binance_top_ls_account", "topLongShortAccountRatio"), fetch_long_short_bybit), "timestamp"),
+        # Mismo fallback para posiciones: si Binance bloquea (451), se publica la
+        # razon de cuentas de Bybit CON SU PROPIO source. No es la metrica de
+        # top-traders por posicion, pero queda trazable y la vela no se pierde.
+        ("top_ls_position.jsonl", lambda: with_fallback("top_ls_position", lambda: fetch_long_short("binance_top_ls_position", "topLongShortPositionRatio"), fetch_long_short_bybit), "timestamp"),
         ("taker_ls.jsonl", lambda: with_fallback("taker_ls", lambda: fetch_long_short("binance_taker_ls", "takerlongshortRatio"), fetch_taker_okx), "timestamp"),
         ("klines_5m.jsonl", lambda: fetch_klines("5m", 1500), "openTime"),
         ("klines_1h.jsonl", lambda: fetch_klines("1h", 1000), "openTime"),

@@ -243,5 +243,128 @@ class ValidationTest(unittest.TestCase):
         self.assertNotIn("requests.", source)
 
 
+class OosChannelTest(unittest.TestCase):
+    """Canal OOS: el backtest purgado como evidencia alternativa (noche 9)."""
+
+    def test_oos_summary_sin_solapamiento(self):
+        bt = {
+            "ok": True, "samples": 189, "decisions": 127,
+            "step_bars": 48, "horizon_bars": 48,
+            "brier": 0.13, "brier_skill": 0.0019,
+            "base_rate": 0.84, "mean_prob": 0.77,
+            "start": "2026-10-01T00:00:00+00:00",
+            "bins": [{"bin": "0.80-1.01", "n": 89, "pred": 0.846, "real": 0.888}],
+        }
+        oos = v.oos_summary(bt)
+        self.assertTrue(oos["available"])
+        self.assertEqual(oos["effective"], 189)
+        self.assertFalse(oos["solape_descontado"])
+        self.assertAlmostEqual(oos["ece"], abs(0.846 - 0.888), places=3)
+
+    def test_oos_summary_descuenta_solapamiento(self):
+        bt = {"ok": True, "samples": 60, "decisions": 30,
+              "step_bars": 16, "horizon_bars": 48, "brier_skill": 0.02}
+        oos = v.oos_summary(bt)
+        self.assertEqual(oos["effective"], 20)
+        self.assertTrue(oos["solape_descontado"])
+
+    def test_oos_valido(self):
+        oos = {"available": True, "effective": 189, "brier_skill": 0.0019, "ece": 0.0655}
+        self.assertTrue(v.oos_valido(oos, {"status": "ok"}))
+        self.assertFalse(v.oos_valido(oos, {"status": "alert"}))
+        self.assertFalse(v.oos_valido(
+            {"available": True, "effective": 39, "brier_skill": 0.02, "ece": 0.06},
+            {"status": "ok"}))
+        self.assertFalse(v.oos_valido(
+            dict(oos, brier_skill=0.0), {"status": "ok"}))
+        self.assertFalse(v.oos_valido(
+            dict(oos, ece=0.09), {"status": "ok"}))
+        self.assertFalse(v.oos_valido({}, {"status": "ok"}))
+
+    def test_validate_abre_canal_oos_cuando_el_vivo_es_chico(self):
+        with tempfile.TemporaryDirectory() as td:
+            paths = _setup(td, events=10, spacing=48, eval_samples=8,
+                           backtest_samples=189, backtest_skill=0.0019)
+            # decisiones vivas con distribucion coherente al backtest (sin drift)
+            probs = [0.65, 0.65, 0.75, 0.75, 0.75, 0.85, 0.85, 0.85, 0.85, 0.85]
+            with open(paths["decisions"], "w", encoding="utf-8") as fh:
+                for k, pr in enumerate(probs):
+                    idx = 300 + k * 48
+                    event = START + timedelta(minutes=5 * idx)
+                    fh.write(json.dumps({
+                        "event_time": event.isoformat(),
+                        "levels": [{"center": 80000.0, "role": "soporte",
+                                    "hold_prob": pr, "quality": 8.0}],
+                    }) + "\n")
+            _write_json(paths["backtest"], {
+                "ok": True, "samples": 189, "decisions": 127,
+                "step_bars": 48, "horizon_bars": 48,
+                "brier": 0.13, "brier_skill": 0.0019, "mean_prob": 0.77,
+                "start": "2026-10-01T00:00:00+00:00",
+                "bins": [
+                    {"bin": "0.60-0.70", "n": 34, "pred": 0.656, "real": 0.706},
+                    {"bin": "0.70-0.80", "n": 63, "pred": 0.753, "real": 0.841},
+                    {"bin": "0.80-1.01", "n": 92, "pred": 0.846, "real": 0.888},
+                ],
+            })
+            out = v.validate(
+                paths["eval"], paths["backtest"], paths["decisions"],
+                paths["klines"], now=paths["now"],
+            )
+            self.assertEqual(out["status"], "muestra_chica")
+            self.assertTrue(out["oos"]["available"])
+            self.assertEqual(out["oos"]["effective"], 189)
+            self.assertEqual(out["gate"]["canal"], "oos")
+            self.assertTrue(out["gate"]["ok"])
+
+    def test_validate_no_abre_oos_con_skill_negativo(self):
+        with tempfile.TemporaryDirectory() as td:
+            paths = _setup(td, events=10, spacing=48, eval_samples=8,
+                           backtest_samples=189, backtest_skill=-0.02)
+            _write_json(paths["backtest"], {
+                "ok": True, "samples": 189, "decisions": 127,
+                "step_bars": 48, "horizon_bars": 48,
+                "brier_skill": -0.02,
+                "bins": [{"bin": "0.80-1.01", "n": 189, "pred": 0.8, "real": 0.75}],
+            })
+            out = v.validate(
+                paths["eval"], paths["backtest"], paths["decisions"],
+                paths["klines"], now=paths["now"],
+            )
+            self.assertEqual(out["gate"]["canal"], "ninguno")
+            self.assertFalse(out["gate"]["ok"])
+
+    def test_auxiliar_bloqueado_no_rompe_la_validacion(self):
+        # Un derivado bloqueado legal/geografico (HTTP 451) no debe volver roto
+        # al validador: solo las velas (lo que usa el motor) son criticas.
+        with tempfile.TemporaryDirectory() as td:
+            paths = _setup(td, events=10, spacing=48, eval_samples=8)
+            chp = os.path.join(td, "health.json")
+            _write_json(chp, {"ok": False, "kline_ok": True, "run_at": "2026-10-22T05:20:00+00:00",
+                              "jobs": {"top_ls_account.jsonl": {"ok": False},
+                                       "top_ls_position.jsonl": {"ok": False}}})
+            out = v.validate(
+                paths["eval"], paths["backtest"], paths["decisions"],
+                paths["klines"], now=paths["now"], collector_health_path=chp,
+            )
+            self.assertNotEqual(out["status"], "roto")
+            self.assertTrue(out["data"]["collector"]["available"])
+            self.assertEqual(
+                sorted(out["data"]["collector"]["failed_jobs"]),
+                ["top_ls_account.jsonl", "top_ls_position.jsonl"])
+
+    def test_klines_fallidas_si_rompen_la_validacion(self):
+        with tempfile.TemporaryDirectory() as td:
+            paths = _setup(td, events=10, spacing=48, eval_samples=8)
+            chp = os.path.join(td, "health.json")
+            _write_json(chp, {"ok": False, "kline_ok": False,
+                              "run_at": "2026-10-22T05:20:00+00:00", "jobs": {}})
+            out = v.validate(
+                paths["eval"], paths["backtest"], paths["decisions"],
+                paths["klines"], now=paths["now"], collector_health_path=chp,
+            )
+            self.assertEqual(out["status"], "roto")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
