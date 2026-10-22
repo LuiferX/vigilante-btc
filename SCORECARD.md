@@ -74,7 +74,10 @@ explicitos (`muestra_chica`/`muestra_media`/`vigilar`/`degradado`/`roto`).
 1. **Skill positivo y estable**: skill > 0 en dos mitades consecutivas y en el
    refresco semanal, con >= 100 muestras. Requiere acumular semanas de OOS, no
    rushear el modelo (todo intento de forzarlo empeoro: ver RECALIBRACION.md).
-2. **Deriva resuelta**: PSI vivo-vs-OOS por debajo de 0,25 sin bajar el umbral.
+2. **Deriva resuelta**: PSI vivo-vs-OOS por debajo de 0,25 sin bajar el umbral
+   (hoy 1,20 en produccion).
+3. **Top-traders: 451+403** sin fuente publica desde IPs de EEUU (documentado
+   en collector/README.md); falta red no estadounidense o fuente de pago.
    Hoy esta en 0,75 (el regimen de los ultimos dias no se parece al de octubre).
 3. **Cobertura real de top traders**: una fuente publica equivalente al ratio de
    top-traders (hoy solo hay proxy de Bybit, etiquetado).

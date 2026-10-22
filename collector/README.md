@@ -61,3 +61,18 @@ data/
 Si se activa el fallback, las velas nuevas pueden ser spot (Binance Vision/Kraken) y las historicas
 futures. Sirve para niveles y contexto; no para basis exacto ni para arbitraje. Cada registro trae
 `source` para auditar la mezcla.
+
+
+## Top-traders: estado honesto (22-10-2026)
+
+- `top_ls_account` y `top_ls_position` de Binance responden **HTTP 451** desde las
+  IPs de GitHub Actions (bloqueo legal/geografico de EE.UU.).
+- Fallback implementado: **Bybit** (`/v5/market/account-ratio`, razon de cuentas
+  largas/cortas, etiquetada como `bybit_account_ratio`, NO es top-traders puro).
+  Desde IPs de EEUU Bybit responde **403**; desde otras redes si funciona.
+- OKX si responde desde GitHub para el resto de derivados (funding, OI, global LS,
+  taker) pero **no publica** un ratio de top-traders.
+- Conclusion: **no hay fuente publica gratuita de top-traders desde IPs de EEUU**.
+  Los jobs quedan reportados en `health.json` (failed_jobs) y el validador ya NO
+  se rompe por eso (solo las velas son criticas). Queda pendiente una fuente
+  alternativa real (o correr el colector desde una red no estadounidense).
