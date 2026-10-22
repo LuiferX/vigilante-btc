@@ -11,7 +11,7 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **8,7/10** (ponderado).
 | Confiabilidad y cobertura de datos | 15% | 7,0 | 8,6 | fallback Binance Vision/Bybit/Kraken/OKX, `health.json`, retencion, tests de mapeo |
 | Calidad del motor de decision | 15% | 8,0 | 8,9 | zonas, HTF 1h/4h/1D, POC, sweep, aguante, guardrail de frescura |
 | Medicion y calibracion | 15% | 6,5 | 8,7 | Brier, Brier skill, Wilson, calibracion, corte por lado, backtest OOS, muestras efectivas y drift PSI |
-| Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 8 validation + 4 dashboard + 8 workflows + 10 colector; compileall |
+| Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 8 validation + 5 dashboard + 8 workflows + 10 colector; compileall |
 | Confiabilidad operativa | 10% | 6,5 | 8,3 | pipeline unico cada 15 min, self-heal desde Vigilante, concurrency, rebase, health al final; GitHub puede demorar el schedule, dispatch manual documentado |
 | Seguridad y guardrails | 10% | 8,0 | 9,2 | sin claves, sin ordenes, permisos minimos, bloqueo por datos vencidos |
 | Dashboard y UX | 10% | 6,5 | 8,7 | `/motor.html` en Pages, lee decision/eval/validation, frescura, niveles, trigger, invalidacion, Brier y validation bot |

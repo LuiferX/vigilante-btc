@@ -32,6 +32,12 @@ class DashboardTest(unittest.TestCase):
         self.assertTrue(motor.exists(), "falta docs/motor.html para GitHub Pages")
         self.assertIn("latest_decision.json", motor.read_text(encoding="utf-8"))
 
+    def test_chart_is_height_constrained(self):
+        self.assertIn("chart-wrap", self.html)
+        self.assertIn("maintainAspectRatio: false", self.html)
+        self.assertIn("animation: false", self.html)
+        self.assertNotIn('height="220"', self.html)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
