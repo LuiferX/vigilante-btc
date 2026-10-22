@@ -26,5 +26,8 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Guardian anti-secretos (regla de oro)
+        run: python tools/secret_scan.py
+
       - name: Suite de calidad (sin red)
         run: python test_vigilante.py

@@ -30,6 +30,9 @@ jobs:
       - name: Compile
         run: python -m compileall -q analysis collector
 
+      - name: Guardian anti-secretos (regla de oro)
+        run: python tools/secret_scan.py
+
       - name: Run collector tests
         run: python collector/test_collector.py
 

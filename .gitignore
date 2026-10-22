@@ -38,3 +38,8 @@ entrenamiento/nok_base.json
 .DS_Store
 analysis/data/.pytest_cache/
 collector/data/.pytest_cache/
+
+# --- Replay OOS: cache de velas descargadas y log historico (no se versionan;
+#     se regeneran con: python analysis/backfill.py --descargar) ---
+analysis/data/cache/
+analysis/data/decisions_hist.jsonl
