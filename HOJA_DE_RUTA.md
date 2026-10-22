@@ -72,3 +72,35 @@
 - Ritmo-continuación pierde (17–22%): el ritmo avisa, no predice dirección sostenida
 - Veredicto: el replay no tiene vetos institucionales (funding/taker/noticias/régimen) que sí
   tiene el vivo → el vivo debe batir al replay. Mandan las evals en vivo (siguen en 0).
+
+## Noche del 21/22-10 (objetivo: precision de alertas + scorecard 9,0)
+- **OOS de TODO octubre medido**: 127 decisiones / 189 muestras (analysis/backfill.py,
+  baja solo el historico publico). Skill +0,0019 (marginal), banda >=0,80 = 88,8% real (n=89).
+- **Disciplina de mitades**: A +0,031 / B -0,031; al mover la ventana un dia: -0,014
+  -> el skill NO es estable -> no hay edge demostrado. Publicado tal cual.
+- **Recalibracion Platt: rechazada** (colapsa a la tasa base; ECE 0,065 ya <= 0,08). Ver RECALIBRACION.md.
+- **Alerta por rebote del nivel: rechazada** (10-26% de acierto). Aguanta = no rompe, no rebota.
+- **Canal OOS en validation.json** (gate.canal vivo/oos/ninguno): el OOS purgado puede abrir
+  la puerta con 100+ muestras, skill>0, ECE<=0,08; el vivo veta; la deriva debe estar ok.
+  Hoy deriva 0,75 (alerta) -> la puerta sigue cerrada, correctamente.
+- **Modo PRECISION** (VIGILANTE_PRECISION=1): aviso nivel defendido corto, sin plan, con
+  precision medida; se autocensura con deriva o sin evidencia OOS. Ejecuta: nada.
+- **Precision direccional medida** (1:1, 0,5% de riesgo): 37,3% (n=75) - la meta 60-70%
+  no existe en los datos; mejor subconjunto 44% (n=9). Lo honesto manda.
+- **Colector**: fallback Bybit etiquetado para top-traders (451 en IP de EE.UU.); la
+  validacion solo se rompe por velas. Guardian anti-secretos en CI (tools/secret_scan.py).
+- **Scorecard: 8,7 -> 8,9/10** (ponderado 8,875). Para 9,0 falta: skill estable en mitades
+  consecutivas, deriva resuelta y cobertura real de top traders. Detalle en SCORECARD.md.
+
+## 🧹 Depuracion de ruido (22/10, madrugada)
+- **Medido sobre 9 dias reales de produccion** (historial de la rama estado, 175 alertas):
+  la config actual (puerta + umbrales 1,5% + zones 24h + sin footprint) habria
+  mandado **55 alertas: 18,8 -> 5,9 por dia** (-69%).
+- Lo que mas ruido hacia: footprint (32 avisos repitiendo niveles, ya eliminado en
+  produccion hoy), brusco+ritmo duplicando el mismo movimiento (16 de 36), zonas sin
+  espera por nivel (30 -> 23 con 24h).
+- **Nuevo: un movimiento = un aviso** (`VIGILANTE_RUIDO_UNIFICADO=1` por defecto):
+  brusco y ritmo comparten ventana de 4h por direccion; el que dispara primero
+  consume el enfriamiento del otro. Con flag=0 vuelve al independiente.
+- Tests: +7 (699 en total). Proyeccion del ahorro real: ~0,1-1,5 alertas/dia segun
+  la volatilidad del dia; el valor esta en que nunca se repite el mismo movimiento.

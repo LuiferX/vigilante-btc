@@ -296,6 +296,13 @@ def _gate_desde_validacion(data):
 
     No es una opinion: si no hay muestra efectiva, Brier skill positivo y drift
     controlado, el bot no debe convertir una corazonada en senal.
+
+    Canales de evidencia (el primero que califica abre la puerta):
+      - vivo: 100+ muestras efectivas del flujo real, skill>0, ECE<=0.08, drift ok.
+      - oos:  backtest purgado (analysis/backtest.py) con 100+ muestras etiquetadas
+              sin solapamiento, skill>0, ECE<=0.08, drift ok. Evidencia debil pero
+              medida; validation.json la reporta en gate.canal.
+    El canal vivo siempre puede veto: si su estado es degradado/roto, no se abre.
     """
     if not isinstance(data, dict):
         return {"ok": False, "reason": "sin validation.json"}
@@ -303,6 +310,8 @@ def _gate_desde_validacion(data):
     metrics = data.get("metrics") if isinstance(data.get("metrics"), dict) else {}
     drift = data.get("drift") if isinstance(data.get("drift"), dict) else {}
     status = str(data.get("status") or "sin_datos")
+    gate = data.get("gate") if isinstance(data.get("gate"), dict) else {}
+    oos = data.get("oos") if isinstance(data.get("oos"), dict) else {}
     try:
         effective = int(samples.get("effective") or 0)
     except Exception:
@@ -316,15 +325,6 @@ def _gate_desde_validacion(data):
     except Exception:
         ece = None
     drift_status = str(drift.get("status") or "sin_datos")
-    ok = (
-        status == "ok"
-        and effective >= 100
-        and skill is not None
-        and skill > 0
-        and ece is not None
-        and ece <= 0.08
-        and drift_status != "alert"
-    )
     partes = [status]
     if effective:
         partes.append(f"{effective} efectivas")
@@ -334,7 +334,34 @@ def _gate_desde_validacion(data):
         partes.append(f"ECE {ece:.2f}")
     if drift_status == "alert":
         partes.append("drift alert")
-    return {"ok": bool(ok), "reason": " · ".join(partes)}
+    # 1) canal vivo (como siempre)
+    if (status == "ok"
+            and effective >= 100
+            and skill is not None and skill > 0
+            and ece is not None and ece <= 0.08
+            and drift_status != "alert"):
+        return {"ok": True, "reason": "vivo · " + " · ".join(partes)}
+    # 2) canal OOS: validation.json ya lo calcula (oos_valido + sin veto vivo)
+    canal = str(gate.get("canal") or "")
+    if canal == "oos":
+        try:
+            o_eff = int(oos.get("effective") or 0)
+        except Exception:
+            o_eff = 0
+        try:
+            o_skill = float(oos.get("brier_skill"))
+        except Exception:
+            o_skill = None
+        try:
+            o_ece = float(oos.get("ece"))
+        except Exception:
+            o_ece = None
+        if (o_eff >= 100 and o_skill is not None and o_skill > 0
+                and o_ece is not None and o_ece <= 0.08
+                and status not in ("roto", "degradado")):
+            partes.append(f"OOS {o_eff} muestras · skill {o_skill:+.4f} · ECE {o_ece:.3f}")
+            return {"ok": True, "reason": " · ".join(partes)}
+    return {"ok": False, "reason": " · ".join(partes)}
 
 
 def cargar_gate_validacion(path=None):
@@ -399,6 +426,240 @@ def linea_motor(motor):
     if motor.get("trigger"):
         txt += f" · trigger {motor['trigger'][:90]}"
     return txt
+
+
+# ---------------- Modo PRECISION: avisos de nivel defendido -----------------
+# Solo avisa cuando el motor 4h marca un nivel con aguante medido alto
+# (hold_prob alto, 3+ toques reales, calidad alta, sin quiebre confirmado) y el
+# precio esta cerca. NO es una orden: publica la probabilidad medida y su muestra.
+BT_FILE = os.environ.get("VIGILANTE_MOTOR_BT", "analysis/data/backtest.json")
+VALIDATION_FILE = os.environ.get("VIGILANTE_VALIDATION", "analysis/data/validation.json")
+PRECISION_MODO = os.environ.get("VIGILANTE_PRECISION", "1") not in ("", "0", "false", "False")
+PRECISION_MIN_PROB = float(os.environ.get("VIGILANTE_PRECISION_MIN", "0.85"))
+PRECISION_MIN_CALIDAD = float(os.environ.get("VIGILANTE_PRECISION_CALIDAD", "8.0"))
+PRECISION_MIN_TOQUES = int(os.environ.get("VIGILANTE_PRECISION_TOQUES", "3"))
+PRECISION_MAX_EDAD_MIN = float(os.environ.get("VIGILANTE_PRECISION_EDAD", "20"))
+PRECISION_CERCA_PCT = float(os.environ.get("VIGILANTE_PRECISION_CERCA", "0.35"))
+PRECISION_DEDUP_HORAS = float(os.environ.get("VIGILANTE_PRECISION_DEDUP", "12"))
+PRECISION_EVAL_HORAS = 4.0   # mismo horizonte que el motor (48 velas de 5m)
+
+
+def cargar_motor_full(path=None, max_age_min=None):
+    """Lee analysis/data/latest_decision.json completo (niveles incluidos).
+
+    Devuelve None si no existe o si el registro es mas viejo que la tolerancia.
+    """
+    try:
+        with open(path or MOTOR_FILE, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except Exception:
+        return None
+    if not isinstance(d, dict):
+        return None
+    if max_age_min is None:
+        max_age_min = PRECISION_MAX_EDAD_MIN * 4.5  # holgado: el filtro fino va en nivel_precision
+    ts = d.get("event_time") or d.get("logged_at")
+    try:
+        t = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=datetime.timezone.utc)
+        edad = (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() / 60
+        if edad > max_age_min:
+            return None
+        d["_edad_min"] = round(edad, 1)
+    except Exception:
+        return None
+    return d
+
+
+def precision_evidencia(path=None):
+    """Banda >=0.80 del backtest OOS: muestra y acierto real medidos (o None)."""
+    try:
+        with open(path or BT_FILE, encoding="utf-8") as fh:
+            bt = json.load(fh)
+    except Exception:
+        return None
+    if not isinstance(bt, dict):
+        return None
+    for b in bt.get("bins") or []:
+        if str(b.get("bin", "")).startswith("0.80"):
+            try:
+                return {"n": int(b.get("n") or 0), "real": float(b.get("real") or 0),
+                        "pred": float(b.get("pred") or 0),
+                        "skill": bt.get("brier_skill"),
+                        "muestras": int(bt.get("samples") or 0),
+                        "inicio": bt.get("start")}
+            except Exception:
+                return None
+    return None
+
+
+def nivel_precision(motor, precio, min_prob=None, min_cal=None, min_toques=None, max_edad=None):
+    """Mejor nivel del motor que califica como 'defendido' (o None). Puro."""
+    if not isinstance(motor, dict) or not precio or precio <= 0:
+        return None
+    min_prob = PRECISION_MIN_PROB if min_prob is None else min_prob
+    min_cal = PRECISION_MIN_CALIDAD if min_cal is None else min_cal
+    min_toques = PRECISION_MIN_TOQUES if min_toques is None else min_toques
+    max_edad = PRECISION_MAX_EDAD_MIN if max_edad is None else max_edad
+    edad = motor.get("_edad_min")
+    if edad is not None and edad > max_edad:
+        return None
+    dec = motor.get("decision") if isinstance(motor.get("decision"), dict) else {}
+    if str(dec.get("action") or "") == "datos_desactualizados":
+        return None
+    mejor = None
+    for lv in motor.get("levels") or []:
+        if not isinstance(lv, dict):
+            continue
+        prob = lv.get("hold_prob")
+        if prob is None:
+            continue
+        try:
+            prob = float(prob)
+        except (TypeError, ValueError):
+            continue
+        if prob < min_prob:
+            continue
+        try:
+            calidad = float(lv.get("quality") or 0)
+            toques = int(lv.get("touches_6h") or 0)
+        except (TypeError, ValueError):
+            continue
+        if calidad < min_cal or toques < min_toques:
+            continue
+        if lv.get("break_confirmed"):
+            continue                      # un nivel roto no esta "defendido"
+        center = lv.get("center")
+        if not center or center <= 0:
+            continue
+        cerca = abs(center - precio) / precio * 100
+        if cerca > PRECISION_CERCA_PCT:
+            continue                      # el aviso es "precio en el nivel"
+        if mejor is None or prob > mejor[0]:
+            mejor = (prob, lv, calidad, toques, cerca)
+    if not mejor:
+        return None
+    prob, lv, calidad, toques, cerca = mejor
+    return {"nivel": lv.get("center"), "lado": lv.get("role"), "prob": round(prob, 3),
+            "calidad": round(calidad, 1), "toques": toques, "cerca": round(cerca, 2),
+            "round_level": lv.get("round_level"), "confluencia": lv.get("htf_confluence"),
+            "edad_min": motor.get("_edad_min"), "bias": (motor.get("state") or {}).get("bias"),
+            "accion": dec.get("action"), "confianza": dec.get("confidence")}
+
+
+def precision_nueva(est, nivel, ahora):
+    """Dedup por nivel: 1 aviso por nivel cada PRECISION_DEDUP_HORAS. Puro."""
+    clave = f"{nivel['nivel']:.0f}:{nivel['lado']}"
+    try:
+        ult = est.get("precision_ult") or {}
+        prev = ult.get(clave)
+        if prev:
+            dt = (ahora - datetime.datetime.fromisoformat(prev)).total_seconds() / 3600
+            if dt < PRECISION_DEDUP_HORAS:
+                return False
+    except Exception:
+        pass
+    return True
+
+
+def texto_alerta_precision(nivel, precio, evidencia=None):
+    """Mensaje del aviso de precision. Nunca suena a orden."""
+    prob = nivel["prob"]
+    lado = "soporte" if str(nivel["lado"]).lower().startswith("sop") else "resistencia"
+    L = [f"🧱 NIVEL DEFENDIDO · {lado} {fmt_miles(nivel['nivel'])}"]
+    L.append(f"Precio {fmt_miles(precio)} a {nivel['cerca']}% del nivel · "
+             f"aguante estimado {prob * 100:.0f}% (fallo ~{100 * (1 - prob):.0f}%)")
+    L.append(f"Evidencia: {nivel['toques']} toques reales en 6h · calidad {nivel['calidad']}/10"
+             + (f" · confluencia {nivel['confluencia']} temporalidades"
+                if nivel.get("confluencia") else ""))
+    if evidencia:
+        L.append(f"Medido fuera de muestra: {evidencia['muestras']} casos desde "
+                 f"{str(evidencia['inicio'])[:10]}, banda alta rindió {evidencia['real'] * 100:.0f}%")
+    L.append("Solo aviso, no es orden ni entrada: el aguante se anula con cierre 4h más allá del nivel.")
+    return "\n".join(L)
+
+
+def registrar_pend_precision(est, nivel, ahora):
+    pend = est.get("pend_precision") or []
+    pend.append({"t": ahora.isoformat(), "nivel": nivel["nivel"], "lado": nivel["lado"],
+                 "prob": nivel["prob"], "toques": nivel["toques"], "calidad": nivel["calidad"]})
+    est["pend_precision"] = pend[-60:]
+    ult = est.get("precision_ult") or {}
+    ult[f"{nivel['nivel']:.0f}:{nivel['lado']}"] = ahora.isoformat()
+    est["precision_ult"] = ult
+
+
+def evaluar_precision(est, ahora, velas=None):
+    """Mide los avisos vencidos (>=4h) con la MISMA definicion del motor: el nivel
+    aguanto si ningun cierre 5m cayo 0,5% mas alla del nivel en 4h."""
+    pend = est.get("pend_precision") or []
+    if not pend:
+        return
+    if velas is None:
+        try:
+            velas = klines("5m", 70)
+        except Exception:
+            return
+    vivas = []
+    barras = int(PRECISION_EVAL_HORAS * 60 / 5)
+    for p in pend:
+        try:
+            t0 = datetime.datetime.fromisoformat(p["t"])
+        except Exception:
+            continue
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=datetime.timezone.utc)
+        if (ahora - t0).total_seconds() / 3600 < PRECISION_EVAL_HORAS:
+            vivas.append(p)
+            continue
+        nivel = float(p.get("nivel") or 0)
+        if nivel <= 0:
+            continue
+        ventana = [v for v in velas
+                   if t0 < v["t"] <= t0 + datetime.timedelta(hours=PRECISION_EVAL_HORAS)]
+        if len(ventana) < barras:
+            vivas.append(p)
+            continue
+        lado = str(p.get("lado") or "").lower()
+        if lado.startswith("sop"):
+            aguanto = all(v["c"] >= nivel * 0.995 for v in ventana)
+        else:
+            aguanto = all(v["c"] <= nivel * 1.005 for v in ventana)
+        log = est.get("precision_log") or []
+        log.append({"t": ahora.isoformat(), "nivel": nivel, "lado": p.get("lado"),
+                    "prob": p.get("prob"), "r": 1 if aguanto else 0})
+        est["precision_log"] = log[-200:]
+    est["pend_precision"] = vivas[-60:]
+
+
+def deriva_regimen(path=None):
+    """Estado de deriva del validador (alert/watch/ok/sin_datos). Tolerante.
+
+    Si la deriva esta en alerta, el bot NO publica probabilidades medidas:
+    el regimen cambio y la muestra vieja ya no describe el presente.
+    """
+    try:
+        with open(path or VALIDATION_FILE, encoding="utf-8") as fh:
+            d = json.load(fh)
+        drift = d.get("drift") if isinstance(d.get("drift"), dict) else {}
+        return str(drift.get("status") or "sin_datos")
+    except Exception:
+        return "sin_datos"
+
+
+def precision_stats(est):
+    """Precision medida de los avisos de precision (para /precision y dashboard)."""
+    log = est.get("precision_log") or []
+    if not log:
+        return None
+    n = len(log)
+    ok_n = sum(1 for x in log if x.get("r") == 1)
+    altos = [x for x in log if (x.get("prob") or 0) >= PRECISION_MIN_PROB]
+    altos_ok = sum(1 for x in altos if x.get("r") == 1)
+    return {"n": n, "aciertos": ok_n, "tasa": round(ok_n / n, 3) if n else None,
+            "banda_alta_n": len(altos), "banda_alta_ok": altos_ok,
+            "banda_alta_tasa": round(altos_ok / len(altos), 3) if altos else None}
 
 
 def es_alerta_direccional(motivo):
@@ -4195,11 +4456,22 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
     if (not _vol_filtrado and bias in ("ALZA", "BAJA") and conf >= umbral_fuerte and enfriar(
             est, "fuerte:" + bias, 4, ahora)):
         return True, f"Señal fuerte {bias} (confianza {conf}%)", "alerta"
+    # Un movimiento = un aviso. Medido en produccion (historial real): 16 de 36
+    # avisos de movimiento eran el MISMO movimiento repetido con minutos de
+    # diferencia. brusco y ritmo comparten ventana por direccion: el que dispara
+    # primero consume el enfriamiento del otro. VIGILANTE_RUIDO_UNIFICADO=0 apaga.
+    _ruido_unif = os.environ.get("VIGILANTE_RUIDO_UNIFICADO", "1") not in ("", "0", "false", "False")
     if mov1h is not None and abs(mov1h) >= UMBRAL_BRUSCO and enfriar(
-            est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 4, ahora):
+            est, "brusco:" + ("sube" if mov1h > 0 else "baja"), 4, ahora) and (
+            not _ruido_unif or mov30 is None or abs(mov30) < UMBRAL_RITMO
+            or ("sube" if mov30 > 0 else "baja") != ("sube" if mov1h > 0 else "baja")
+            or enfriar(est, "ritmo:" + ("sube" if mov1h > 0 else "baja"), 4, ahora)):
         return True, f"Movimiento brusco de {mov1h:+.2f}% en 1 h", "alerta"
     if mov30 is not None and abs(mov30) >= UMBRAL_RITMO and enfriar(
-            est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 4, ahora):
+            est, "ritmo:" + ("sube" if mov30 > 0 else "baja"), 4, ahora) and (
+            not _ruido_unif or mov1h is None or abs(mov1h) < UMBRAL_BRUSCO
+            or ("sube" if mov30 > 0 else "baja") != ("sube" if mov1h > 0 else "baja")
+            or enfriar(est, "brusco:" + ("sube" if mov30 > 0 else "baja"), 4, ahora)):
         return True, f"Ritmo acelerado {mov30:+.2f}% en 30 min", "alerta"
     if isinstance(estir, str) and estir and (bias not in ("ALZA", "BAJA") or conf < 45) and enfriar(est, "estir:" + ("bajo" if estir.startswith("bajo") else "alto"), 4, ahora):
         return True, f"Estirado {estir} (toma parcial, rebote probable — no es entrada)", "alerta"
@@ -4798,6 +5070,10 @@ def main():
         except Exception:
             pass
         try:
+            evaluar_precision(est, ahora)
+        except Exception:
+            pass
+        try:
             evaluar_todo(est, ahora, _velas_ev)
         except Exception:
             pass
@@ -5354,6 +5630,30 @@ def main():
                 except Exception:
                     pass
                 aviso_previo = None
+        except Exception:
+            pass
+        # AVISO DE PRECISION (nivel defendido): mensaje propio, corto, sin plan.
+        # Condiciones para salir (todas): modo activo, no duplicado, motor fresco,
+        # nivel que califica, sin deriva de regimen y con evidencia OOS local.
+        try:
+            if PRECISION_MODO and not es_dup:
+                _der = deriva_regimen()
+                if _der == "alert":
+                    print("Aviso de precision omitido: deriva de regimen (validation.json).")
+                else:
+                    _mot = cargar_motor_full()
+                    _niv = nivel_precision(_mot, t["last"]) if _mot else None
+                    _ev = precision_evidencia()
+                    if _niv and _ev and precision_nueva(est, _niv, ahora):
+                        _txt = texto_alerta_precision(_niv, t["last"], _ev)
+                        if send_telegram(_txt):
+                            registrar_pend_precision(est, _niv, ahora)
+                            print(f"  aviso de precision enviado: {_niv['nivel']} "
+                                  f"({_niv['lado']}) p={_niv['prob']}")
+                            try:
+                                guardar_estado(est, hist)
+                            except Exception:
+                                pass
         except Exception:
             pass
         if not enviar:

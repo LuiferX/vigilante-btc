@@ -390,6 +390,101 @@ def _overall_status(
     return "ok"
 
 
+def _ece_from_bins(bins) -> Optional[float]:
+    """Error de calibracion ponderado (EEP) desde los bins del backtest."""
+    if not isinstance(bins, list) or not bins:
+        return None
+    total = 0
+    acc = 0.0
+    for b in bins:
+        if not isinstance(b, dict):
+            continue
+        try:
+            n = int(b.get("n") or 0)
+            pred = float(b.get("pred") or 0.0)
+            real = float(b.get("real") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if n <= 0:
+            continue
+        total += n
+        acc += abs(pred - real) * n
+    if total <= 0:
+        return None
+    return round(acc / total, 4)
+
+
+def oos_summary(backtest: dict, horizon: int = 48) -> dict:
+    """Canal OOS: resume analysis/data/backtest.json como evidencia purgada.
+
+    Con step >= horizon las ventanas de etiquetado NO se solapan: cada decision
+    es independiente y las muestras efectivas son las muestras etiquetadas.
+    Con step < horizon se descuenta por solapamiento, igual que el canal vivo.
+    """
+    if not isinstance(backtest, dict) or not backtest.get("ok"):
+        return {"available": False}
+    try:
+        samples = int(backtest.get("samples") or 0)
+        decisions = int(backtest.get("decisions") or 0)
+    except (TypeError, ValueError):
+        return {"available": False}
+    if samples <= 0 or decisions <= 0:
+        return {"available": False}
+    try:
+        step = int(backtest.get("step_bars") or horizon)
+    except (TypeError, ValueError):
+        step = horizon
+    try:
+        bars = int(backtest.get("horizon_bars") or horizon)
+    except (TypeError, ValueError):
+        bars = horizon
+    factor = 1.0
+    if step > 0 and step < bars:
+        # Cada decision se solapa con las siguientes (bars/step - 1): se descuenta.
+        factor = max(0.0, min(1.0, step / bars))
+    effective = int(round(samples * factor))
+    try:
+        skill = backtest.get("brier_skill")
+        skill = float(skill) if skill is not None else None
+    except (TypeError, ValueError):
+        skill = None
+    return {
+        "available": True,
+        "samples": samples,
+        "decisions": decisions,
+        "effective": effective,
+        "brier": _round(backtest.get("brier")),
+        "brier_skill": _round(skill),
+        "base_rate": _round(backtest.get("base_rate")),
+        "mean_prob": _round(backtest.get("mean_prob")),
+        "ece": _ece_from_bins(backtest.get("bins")),
+        "step_bars": step,
+        "horizon_bars": bars,
+        "solape_descontado": factor < 1.0,
+        "start": backtest.get("start"),
+        "end": backtest.get("end"),
+        "trained_until": backtest.get("trained_until") or hm.MODEL.get("trained_until"),
+    }
+
+
+def oos_valido(oos: dict, drift: dict, min_samples: int = TARGET_SAMPLES) -> bool:
+    """El canal OOS aporta evidencia suficiente para confiar en la calibracion."""
+    if not isinstance(oos, dict) or not oos.get("available"):
+        return False
+    if isinstance(drift, dict) and drift.get("status") == "alert":
+        return False
+    effective = int(oos.get("effective") or 0)
+    skill = oos.get("brier_skill")
+    ece = oos.get("ece")
+    if effective < min_samples:
+        return False
+    if skill is None or skill <= 0:
+        return False
+    if ece is None or ece > ECE_ALERT:
+        return False
+    return True
+
+
 def _warnings(
     *,
     eval_data: dict,
@@ -397,6 +492,7 @@ def _warnings(
     sample_info: dict,
     metrics: dict,
     backtest: dict,
+    oos_arg: Optional[dict] = None,
     drift: dict,
     kline: dict,
     data_ok: bool,
@@ -438,6 +534,16 @@ def _warnings(
     bt_skill = backtest.get("brier_skill")
     if bt_skill is not None and bt_skill <= 0:
         out.append("Backtest OOS sin Brier skill positivo; no hay edge demostrado.")
+    oos = oos_arg if isinstance(oos_arg, dict) else {}
+    if oos.get("available"):
+        oos_skill = oos.get("brier_skill")
+        if oos_skill is not None and 0 < oos_skill < 0.01:
+            out.append(
+                f"Skill OOS positivo pero marginal ({oos_skill:+.4f}); "
+                "la puerta OOS es evidencia debil, mantener el seguimiento vivo."
+            )
+        if oos.get("solape_descontado"):
+            out.append("Backtest OOS con step < horizon: se desconto el solapamiento.")
     if kline.get("missing_24h"):
         out.append(f"Faltan {kline['missing_24h']} velas 5m en las ultimas 24h.")
     if kline.get("max_gap_min", 0) > 30:
@@ -561,10 +667,15 @@ def validate(
         else [],
     }
     data_ok = bool(kline.get("ok")) and bool(eval_data)
-    if collector is not None and not collector.get("ok"):
+    if collector is not None and collector.get("kline_ok") is False:
+        # Solo los datos que el motor USA (velas) pueden romper la validacion.
+        # Los derivados bloqueados legal/geografico (p. ej. top-traders 451 desde
+        # IP de EE.UU.) quedan registrados en failed_jobs y en warnings.
         data_ok = False
 
     drift = _drift_summary(decisions, backtest)
+    oos = oos_summary(backtest)
+    oos_ok = data_ok and oos_valido(oos, drift)
     status = _overall_status(
         data_ok=data_ok,
         eval_samples=eval_samples,
@@ -580,6 +691,7 @@ def validate(
         sample_info=sample_info,
         metrics=metrics,
         backtest=backtest,
+        oos_arg=oos,
         drift=drift,
         kline=kline,
         data_ok=data_ok,
@@ -596,6 +708,13 @@ def validate(
         "end": backtest.get("end"),
         "trained_until": backtest.get("trained_until") or hm.MODEL.get("trained_until"),
     }
+
+    if status == "ok":
+        canal = "vivo"
+    elif oos_ok:
+        canal = "oos"
+    else:
+        canal = "ninguno"
 
     return {
         "ok": status != "roto",
@@ -625,6 +744,18 @@ def validate(
         },
         "metrics": metrics,
         "backtest": backtest_summary,
+        "oos": oos,
+        "gate": {
+            "ok": canal != "ninguno",
+            "canal": canal,
+            "detalle": (
+                "vivo: 100+ efectivas, skill>0, ECE<=0.08"
+                if canal == "vivo"
+                else "oos: 100+ efectivas, skill>0, ECE<=0.08"
+                if canal == "oos"
+                else "sin canal con evidencia suficiente"
+            ),
+        },
         "drift": drift,
         "data": {
             "klines": kline,
