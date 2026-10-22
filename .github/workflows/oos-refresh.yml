@@ -34,6 +34,7 @@ jobs:
           python analysis/backfill.py --descargar \
             --start 2026-10-01T00:00:00+00:00 \
             --out analysis/data/decisions_hist.jsonl \
+            --cache analysis/data/cache \
             --eval-out analysis/data/oos_eval.json
 
       - name: Backtest OOS
