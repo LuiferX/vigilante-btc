@@ -44,23 +44,16 @@ jobs:
             --start 2026-10-01T00:00:00+00:00 \
             --out analysis/data/backtest.json
 
-      - name: Recalcular validation (canal OOS + deriva)
-        run: |
-          python analysis/validation.py \
-            --eval analysis/data/eval.json \
-            --backtest analysis/data/backtest.json \
-            --decisions analysis/data/decisions.jsonl \
-            --klines analysis/data/cache/klines_5m.jsonl \
-            --collector-health collector/data/health.json \
-            --out analysis/data/validation.json \
-            --history analysis/data/validation_history.jsonl
+      # OJO: validation.json NO se recalcula ni se commitea aqui. Lo escribe el
+      # pipeline (cada 15 min) con el validation.py nuevo, que ya lee el canal
+      # OOS de backtest.json. Escribirlo desde los dos lados causaba carrera.
 
-      - name: Guardar evidencia OOS
+      - name: Guardar evidencia OOS (solo backtest + eval)
         run: |
           git config user.name "vigilante-bot"
           git config user.email "vigilante-bot@users.noreply.github.com"
-          git add analysis/data/backtest.json analysis/data/oos_eval.json analysis/data/validation.json || echo "nada que guardar"
-          git commit -m "oos: refresco semanal $(date -u +%Y-%m-%d)" || echo "sin cambios"
+          git add analysis/data/backtest.json analysis/data/oos_eval.json || echo "nada que guardar"
+          git commit -m "oos: refresco $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
           ok=0; for i in 1 2 3; do git pull --rebase origin main >/dev/null 2>&1; git push origin HEAD:main && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
 
       - name: Publicar replay como artefacto
