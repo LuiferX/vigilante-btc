@@ -1,0 +1,111 @@
+{
+ "ok": true,
+ "samples": 188,
+ "status": "ok",
+ "decisions_total": 122,
+ "decisions_evaluated": 122,
+ "coverage": 1.0,
+ "horizon_bars": 48,
+ "horizon_hours": 4.0,
+ "min_samples_recommended": 30,
+ "brier": 0.1287,
+ "base_rate": 0.8511,
+ "mean_prob": 0.7922,
+ "brier_base": 0.1268,
+ "brier_skill": -0.015,
+ "calibration_error": 0.0588,
+ "overall": {
+  "n": 188,
+  "brier": 0.1287,
+  "base_rate": 0.8511,
+  "mean_prob": 0.7922,
+  "brier_base": 0.1268,
+  "brier_skill": -0.015,
+  "real_ci95": [
+   0.7932,
+   0.8949
+  ]
+ },
+ "high_score": {
+  "n": 102,
+  "brier": 0.0957,
+  "base_rate": 0.8922,
+  "mean_prob": 0.8474,
+  "brier_base": 0.0962,
+  "brier_skill": 0.0056,
+  "real_ci95": [
+   0.8171,
+   0.9387
+  ],
+  "lift_vs_base": 1.0483
+ },
+ "by_side": {
+  "soporte": {
+   "n": 103,
+   "brier": 0.1371,
+   "base_rate": 0.8252,
+   "mean_prob": 0.8007,
+   "brier_base": 0.1442,
+   "brier_skill": 0.0495,
+   "real_ci95": [
+    0.7406,
+    0.8865
+   ]
+  },
+  "resistencia": {
+   "n": 85,
+   "brier": 0.1185,
+   "base_rate": 0.8824,
+   "mean_prob": 0.782,
+   "brier_base": 0.1038,
+   "brier_skill": -0.1412,
+   "real_ci95": [
+    0.7968,
+    0.9348
+   ]
+  }
+ },
+ "bins": [
+  {
+   "bin": "0.00-0.60",
+   "n": 1,
+   "pred": 0.5008,
+   "real": 1.0,
+   "real_ci95": [
+    0.2065,
+    1.0
+   ]
+  },
+  {
+   "bin": "0.60-0.70",
+   "n": 25,
+   "pred": 0.6635,
+   "real": 0.84,
+   "real_ci95": [
+    0.6535,
+    0.936
+   ]
+  },
+  {
+   "bin": "0.70-0.80",
+   "n": 60,
+   "pred": 0.757,
+   "real": 0.7833,
+   "real_ci95": [
+    0.6638,
+    0.8688
+   ]
+  },
+  {
+   "bin": "0.80-1.01",
+   "n": 102,
+   "pred": 0.8474,
+   "real": 0.8922,
+   "real_ci95": [
+    0.8171,
+    0.9387
+   ]
+  }
+ ],
+ "disclaimer": "Mide aguante de nivel, no win rate. Muestra chica = ruido; no cambiar el modelo por un solo corte. Brier_skill > 0 es mejor que predecir la tasa base."
+}
