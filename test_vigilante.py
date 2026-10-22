@@ -109,6 +109,12 @@ t("precision plan", v.precision_plan({"eval_log": [
     {"metodo": "sesgo_legacy", "dir": "ALZA", "r": 0}]}) == ([1], [0]))
 t("precision plan vacia", v.precision_plan({"eval_log": [
     {"metodo": "sesgo_legacy", "dir": "ALZA", "r": 1}]}) is None)
+_rmd = v.resumen_medicion({"eval_log": [
+    {"metodo": "plan", "dir": "ALZA", "r": 1},
+    {"metodo": "plan", "dir": "BAJA", "r": 0}],
+    "eval_gate": [{"r": 0}]})
+t("resumen medicion", "enviadas 1/2 (50%)" in _rmd and "silenciadas 0/1 (0%)" in _rmd)
+t("resumen medicion vacio", v.resumen_medicion({}) == "aún sin muestras evaluadas")
 t("prec full", v.prec_str([1, 1, 1, 0, 0]) == "60% (3/5)")
 t0m = ah - datetime.timedelta(hours=9)
 

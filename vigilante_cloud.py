@@ -3609,6 +3609,24 @@ def precision_plan(est):
         return None
 
 
+def resumen_medicion(est):
+    """Linea corta: que se midio de verdad (plan enviado y gate silenciado)."""
+    def _fila(log, etiqueta):
+        n = len(log)
+        if not n:
+            return ""
+        h = sum(1 for e in log if float(e.get("r", 0) or 0) > 0)
+        return f"{etiqueta} {h}/{n} ({round(100 * h / n)}%)"
+    try:
+        plan = [e for e in (est.get("eval_log", []) or [])
+                if isinstance(e, dict) and e.get("metodo") == "plan"]
+        gate = [e for e in (est.get("eval_gate", []) or []) if isinstance(e, dict)]
+        partes = [p for p in (_fila(plan, "enviadas"), _fila(gate, "silenciadas")) if p]
+        return " · ".join(partes) if partes else "aún sin muestras evaluadas"
+    except Exception:
+        return "aún sin muestras evaluadas"
+
+
 def tabla_calibracion(eval_log):
     """Mini-conciencia: por cubeta de confianza, ¿cuánto acierto?
     + Brier (0 perfecto, 0.25 inútil). None si <5 evaluadas."""
@@ -5304,6 +5322,7 @@ def main():
                 if send_telegram(
                     "🔇 Alerta direccional silenciada.\n"
                     f"La validación todavía no permite señales: {gate.get('reason', 'sin evidencia')}.\n"
+                    f"Medición: {resumen_medicion(est)}.\n"
                     "Sigo midiendo; no convierto confianza en entrada."
                 ):
                     est["gate_aviso"] = hoy
