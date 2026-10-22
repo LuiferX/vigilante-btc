@@ -1670,8 +1670,14 @@ def responder_comando(cmd, ctx):
                 f"\n  📊 {linea_estudio(est, e['titulo'])}" if linea_estudio(est, e['titulo']) else "")
             for e in evs), False)
     if c == "/precision":
-        base = (f"Precisión: ALZA {prec_str(est.get('alza', []))} · "
-                f"BAJA {prec_str(est.get('baja', []))}.")
+        _pp = precision_plan(est)
+        if _pp:
+            _pa, _pb = _pp
+            base = (f"Precisión (dirección del plan): ALZA {prec_str(_pa)} · "
+                    f"BAJA {prec_str(_pb)}.")
+        else:
+            base = (f"Precisión (histórico por sesgo): ALZA {prec_str(est.get('alza', []))} · "
+                    f"BAJA {prec_str(est.get('baja', []))}. Aún sin muestras de plan.")
         aut = ctx.get("aut")
         if aut:
             base += (f"\nAuto: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · "
@@ -1916,7 +1922,7 @@ def responder_comando(cmd, ctx):
     _nom = str((cmd or {}).get("nombre") or "").strip().replace("\n", " ")[:30]
     hola = f" Hola {_nom}." if _nom else " Hola."
     return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
-             "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /precision /sombra /evals /manos "
+             "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /motor /precision /sombra /evals /manos "
              "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel /simula"), False)
 
 
@@ -3580,6 +3586,24 @@ def prec_str(lista):
         return f"pocas ({len(lista)})" if lista else "s/d"
     ok = sum(lista)
     return f"{round(ok / len(lista) * 100)}% ({ok}/{len(lista)})"
+
+
+def precision_plan(est):
+    """Acierto por direccion del PLAN, no por sesgo. None si aun no hay muestra.
+
+    Se apoya en `eval_log` (metodo=plan, dir=ALZA/BAJA). El historico viejo
+    no tiene `metodo` y se queda fuera para no repetir el error anterior.
+    """
+    try:
+        log = [e for e in (est.get("eval_log", []) or [])
+               if isinstance(e, dict) and e.get("metodo") == "plan"
+               and e.get("dir") in ("ALZA", "BAJA")]
+        if not log:
+            return None
+        return ([1 if e.get("r") else 0 for e in log if e.get("dir") == "ALZA"],
+                [1 if e.get("r") else 0 for e in log if e.get("dir") == "BAJA"])
+    except Exception:
+        return None
 
 
 def tabla_calibracion(eval_log):

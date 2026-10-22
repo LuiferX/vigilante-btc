@@ -103,6 +103,12 @@ t("cuenta d/h/m", "d" in v.cuenta_regresiva(ah + datetime.timedelta(days=2), ah)
 # ---------- precision ----------
 t("prec vacia", v.prec_str([]) == "s/d")
 t("prec pocas", v.prec_str([1, 1, 0]) == "pocas (3)")
+t("precision plan", v.precision_plan({"eval_log": [
+    {"metodo": "plan", "dir": "ALZA", "r": 1},
+    {"metodo": "plan", "dir": "BAJA", "r": 0},
+    {"metodo": "sesgo_legacy", "dir": "ALZA", "r": 0}]}) == ([1], [0]))
+t("precision plan vacia", v.precision_plan({"eval_log": [
+    {"metodo": "sesgo_legacy", "dir": "ALZA", "r": 1}]}) is None)
 t("prec full", v.prec_str([1, 1, 1, 0, 0]) == "60% (3/5)")
 t0m = ah - datetime.timedelta(hours=9)
 
@@ -573,7 +579,11 @@ t("calib poca", v.tabla_calibracion([{"conf": 60, "r": 1}]) is None)
 t("calib rota", v.tabla_calibracion("basura") is None)
 t("dash conciencia", "Brier" in _db.build_dashboard(
     {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1, "alza": [], "baja": [],
-     "eval_log": [{"conf": 60, "r": 1}] * 3 + [{"conf": 40, "r": 0}] * 3}, _ht))
+     "eval_log": [{"conf": 60, "r": 1, "metodo": "plan"}] * 3
+                 + [{"conf": 40, "r": 0, "metodo": "plan"}] * 3}, _ht))
+t("dash calib legacy", "sin muestras nuevas" in _db.build_dashboard(
+    {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1, "alza": [], "baja": [],
+     "eval_log": [{"conf": 60, "r": 1}] * 6}, _ht))
 t("dash gate", "Gate: 3/4" in _db.build_dashboard(
     {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
      "snapshot": {"gate": {"n": 4, "hit": 3, "pending": 2}}}, _ht))
@@ -1019,7 +1029,9 @@ t("kpis con datos", "Profit factor" in _hk and "Expectancy" in _hk and "Mejor" i
 t("kpis vacio no rompe", "sin operaciones" in _db._kpis_papel_html({}) and "Dinero papel: KPIs" in _db.build_dashboard({}, []))
 t("sombra tarjeta", "En cola" in _db._sombra_html({"eval_sombra": [{"r": 1}], "pend_sombra": [{"r": 0}]}) and "sin evaluaciones" in _db._sombra_html({}) and "Sombra (aprende de todo)" in _db.build_dashboard({"eval_sombra": [{"r": 1}]}, []))
 t("seg countdown", "vence en 3" in _db._seguimiento_html({"pendientes": [{"bias": "ALZA", "conf": 60, "precio": 83000, "t": (ah - datetime.timedelta(hours=5)).isoformat()}]}, ah) and "sin pendientes" in _db._seguimiento_html({}, ah))
-t("calib brier cubetas", "Brier" in _db._calibracion_html({"eval_log": [{"conf": 60, "r": 1}] * 3 + [{"conf": 40, "r": 0}] * 3}) and "sin datos" in _db._calibracion_html({}) and isinstance(_db._calibracion_html({"pendientes": "<script>"}), str))
+t("calib brier cubetas", "Brier" in _db._calibracion_html({"eval_log": [{"conf": 60, "r": 1, "metodo": "plan"}] * 3 + [{"conf": 40, "r": 0, "metodo": "plan"}] * 3}) and "sin muestras nuevas" in _db._calibracion_html({}) and isinstance(_db._calibracion_html({"pendientes": "<script>"}), str))
+t("calib legacy no mezcla", "sin muestras nuevas" in _db._calibracion_html(
+    {"eval_log": [{"conf": 60, "r": 1}] * 6}))
 t("dash seg+calib", "En seguimiento" in _db.build_dashboard({"pendientes": [{"bias": "ALZA", "conf": 60, "precio": 83000, "t": ah.isoformat()}], "eval_log": [{"conf": 60, "r": 1}] * 5}, []) and "Calibraci" in _db.build_dashboard({"eval_log": [{"conf": 60, "r": 1}] * 5}, []))
 t("dash orden dinero", (lambda h: h.index('c-ops') < h.index('c-seg') < h.index('c-banco') < h.index('c-kpis') < h.index('c-prec') < h.index('c-calib') < h.index('c-sombra'))(_db.build_dashboard({"runs": 1}, [])))
 t("lado un solo lado", v.lado_ok("BAJA", "EYY PILAS TECHO x") is True and v.lado_ok("BAJA", "EYY PILAS PISO x") is False)

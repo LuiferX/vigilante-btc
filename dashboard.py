@@ -915,8 +915,16 @@ def _calibracion_html(est):
         except Exception:
             log = None
         log = [e for e in (log or []) if isinstance(e, dict)]
+        # Desde el fix de medicion, el Brier serio es el de la direccion del
+        # plan. El historico viejo media sesgo y no se mezcla.
+        _plan = [e for e in log if e.get("metodo") == "plan"]
+        if _plan:
+            log = _plan
+        else:
+            return ("<p class='mini'>sin muestras nuevas (dirección del plan). "
+                    "El histórico previo medía sesgo y no se usa.</p>")
         if len(log) < 5:
-            return "<p class='mini'>sin datos aún (mínimo 5 evaluadas).</p>"
+            return "<p class='mini'>sin datos aún (mínimo 5 evaluadas con plan).</p>"
         tab = None
         try:
             fn = globals().get("tabla_calibracion")
@@ -2418,6 +2426,16 @@ def build_dashboard(est, hist):
     marcas = [i for i, h in enumerate(ult) if h.get("tipo") == "alerta"]
     alza = [v for v in (est.get("alza") or []) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float("inf"), float("-inf"))]
     baja = [v for v in (est.get("baja") or []) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float("inf"), float("-inf"))]
+    # Si ya hay muestras del plan, la precision se calcula con la direccion
+    # real de la alerta y no con el sesgo viejo.
+    try:
+        _plog = [e for e in (est.get("eval_log") or []) if isinstance(e, dict)
+                 and e.get("metodo") == "plan" and e.get("dir") in ("ALZA", "BAJA")]
+        if _plog:
+            alza = [1 if e.get("r") else 0 for e in _plog if e.get("dir") == "ALZA"]
+            baja = [1 if e.get("r") else 0 for e in _plog if e.get("dir") == "BAJA"]
+    except Exception:
+        pass
     try:
         pa = f"{round(sum(alza) / len(alza) * 100)}% ({int(sum(alza))}/{len(alza)})" if len(alza) >= 5 else "s/d"
     except Exception:
