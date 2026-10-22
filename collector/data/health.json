@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-22T15:14:18.606203+00:00",
+  "run_at": "2026-10-22T15:24:43.984656+00:00",
   "ok": true,
   "kline_ok": true,
   "data_dir": "data/btcusdt",
@@ -15,18 +15,18 @@
     "open_interest.jsonl": {
       "ok": true,
       "fetched": 576,
-      "added": 3,
+      "added": 2,
       "trimmed": 0,
       "source": "okx_oi",
-      "last_key": 1792509300000
+      "last_key": 1792509900000
     },
     "global_ls.jsonl": {
       "ok": true,
       "fetched": 576,
-      "added": 3,
+      "added": 2,
       "trimmed": 0,
       "source": "okx_global_ls",
-      "last_key": 1792509300000
+      "last_key": 1792509900000
     },
     "top_ls_account.jsonl": {
       "ok": false,
@@ -39,23 +39,23 @@
     "taker_ls.jsonl": {
       "ok": true,
       "fetched": 72,
-      "added": 3,
+      "added": 2,
       "trimmed": 0,
       "source": "okx_taker_ls",
-      "last_key": 1792660500000
+      "last_key": 1792661100000
     },
     "klines_5m.jsonl": {
       "ok": true,
       "fetched": 999,
-      "added": 3,
+      "added": 2,
       "trimmed": 0,
       "source": "binance_vision_klines_5m",
-      "last_key": 1792681500000
+      "last_key": 1792682100000
     },
     "klines_1h.jsonl": {
       "ok": true,
       "fetched": 999,
-      "added": 1,
+      "added": 0,
       "trimmed": 0,
       "source": "binance_vision_klines_1h",
       "last_key": 1792677600000
@@ -91,8 +91,8 @@
       "fetched": 10
     },
     "ok": true,
-    "added": 1,
+    "added": 0,
     "trimmed": 0
   },
-  "finished_at": "2026-10-22T15:14:25.196026+00:00"
+  "finished_at": "2026-10-22T15:24:49.109946+00:00"
 }
