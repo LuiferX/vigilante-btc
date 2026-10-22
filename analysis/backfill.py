@@ -38,6 +38,9 @@ import run_decision as rd  # noqa: E402
 
 UTC = datetime.timezone.utc
 VISION = "https://data-api.binance.vision/api/v3/klines"
+_AQUI = os.path.dirname(os.path.abspath(__file__))
+# Cache independiente del CWD: analysis/data/cache (no versionado).
+CACHE_DEFAULT = os.path.join(_AQUI, "data", "cache")
 
 
 def descargar_intervalo(interval, path, desde):
@@ -178,8 +181,8 @@ def main():
     ap.add_argument("--sobreescribir", action="store_true")
     ap.add_argument("--descargar", action="store_true",
                     help="baja/completa el historico publico en --cache antes de replicar")
-    ap.add_argument("--cache", default=os.path.join("data", "cache"),
-                    help="dir de cache de velas (no versionado)")
+    ap.add_argument("--cache", default=CACHE_DEFAULT,
+                    help="dir de cache de velas (no versionado; por defecto analysis/data/cache)")
     ap.add_argument("--vigilante", default=None, help="estado.json local o URL (niveles del Vigilante)")
     args = ap.parse_args()
 
