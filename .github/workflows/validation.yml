@@ -26,6 +26,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Sync latest main
+        run: git pull --rebase origin main
+
       - name: Run validation bot
         run: |
           python analysis/validation.py \
@@ -47,5 +50,12 @@ jobs:
             exit 0
           fi
           git commit -m "validation: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          git pull --rebase origin main
-          git push
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 5
+          done
+          echo "main avanzo; el pipeline ya genero validation.json, se omite este commit manual"
+          exit 0

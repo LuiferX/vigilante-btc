@@ -24,6 +24,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Sync latest main
+        run: git pull --rebase origin main
+
       - name: Run decision engine
         run: |
           python analysis/run_decision.py \

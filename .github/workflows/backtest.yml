@@ -25,6 +25,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Sync latest main
+        run: git pull --rebase origin main
+
       - name: Run OOS backtest
         run: |
           python analysis/backtest.py \

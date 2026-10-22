@@ -30,6 +30,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Sync latest main
+        run: git pull --rebase origin main
+
       - name: Check analysis freshness
         id: check
         run: |

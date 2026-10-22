@@ -25,6 +25,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Sync latest main
+        run: git pull --rebase origin main
+
       - name: Collect public data
         run: python collector/collector.py
 
