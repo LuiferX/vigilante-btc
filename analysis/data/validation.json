@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-22T19:31:46.187588+00:00",
+  "checked_at": "2026-10-22T19:46:28.623445+00:00",
   "status": "muestra_chica",
   "healthy": false,
   "sample_status": "muestra_chica",
@@ -12,24 +12,24 @@
   "min_samples": 30,
   "target_samples": 100,
   "samples": {
-    "eval": 192,
+    "eval": 193,
     "effective": 13,
-    "resolved_levels": 192,
-    "levels_with_hold": 223,
-    "events": 160,
-    "resolved_events": 143,
+    "resolved_levels": 193,
+    "levels_with_hold": 225,
+    "events": 161,
+    "resolved_events": 144,
     "independent_events": 10,
-    "coverage": 0.8938,
+    "coverage": 0.8944,
     "avg_levels_per_event": 1.34,
-    "span_hours": 42.2,
+    "span_hours": 42.5,
     "effective_fallback": null
   },
   "metrics": {
-    "brier": 0.1762,
-    "brier_skill": -0.1566,
-    "base_rate": 0.8125,
-    "mean_prob": 0.7297,
-    "calibration_error": 0.1051,
+    "brier": 0.1758,
+    "brier_skill": -0.1584,
+    "base_rate": 0.8135,
+    "mean_prob": 0.7295,
+    "calibration_error": 0.1061,
     "eval_status": "ok",
     "bins": [
       {
@@ -44,12 +44,12 @@
       },
       {
         "bin": "0.60-0.70",
-        "n": 48,
-        "pred": 0.6633,
-        "real": 0.9167,
+        "n": 49,
+        "pred": 0.664,
+        "real": 0.9184,
         "real_ci95": [
-          0.8045,
-          0.9671
+          0.8081,
+          0.9678
         ]
       },
       {
@@ -84,7 +84,7 @@
         0.4171,
         0.8482
       ],
-      "lift_vs_base": 0.8206
+      "lift_vs_base": 0.8195
     },
     "by_side": {
       "soporte": {
@@ -100,19 +100,19 @@
         ]
       },
       "resistencia": {
-        "n": 102,
-        "brier": 0.1397,
-        "base_rate": 0.8627,
-        "mean_prob": 0.7472,
-        "brier_base": 0.1184,
-        "brier_skill": -0.18,
+        "n": 103,
+        "brier": 0.1393,
+        "base_rate": 0.8641,
+        "mean_prob": 0.7467,
+        "brier_base": 0.1174,
+        "brier_skill": -0.1857,
         "real_ci95": [
-          0.7827,
-          0.9164
+          0.7847,
+          0.9173
         ]
       }
     },
-    "coverage": 0.8938
+    "coverage": 0.8944
   },
   "backtest": {
     "samples": 188,
@@ -149,7 +149,7 @@
   },
   "drift": {
     "status": "alert",
-    "psi": 1.3163,
+    "psi": 1.2788,
     "watch_threshold": 0.1,
     "alert_threshold": 0.25,
     "live_bins": [
@@ -163,11 +163,11 @@
       },
       {
         "bin": "0.70-0.80",
-        "n": 145
+        "n": 146
       },
       {
         "bin": "0.80-1.01",
-        "n": 15
+        "n": 16
       }
     ],
     "backtest_bins": [
@@ -188,20 +188,20 @@
         "n": 102
       }
     ],
-    "live_mean_prob": 0.7294,
+    "live_mean_prob": 0.73,
     "backtest_mean_prob": 0.7922,
-    "mean_shift": -0.0628,
+    "mean_shift": -0.0622,
     "detail": "PSI compara la distribucion de probabilidades vivas contra el backtest OOS. No mide resultados; detecta cambio de regimen."
   },
   "data": {
     "klines": {
       "ok": true,
-      "bars": 2007,
-      "unique_bars": 2007,
+      "bars": 2010,
+      "unique_bars": 2010,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-22T19:25:00+00:00",
-      "age_min": 6.77,
+      "last": "2026-10-22T19:40:00+00:00",
+      "age_min": 6.48,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-22T19:31:38.826805+00:00",
+      "run_at": "2026-10-22T19:46:21.876332+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -232,9 +232,9 @@
   },
   "warnings": [
     "Muestra efectiva 13 < 30; el resultado es ruido.",
-    "Muestras nominales 192; efectivas 13 por solapamiento de 4h.",
+    "Muestras nominales 193; efectivas 13 por solapamiento de 4h.",
     "Brier skill negativo: el motor no supera la tasa base en esta muestra.",
-    "Calibracion 0.1051 > 0.05; revisar bins.",
+    "Calibracion 0.1061 > 0.05; revisar bins.",
     "Drift alto en la distribucion de probabilidades; revisar regimen.",
     "Backtest OOS sin Brier skill positivo; no hay edge demostrado."
   ],
@@ -244,7 +244,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "e46f335530ae1429",
-  "code_sha": "a3ab08f314d8ac5e62f33106d11cc797ca00b6d1",
+  "data_hash": "1b71a7f8571e9436",
+  "code_sha": "6b7604c1e0914434f884bc6ae8841afc3c22b64e",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
