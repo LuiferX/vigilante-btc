@@ -1162,7 +1162,7 @@ t("poda existe", hasattr(v, "_podar_estado") and len(v._podar_estado({"cools": {
 _zp = [{"precio": 83850, "razones": ["r"]}]
 _tx, _ky = v.mensaje_pila(_zp, 83700, [{"precio": 82973}], [{"precio": 83850}],
     {"tend": "lateral", "rsi": 50, "er": 0.2, "z": 0}, {"adx": 25}, 12)
-t("pila vive con h4", _tx is not None and _tx.startswith("EYY PILAS") and _ky == "83850")
+t("pila vive con h4", _tx is not None and _tx.startswith("Zona de referencia") and _ky == "83850")
 _est_p = {}
 _r1 = v.decidir_alerta(83700, {"soportes": [{"precio": 82973}], "resistencias": [{"precio": 83850}]},
     {"bias": "LATERAL", "confianza": 10}, _est_p, _ahq, None, None, "rango", False, "", None, None, "pilita", 55, 40, None, None)

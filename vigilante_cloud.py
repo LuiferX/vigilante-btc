@@ -2666,12 +2666,12 @@ def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
             pass
         if zp["precio"] <= last:
             inv = (sops[0]["precio"] if sops else zp["precio"])
-            return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+            return (f"Zona de referencia: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                     f"({razones}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
                     f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}{rc}"
                     f" Zona de referencia, no una entrada.", str(zp["precio"]))
         inv = (ress[0]["precio"] if ress else zp["precio"])
-        return (f"EYY PILAS: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
+        return (f"Zona de referencia: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
                 f"({razones}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
                 f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}{rc}"
                 f" Zona de referencia, no una entrada.", str(zp["precio"]))
@@ -2971,7 +2971,7 @@ def tipo_de_motivo(motivo):
         return "ruptura"
     if m.startswith("Tocando"):
         return "toque"
-    if m.startswith("EYY PILAS"):
+    if m.startswith("EYY PILAS") or m.startswith("Zona de referencia"):
         return "pila"
     if m.startswith("COMPRA") or m.startswith("VENTA"):
         return "estructura"
@@ -4048,7 +4048,7 @@ def decidir_alerta(precio, niv, dirb, est, ahora, forzado=None, mov1h=None, regi
                 _pk = "pila:" + str(_zz)
             except Exception:
                 _pk = "pila:?"
-            if enfriar(est, _pk, 10, ahora):
+            if enfriar(est, _pk, 24, ahora):
                 return True, pila, "alerta"
         except Exception:
             try:
