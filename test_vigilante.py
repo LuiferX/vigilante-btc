@@ -172,8 +172,8 @@ eb = {"ultimo_bias": "LATERAL"}
 t("dec cambio", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 50}, dict(eb), ah, None, None, "tendencia", False, "", None, None, None)[2] == "alerta")
 t("dec fuerte", "Fuerte" in v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb, ultimo_bias="ALZA"), ah, None, None, "tendencia", False, "", None, None, None)[1] or True)
 t("dec forzado primero", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, dict(eb), ah, "Tu alerta", None, "tendencia", True, "", None, None, None)[1] == "Tu alerta")
-t("dec brusco", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 1.5, "tendencia", False, "", None, None, None)[1])
-t("dec brusco fino", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 0.8, "tendencia", False, "", None, None, None)[1])
+t("dec brusco", "brusco" in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 1.6, "tendencia", False, "", None, None, None)[1])
+t("dec brusco fino", "brusco" not in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 0.8, "tendencia", False, "", None, None, None)[1])
 t("dec brusco calla", "brusco" not in v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), ah, None, 0.6, "tendencia", False, "", None, None, None)[1])
 _eb = dict(eb)
 t("dec estir bajo", "Estirado bajo media" in v.decidir_alerta(80500, niv, {"bias": "LATERAL", "confianza": 10}, _eb, ah, None, None, "tendencia", False, "", None, None, None, 55, 40, None, None, None, None, None, None, None, "bajo media -2.3×ATR (RSI 28)")[1])
@@ -793,16 +793,16 @@ v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, _eb3, _ah10,
 t("fuerte no repite", v.decidir_alerta(82500, niv, {"bias": "ALZA", "confianza": 70}, _eb3, _ah10,
     None, None, "tendencia", False, "", None, None, None, 50, 40)[2] == "nada")
 t("ritmo avisa", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
-    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.75)[2] == "alerta")
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -1.6)[2] == "alerta")
 _eb4 = dict(eb)
 v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb4, _ah10,
-    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.75)
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -1.6)
 t("ritmo no repite", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, _eb4, _ah10,
-    None, None, "tendencia", False, "", None, None, None, 90, 90, -0.75)[2] == "nada")
+    None, None, "tendencia", False, "", None, None, None, 90, 90, -1.6)[2] == "nada")
 t("ritmo chico calla", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
     None, None, "tendencia", False, "", None, None, None, 90, 90, -0.4)[2] == "nada")
 t("ritmo blackout", v.decidir_alerta(82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
-    None, None, "tendencia", True, "CPI", None, None, None, 90, 90, -0.9)[2] == "nada")
+    None, None, "tendencia", True, "CPI", None, None, None, 90, 90, -1.7)[2] == "nada")
 t("liq fade corto", "desvanecer hacia 81.000" in v.decidir_alerta(
     82500, niv, {"bias": "LATERAL", "confianza": 10}, dict(eb), _ah10,
     None, None, "tendencia", False, "", None, "barrido sobre máximos X", None)[1])
@@ -1530,6 +1530,32 @@ t("features toque atr288", _f is not None and _f["x_atr288"] > 0)
 _sc = v.score_toque(_f) if _f else None
 t("score toque rango", _sc is not None and 0.0 <= _sc <= 1.0)
 t("features toque corto", v.features_toque(_kl_t[:100], 81000, 81100, ah, "Soporte") is None)
+
+# --- Puerta de validacion: no convertir confianza en senal sin evidencia ---
+_gate_chico = v._gate_desde_validacion({
+    "status": "muestra_chica",
+    "samples": {"effective": 8},
+    "metrics": {"brier_skill": -0.20, "calibration_error": 0.19},
+    "drift": {"status": "alert"},
+})
+t("gate bloquea muestra chica", _gate_chico["ok"] is False)
+_gate_ok = v._gate_desde_validacion({
+    "status": "ok",
+    "samples": {"effective": 120},
+    "metrics": {"brier_skill": 0.08, "calibration_error": 0.04},
+    "drift": {"status": "ok"},
+})
+t("gate permite validado", _gate_ok["ok"] is True)
+_gate_drift = v._gate_desde_validacion({
+    "status": "ok",
+    "samples": {"effective": 120},
+    "metrics": {"brier_skill": 0.08, "calibration_error": 0.04},
+    "drift": {"status": "alert"},
+})
+t("gate bloquea drift", _gate_drift["ok"] is False)
+t("gate detecta senal", v.es_alerta_direccional("Señal fuerte ALZA (confianza 75%)") is True)
+t("gate detecta plan", v.es_alerta_direccional("Tocando la resistencia de 83.000 · BAJA: stop 83.260 · R:R 5.3") is True)
+t("gate deja contexto", v.es_alerta_direccional("Soporte 84.403 probado 4 veces. No es entrada.") is False)
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)

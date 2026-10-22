@@ -279,8 +279,9 @@ FEE_PCT = 0.001          # 0.10% ida+vuelta (costo de operar)
 FILTRO_VOL = False        # opt-in: descarta senales cuando FEE/umbral > 0.25 (break-even > 41.7%)
 MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 FUNDING_EXTREMO = 0.05   # |funding| >= 0.05% = un lado recargado (lectura contrarian)
-UMBRAL_BRUSCO = 0.7      # +/-0.7% en 1h = movimiento brusco (replay techo 10d: avisa ~2h antes, 1.3/dia)
-UMBRAL_RITMO = 0.6       # +/-0.6% en 30min = ritmo acelerado (pesca desplomes que no llegan a 1%/1h)
+UMBRAL_BRUSCO = float(os.environ.get("VIGILANTE_UMBRAL_BRUSCO", "1.5"))  # +/-1.5% en 1h: ruido comun, no aviso
+UMBRAL_RITMO = float(os.environ.get("VIGILANTE_UMBRAL_RITMO", "1.5"))    # +/-1.5% en 30min: movimiento real
+GATE_FILE = os.environ.get("VIGILANTE_VALIDATION", "analysis/data/validation.json")
 UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
 UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
@@ -288,6 +289,72 @@ SEMILLA_SESION = {"NY": 1.0, "Londres": 1.0, "noche": 1.0, "Asia": 1.0}  # neutr
 PAPER_BANCO = float(os.environ.get("PAPER_BANCO", "100.0"))   # perfil XLX: banco virtual en USDT
 PAPER_LEV = int(os.environ.get("PAPER_LEV", "50"))   # apalancamiento: solo dimensiona la liquidacion estimada
 PAPER_RIESGO = 0.01    # 1% por idea (0.5% en racha de 3+ perdidas)
+
+
+def _gate_desde_validacion(data):
+    """Convierte validation.json en un permiso explicito para alertas direccionales.
+
+    No es una opinion: si no hay muestra efectiva, Brier skill positivo y drift
+    controlado, el bot no debe convertir una corazonada en senal.
+    """
+    if not isinstance(data, dict):
+        return {"ok": False, "reason": "sin validation.json"}
+    samples = data.get("samples") if isinstance(data.get("samples"), dict) else {}
+    metrics = data.get("metrics") if isinstance(data.get("metrics"), dict) else {}
+    drift = data.get("drift") if isinstance(data.get("drift"), dict) else {}
+    status = str(data.get("status") or "sin_datos")
+    try:
+        effective = int(samples.get("effective") or 0)
+    except Exception:
+        effective = 0
+    try:
+        skill = float(metrics.get("brier_skill"))
+    except Exception:
+        skill = None
+    try:
+        ece = float(metrics.get("calibration_error"))
+    except Exception:
+        ece = None
+    drift_status = str(drift.get("status") or "sin_datos")
+    ok = (
+        status in ("ok", "muestra_media")
+        and effective >= 30
+        and skill is not None
+        and skill > 0
+        and ece is not None
+        and ece <= 0.08
+        and drift_status != "alert"
+    )
+    partes = [status]
+    if effective:
+        partes.append(f"{effective} efectivas")
+    if skill is not None:
+        partes.append(f"skill {skill:+.2f}")
+    if ece is not None:
+        partes.append(f"ECE {ece:.2f}")
+    if drift_status == "alert":
+        partes.append("drift alert")
+    return {"ok": bool(ok), "reason": " · ".join(partes)}
+
+
+def cargar_gate_validacion(path=None):
+    try:
+        with open(path or GATE_FILE, encoding="utf-8") as fh:
+            return _gate_desde_validacion(json.load(fh))
+    except Exception:
+        return {"ok": False, "reason": "sin validation.json"}
+
+
+def es_alerta_direccional(motivo):
+    """True solo para textos que invitan a tomar direccion o traen un plan."""
+    m = str(motivo or "").lower()
+    if "no es entrada" in m or "no una entrada" in m or "sin plan" in m or "solo aviso" in m:
+        return False
+    marcas = (
+        "señal fuerte", "cambio de dirección", "compra ", "venta ",
+        "rechazo ", "tocando ", "toma de liquidez", "r:r", "stop ", "sl ",
+    )
+    return any(x in m for x in marcas)
 
 
 def fetch(url, timeout=20, tries=3):
@@ -4828,6 +4895,14 @@ def main():
                     motivo = motivo + "\n" + _toques_multi
                 else:
                     enviar, motivo, tipo = True, _toques_multi, "alerta"
+        gate = cargar_gate_validacion()
+        gate_blocked = False
+        if enviar and tipo == "alerta" and not forzado and not gestion_txt:
+            if not gate.get("ok") and es_alerta_direccional(motivo):
+                gate_blocked = True
+                enviar = False
+                tipo = "nada"
+                motivo = f"silenciada por validacion: {gate.get('reason', 'sin evidencia')}"
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         fresco = est.get("runs", 0) == 0
@@ -4980,6 +5055,17 @@ def main():
             "tags": _tags,
         }
         guardar_estado(est, hist)
+        if gate_blocked and est.get("gate_aviso") != hoy:
+            try:
+                if send_telegram(
+                    "🔇 Alerta direccional silenciada.\n"
+                    f"La validación todavía no permite señales: {gate.get('reason', 'sin evidencia')}.\n"
+                    "Sigo midiendo; no convierto confianza en entrada."
+                ):
+                    est["gate_aviso"] = hoy
+                    guardar_estado(est, hist)
+            except Exception:
+                pass
         forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
         if forzar:
             motivo, tipo, enviar = "Detalle pedido", "alerta", True
