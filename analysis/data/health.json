@@ -1,10 +1,10 @@
 {
-  "run_at": "2026-10-22T08:46:35.194749+00:00",
+  "run_at": "2026-10-22T09:02:04.658916+00:00",
   "ok": true,
   "fresh": true,
-  "event_time": "2026-10-22T08:40:00+00:00",
-  "bar_close_time": "2026-10-22T08:45:00+00:00",
-  "data_age_min": 1.6,
+  "event_time": "2026-10-22T08:55:00+00:00",
+  "bar_close_time": "2026-10-22T09:00:00+00:00",
+  "data_age_min": 2.1,
   "action": "esperar_confirmacion",
   "confidence": "baja",
   "quality": {
