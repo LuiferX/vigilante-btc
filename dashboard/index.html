@@ -337,7 +337,7 @@ async function loadEval() {
       return;
     }
     const skill = e.brier_skill == null ? 'n/d' : fmt(e.brier_skill, 3);
-    out.textContent = `${e.samples} muestras · Brier ${fmt(e.brier, 4)} · skill ${skill} · ${e.status}`;
+    out.textContent = `${e.samples} nominales · Brier ${fmt(e.brier, 4)} · skill ${skill} · eval ${e.status}`;
     out.className = 'val ' + (e.brier_skill > 0 ? 'up' : 'down');
     note.textContent = `${e.disclaimer || ''} Base ${fmtPct(e.base_rate)}; calibración ${fmt(e.calibration_error, 4)}.`;
   } catch (e) {
