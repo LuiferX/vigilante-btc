@@ -1711,13 +1711,16 @@ def responder_comando(cmd, ctx):
             return ("Sombra: sin datos válidos aún.", False)
     if c == "/evals":
         try:
-            elog = [e for e in (est.get("eval_log", []) or []) if isinstance(e, dict)]
+            elog_all = [e for e in (est.get("eval_log", []) or []) if isinstance(e, dict)]
+            elog_plan = [e for e in elog_all if e.get("metodo") == "plan"]
+            elog = elog_plan or elog_all
             n = len(elog)
             if not n:
                 return ("Evals: sin evaluaciones aún.", False)
+            etiqueta = "plan" if elog_plan else "histórico por sesgo"
             ok = sum(1 for e in elog if float(e.get("r", 0) or 0) > 0)
             pct = round(ok / n * 100) if n else 0
-            base = f"Evals: n={n} · acierto {pct}% ({ok}/{n})."
+            base = f"Evals ({etiqueta}): n={n} · acierto {pct}% ({ok}/{n})."
             try:
                 tc = tabla_calibracion(elog)
             except Exception:
