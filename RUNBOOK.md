@@ -86,6 +86,13 @@ Es normal al inicio. Hacen falta 4h de velas futuras después de cada decision. 
 - `muestra_chica` o `muestra_media`: no es falla. Es falta de datos; no se fuerza el score.
 - El validador descuenta el solapamiento de decisiones cada 15 min. `samples.eval` puede ser mayor que `samples.effective`.
 
+### Alertas silenciadas y medicion
+
+- `/evals` muestra el scoreboard de alertas enviadas y, aparte, el contrafactual de las silenciadas (`eval_gate`). No se mezclan.
+- La evaluacion usa la direccion real del plan. El historico viejo media el sesgo; el scoreboard semanal solo cuenta muestras con `metodo=plan`.
+- `/motor` resume `latest_decision.json` (accion, trigger, invalidacion). Es contexto del motor 4h, no una orden ni una alerta.
+- Si `latest_decision.json` esta viejo (mas de 90 min), `/motor` lo dice y el bot sigue con su propia lectura.
+
 ### Workflow falla al hacer push
 
 - Los workflows de escritura comparten `concurrency: data-write`.

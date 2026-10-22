@@ -574,6 +574,9 @@ t("calib rota", v.tabla_calibracion("basura") is None)
 t("dash conciencia", "Brier" in _db.build_dashboard(
     {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1, "alza": [], "baja": [],
      "eval_log": [{"conf": 60, "r": 1}] * 3 + [{"conf": 40, "r": 0}] * 3}, _ht))
+t("dash gate", "Gate: 3/4" in _db.build_dashboard(
+    {"ultimo_bias": "ALZA", "ultima_conf": 31, "runs": 1,
+     "snapshot": {"gate": {"n": 4, "hit": 3, "pending": 2}}}, _ht))
 t("guardia limpia", v.guardia_lectura() is True)
 import os as _os
 _os.environ["BINANCE_API_KEY"] = "x"
@@ -1496,6 +1499,9 @@ t("scoreboard ignora ?", "?" not in _sbd)
 t("scoreboard texto", "liquidez 1/2 (50%)" in v.texto_scoreboard(
     [{"tipo": "liquidez", "r": 1}, {"tipo": "liquidez", "r": 0}], min_n=1))
 t("scoreboard vacio", v.texto_scoreboard([], min_n=1) == "")
+_sbp = v.scoreboard([{"tipo": "liquidez", "r": 1, "metodo": "plan"},
+                     {"tipo": "liquidez", "r": 0}], min_n=1, solo_plan=True)
+t("scoreboard solo plan", len(_sbp) == 1 and _sbp[0][1] == 1)
 
 # --- Capa 1: toques multiples en niveles de 5m ---
 _kl_t = []
@@ -1571,6 +1577,39 @@ _ap3 = v.aplicar_gate_alerta(True, "Señal fuerte ALZA (confianza 75%)", "alerta
 t("gate integra validado", _ap3[0] is True and _ap3[3] is False)
 _ap4 = v.aplicar_gate_alerta(True, "Señal fuerte ALZA", "alerta", _gate_chico, forzado="Tu alerta")
 t("gate respeta forzado", _ap4[0] is True and _ap4[3] is False)
+
+# ---------- direccion real del plan (no el sesgo) ----------
+t("dir plan BAJA manda", v.direccion_alerta(
+    "Tocando la resistencia de 83.000 · BAJA: stop 83.260 · R:R 5.3", "ALZA") == "BAJA")
+t("dir plan ALZA manda", v.direccion_alerta(
+    "Tocando el soporte de 82.000 · ALZA: stop 81.800 · R:R 2.1", "BAJA") == "ALZA")
+t("dir compra", v.direccion_alerta("COMPRA BOS sobre 83.000", "BAJA") == "ALZA")
+t("dir venta", v.direccion_alerta("VENTA BOS sobre 82.000", "ALZA") == "BAJA")
+t("dir rechazo", v.direccion_alerta("RECHAZO BAJA 83.100→82.900", "ALZA") == "BAJA")
+t("dir señal", v.direccion_alerta("Señal fuerte BAJA (confianza 70%)", "ALZA") == "BAJA")
+t("dir cambio", v.direccion_alerta("Cambio de dirección: ALZA → BAJA", "ALZA") == "BAJA")
+t("dir contexto nada", v.direccion_alerta("Zona de referencia 83.000-83.200; espera.", "ALZA") is None)
+t("dir toque usa sesgo", v.direccion_alerta("Tocando el soporte de 82.000", "ALZA") == "ALZA")
+
+e = {"pendientes": [pend(bias="ALZA", dir="BAJA", motivo="VENTA BOS sobre 83.000")],
+     "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, vel1([(82950, 83000, 82750)]))
+t("mfe mide plan no sesgo", e["baja"] == [1] and e["alza"] == []
+  and e["eval_log"][0]["dir"] == "BAJA" and e["eval_log"][0]["metodo"] == "plan")
+
+e = {"pend_gate": [pend(dir="BAJA", motivo="VENTA BOS sobre 83.000")],
+     "alza_gate": [], "baja_gate": [], "eval_gate": []}
+v.evaluar_mfe(e, ah, vel1([(82950, 83000, 82750)]), pend_key="pend_gate",
+              log_key="eval_gate", alza_key="alza_gate", baja_key="baja_gate", metodo="gate")
+t("gate eval aparte", e["baja_gate"] == [1] and e["eval_gate"][0]["metodo"] == "gate")
+
+e = {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []}
+v.evaluar_mfe(e, ah, vel1([(83050, 83100, 82950), (83150, 83250, 83100)]))
+t("mfe legacy etiquetado", e["eval_log"][0]["metodo"] == "sesgo_legacy")
+
+t("motor linea", "observar" in v.linea_motor(
+    {"action": "observar", "bias": "ALZA", "age_min": 10, "trigger": "cierre sobre 83.205"}))
+t("motor vacio", v.linea_motor(None) == "")
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)

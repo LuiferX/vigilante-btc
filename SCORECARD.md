@@ -38,6 +38,8 @@ Antes de esta iteracion: **7,2/10** aproximado con la misma rubrica.
 - Validation bot con muestras efectivas (descuenta solapamiento de 4h), drift PSI, estados explicitos y `validation_history.jsonl`.
 - Workflows con `concurrency`, rebase, health al final del pipeline, validation bot y backtest manual.
 - Dashboard con decision, frescura, niveles, trigger, invalidacion y Brier.
+- El bot de alertas mide la direccion real del plan, no el sesgo; las alertas silenciadas por el gate se miden aparte como contrafactual (`eval_gate`).
+- El bot de Telegram muestra el contexto del motor 4h (`latest_decision.json`) sin convertirlo en orden.
 - README, arquitectura, runbook y este scorecard.
 - Restauracion del `.gitignore` original del Vigilante, que se habia sobrescrito por error.
 

@@ -882,6 +882,25 @@ def _seguimiento_html(est, ahora_dt):
         return "<p class='mini'>sin pendientes — no hay señales esperando evaluación.</p>"
 
 
+def _gate_html(est):
+    """Contrafactual del gate: mide lo que se silenció, sin mezclarlo con lo enviado."""
+    try:
+        snap = est.get("snapshot") if isinstance(est, dict) else None
+        g = snap.get("gate") if isinstance(snap, dict) else None
+        if not isinstance(g, dict):
+            return ""
+        n = int(g.get("n") or 0)
+        if n <= 0:
+            return ""
+        h = int(g.get("hit") or 0)
+        pct = round(100 * h / n)
+        pend = int(g.get("pending") or 0)
+        return (f"<p>Gate: {h}/{n} ({pct}%) de las silenciadas habrían acertado."
+                f" No se enviaron · {pend} en seguimiento.</p>")
+    except Exception:
+        return ""
+
+
 def _calibracion_html(est):
     """Calibración: Brier + n + cubetas desde snapshot o est. Puro, jamás rompe."""
     try:
@@ -2463,7 +2482,10 @@ def build_dashboard(est, hist):
     prec_b = (f"<p>ALZA {pa} · BAJA {pb}</p>"
               f"<p>EV ALZA {_ev_txt(alza)} · BAJA {_ev_txt(baja)} (plan 2R, rentable sobre 33%)</p>"
               f"{_calib_txt(est.get('eval_log'))}"
-              f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>")
+              f"{_gate_html(est)}"
+              f"<p>Se evalúa a 8h: objetivo 2R antes que stop 1R.</p>"
+              f"<p class='mini'>Desde este fix mide la dirección del plan, no el sesgo. "
+              f"El histórico anterior puede estar sesgado.</p>")
     try:
         _tiso = est.get("latido") or est.get("ultimo_run")
     except Exception:

@@ -345,6 +345,62 @@ def cargar_gate_validacion(path=None):
         return {"ok": False, "reason": "sin validation.json"}
 
 
+MOTOR_FILE = os.environ.get("VIGILANTE_MOTOR", "analysis/data/latest_decision.json")
+
+
+def cargar_motor_nuevo(path=None, max_age_min=90):
+    """Lee el motor 4h nuevo (solo contexto, no ejecuta ni decide por el bot).
+
+    Devuelve None si no existe o esta viejo. El bot viejo puede seguir midiendo
+    y alertando con su propia logica; esto solo evita contar dos historias.
+    """
+    try:
+        with open(path or MOTOR_FILE, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except Exception:
+        return None
+    if not isinstance(d, dict):
+        return None
+    ts = d.get("event_time") or d.get("logged_at")
+    edad = None
+    try:
+        t = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=datetime.timezone.utc)
+        edad = (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() / 60
+    except Exception:
+        pass
+    if edad is not None and edad > max_age_min:
+        return None
+    dec = d.get("decision") if isinstance(d.get("decision"), dict) else {}
+    state = d.get("state") if isinstance(d.get("state"), dict) else {}
+    return {
+        "action": str(dec.get("action") or "?"),
+        "confidence": dec.get("confidence"),
+        "trigger": str(dec.get("trigger") or ""),
+        "invalidation": str(dec.get("invalidation") or ""),
+        "bias": state.get("bias"),
+        "price": d.get("price"),
+        "summary": str(d.get("summary") or ""),
+        "age_min": round(edad, 1) if edad is not None else None,
+    }
+
+
+def linea_motor(motor):
+    """Linea corta para reportes de Telegram. Vacia si no hay motor fresco."""
+    if not isinstance(motor, dict):
+        return ""
+    partes = [f"motor 4h: {motor.get('action', '?')}"]
+    if motor.get("bias"):
+        partes.append(f"sesgo {motor['bias']}")
+    if motor.get("age_min") is not None:
+        partes.append(f"hace {motor['age_min']:.0f} min")
+    txt = " · ".join(partes)
+    if motor.get("trigger"):
+        txt += f" · trigger {motor['trigger'][:90]}"
+    return txt
+
+
 def es_alerta_direccional(motivo):
     """True solo para textos que invitan a tomar direccion o traen un plan."""
     m = str(motivo or "").lower()
@@ -1663,6 +1719,16 @@ def responder_comando(cmd, ctx):
             if tc and tc.get("cubetas"):
                 cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
                 base += f"\nPor confianza: {cub} · Brier {tc['brier']} (0 perfecto)."
+            try:
+                glog = [e for e in (est.get("eval_gate", []) or []) if isinstance(e, dict)]
+                if glog:
+                    gok = sum(1 for e in glog if float(e.get("r", 0) or 0) > 0)
+                    gpct = round(gok / len(glog) * 100) if glog else 0
+                    base += (f"\nGate (silenciadas, contrafactual): {gok}/{len(glog)} = {gpct}%."
+                             " No se enviaron; solo auditan el filtro.")
+            except Exception:
+                pass
+            base += "\nDesde este fix: direccion real del plan. Antes se media el sesgo."
             return (base, False)
         except Exception:
             return ("Evals: sin datos válidos aún.", False)
@@ -1679,6 +1745,17 @@ def responder_comando(cmd, ctx):
         rg = ctx.get("regimen", "?")
         bl = " (blackout: sin señales nuevas)" if ctx.get("bloqueo") else ""
         return (f"Calidad: {g} · régimen {rg}{bl}. Opera solo las A.", False)
+    if c in ("/motor", "/motor4h"):
+        m = ctx.get("motor") or cargar_motor_nuevo()
+        if not m:
+            return ("Motor 4h: sin lectura fresca. El pipeline corre cada 15 min; revisa /motor.html.", False)
+        base = f"Motor 4h: {m.get('action', '?')} · sesgo {m.get('bias') or '?'} · {m.get('age_min')} min."
+        if m.get("trigger"):
+            base += f"\nTrigger: {m['trigger']}"
+        if m.get("invalidation"):
+            base += f"\nInvalida: {m['invalidation']}"
+        base += "\nEs contexto, no una orden: el motor no ejecuta."
+        return (base, False)
     if c == "/detalle":
         return ("Te mando el parte completo ahora.", False)
     if c == "/alerta":
@@ -2992,12 +3069,56 @@ def tipo_de_motivo(motivo):
     return "otro"
 
 
-def scoreboard(eval_log, min_n=1):
+DIRECCIONES_MEDIBLES = ("fuerte", "cambio", "toque", "ruptura", "estructura", "mecha", "liquidez")
+
+
+def direccion_alerta(motivo, bias=None):
+    """Devuelve la direccion REAL que propone la alerta, no el sesgo del bot.
+
+    El scoreboard viejo media `bias`, y por eso una alerta de VENTA podia
+    contarse como ALZA solo porque el sesgo general era alcista. Aqui manda
+    el plan escrito en el mensaje (ALZA/BAJA: stop...) y, si no hay plan,
+    solo los textos que invitan a una direccion concreta.
+    """
+    m = str(motivo or "")
+    # El plan compacto siempre trae "ALZA: stop" o "BAJA: stop".
+    mm = re.search(r"\b(ALZA|BAJA)\s*:\s*stop\b", m, re.I)
+    if mm:
+        return mm.group(1).upper()
+    if m.startswith(("COMPRA ", "COMPRA\n")):
+        return "ALZA"
+    if m.startswith(("VENTA ", "VENTA\n")):
+        return "BAJA"
+    if m.startswith("RECHAZO ALZA"):
+        return "ALZA"
+    if m.startswith("RECHAZO BAJA"):
+        return "BAJA"
+    if m.startswith("ruptura ALCISTA"):
+        return "ALZA"
+    if m.startswith("ruptura BAJISTA"):
+        return "BAJA"
+    if m.startswith("Señal fuerte ALZA"):
+        return "ALZA"
+    if m.startswith("Señal fuerte BAJA"):
+        return "BAJA"
+    if m.startswith("Cambio de dirección"):
+        # "Cambio de dirección: BAJA → ALZA": manda la ultima direccion.
+        encontradas = re.findall(r"\b(ALZA|BAJA)\b", m)
+        return encontradas[-1] if encontradas else None
+    if m.startswith("Tocando"):
+        return bias if bias in ("ALZA", "BAJA") else None
+    return None
+
+
+def scoreboard(eval_log, min_n=1, solo_plan=False):
     """Acierto REAL por tipo de alerta, medido en vivo (eval_log).
-    Devuelve filas (tipo, n, aciertos, pct), mejor primero. Sin promesas."""
+    Devuelve filas (tipo, n, aciertos, pct), mejor primero. Sin promesas.
+    `solo_plan=True` excluye el histórico viejo, que medía sesgo y no plan."""
     acc = {}
     for e in (eval_log or []):
         if not isinstance(e, dict):
+            continue
+        if solo_plan and e.get("metodo") != "plan":
             continue
         t = e.get("tipo") or "?"
         if t in ("?", "otro"):
@@ -3009,9 +3130,9 @@ def scoreboard(eval_log, min_n=1):
     return rows
 
 
-def texto_scoreboard(eval_log, min_n=5, max_filas=6):
+def texto_scoreboard(eval_log, min_n=5, max_filas=6, solo_plan=False):
     """Linea(s) de scoreboard para Telegram. Vacío si no hay muestra."""
-    rows = scoreboard(eval_log, min_n=min_n)
+    rows = scoreboard(eval_log, min_n=min_n, solo_plan=solo_plan)
     if not rows:
         return ""
     partes = [f"{t} {h}/{n} ({p:.0f}%)" for t, n, h, p in rows[:max_filas]]
@@ -3425,6 +3546,8 @@ def _podar_estado(est):
         for k, n in (("pend_todo", MAX_PEND_TODO), ("eval_todo", MAX_EVAL_TODO),
                      ("pend_sombra", MAX_PEND_TODO), ("eval_sombra", MAX_EVAL_TODO),
                      ("pendientes", MAX_PEND_TODO), ("eval_log", MAX_EVAL_TODO),
+                     ("pend_gate", MAX_PEND_TODO), ("eval_gate", MAX_EVAL_TODO),
+                     ("alza_gate", 50), ("baja_gate", 50),
                      ("paper_abiertas", MAX_PAPER_ABIERTAS), ("ops", MAX_OPS),
                      ("journal", 50), ("sim_cerradas", 20), ("paper_cerradas", 100)):
             v = est.get(k)
@@ -3554,12 +3677,16 @@ def latido_tarde(ultimo_run_iso, ahora_iso, max_min=15):
         return False
 
 
-def evaluar_mfe(est, ahora, velas=None):
+def evaluar_mfe(est, ahora, velas=None, pend_key="pendientes", log_key="eval_log",
+                alza_key="alza", baja_key="baja", metodo="plan"):
     """Evalua pendientes vencidas (>=8h) por MFE/MAE sobre velas 1H:
     exito si el objetivo 2R se toca antes que el stop 1R.
     En la misma vela manda el stop (conservador). Sin toques: fallback por cierre.
-    Guarda vector de resultado (mfe/mae) para futura correlacion."""
-    pends = est.get("pendientes", [])
+    Guarda vector de resultado (mfe/mae) para futura correlacion.
+
+    `metodo="gate"` permite medir tambien las alertas que el gate silencio,
+    sin mezclarlas con las que si se enviaron."""
+    pends = est.get(pend_key, [])
     if not pends:
         return
     if velas is None:
@@ -3585,9 +3712,14 @@ def evaluar_mfe(est, ahora, velas=None):
             risk = 0.0
         if not (risk > 0):
             risk = max(entry * UMBRAL_MOV, 1)
-        if p["bias"] == "ALZA":
+        direc = p.get("dir")
+        if direc not in ("ALZA", "BAJA"):
+            direc = direccion_alerta(p.get("motivo", ""), p.get("bias"))
+        if direc not in ("ALZA", "BAJA"):
+            direc = p.get("bias")
+        if direc == "ALZA":
             tp, sl = entry + 2 * risk, entry - risk
-        elif p["bias"] == "BAJA":
+        elif direc == "BAJA":
             tp, sl = entry - 2 * risk, entry + risk
         else:
             continue
@@ -3595,7 +3727,7 @@ def evaluar_mfe(est, ahora, velas=None):
         hit = None
         mfe = mae = 0.0
         for v in ventana:
-            if p["bias"] == "ALZA":
+            if direc == "ALZA":
                 mfe = max(mfe, (v["h"] - entry) / entry)
                 mae = max(mae, (entry - v["l"]) / entry)
                 toca_tp = v["h"] >= tp
@@ -3620,20 +3752,26 @@ def evaluar_mfe(est, ahora, velas=None):
                 continue
             cierre = ventana[-1]["c"]
             mov = (cierre - entry) / entry
-            if p["bias"] == "ALZA":
+            if direc == "ALZA":
                 hit = 1 if mov >= risk / entry else 0
             else:
                 hit = 1 if mov <= -risk / entry else 0
-        if p["bias"] == "ALZA":
-            est["alza"] = (est.get("alza", []) + [hit])[-50:]
+        if direc == "ALZA":
+            est[alza_key] = (est.get(alza_key, []) + [hit])[-50:]
         else:
-            est["baja"] = (est.get("baja", []) + [hit])[-50:]
-        log = est.get("eval_log", [])
-        log.append({"b": p["bias"], "r": hit, "t": ahora.isoformat(),
+            est[baja_key] = (est.get(baja_key, []) + [hit])[-50:]
+        # Un pendiente viejo sin `dir` ni `motivo` se creo midiendo sesgo, no
+        # plan. Se conserva para no perder historia, pero no entra al scoreboard
+        # nuevo (solo_plan=True).
+        _metodo_p = metodo
+        if metodo == "plan" and not p.get("dir") and not p.get("motivo"):
+            _metodo_p = "sesgo_legacy"
+        log = est.get(log_key, [])
+        log.append({"b": p.get("bias"), "dir": direc, "r": hit, "t": ahora.isoformat(),
                     "conf": p.get("conf", 0), "mfe": round(mfe, 4), "mae": round(mae, 4),
-                    "tipo": p.get("tipo") or "?"})
-        est["eval_log"] = log[-200:]
-    est["pendientes"] = nuevas[-100:]
+                    "tipo": p.get("tipo") or "?", "metodo": _metodo_p})
+        est[log_key] = log[-200:]
+    est[pend_key] = nuevas[-100:]
 
 
 def abrir_todo(est, bias, conf, precio, umbral, ahora):
@@ -4177,6 +4315,8 @@ def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo
     L.append(f"📈 max {fmt_miles(t['hi'])} / min {fmt_miles(t['lo'])}")
     L.append("")
     L.append(f"🧭 MARCOS: {dirb['bias']} ({dirb['confianza']}%) · régimen {extras.get('regimen', '?')} · ADX 4H {h4.get('adx', '?')}")
+    if extras.get("motor"):
+        L.append("📐 " + linea_motor(extras["motor"]))
     if extras.get("confl", 0) >= 2:
         L.append(f"🧩 Confluencia: {extras['confl']} fuentes en el nivel más cercano")
     L.append("  " + "  ".join(f"{x['tf']}{icon.get(x['tend'], '🟡')}(s{x['score']:+d})" for x in (h1, h4, d1, w1)))
@@ -4568,6 +4708,12 @@ def main():
         except Exception:
             pass
         try:
+            # Las que el gate silencio se miden aparte: no son alertas enviadas.
+            evaluar_mfe(est, ahora, _velas_ev, pend_key="pend_gate", log_key="eval_gate",
+                        alza_key="alza_gate", baja_key="baja_gate", metodo="gate")
+        except Exception:
+            pass
+        try:
             evaluar_sombra(est, ahora, _velas_ev)
         except Exception:
             pass
@@ -4908,14 +5054,45 @@ def main():
                     motivo = motivo + "\n" + _toques_multi
                 else:
                     enviar, motivo, tipo = True, _toques_multi, "alerta"
+        _motivo_alerta = motivo
+        _tipo_alerta = tipo_de_motivo(motivo)
+        _dir_alerta = direccion_alerta(motivo, dirb["bias"])
+        if (not es_alerta_direccional(motivo)) or _tipo_alerta not in DIRECCIONES_MEDIBLES:
+            _dir_alerta = None
         gate = cargar_gate_validacion()
+        motor = cargar_motor_nuevo()
         enviar, motivo, tipo, gate_blocked = aplicar_gate_alerta(
             enviar, motivo, tipo, gate, forzado=forzado, gestion=gestion_txt
         )
         if gate_blocked:
             print(f"Gate validacion: alerta direccional silenciada ({gate.get('reason', 'sin evidencia')}).")
+            # Contrafactual: medir la alerta silenciada con la misma regla que las
+            # enviadas. Sirve para saber si el gate protege o si esta bloqueando
+            # señales buenas; nunca se envia ni se mezcla con el scoreboard vivo.
+            if _dir_alerta in ("ALZA", "BAJA"):
+                _reciente_g = False
+                for p in est.get("pend_gate", []):
+                    try:
+                        _pd = p.get("dir") or direccion_alerta(p.get("motivo", ""), p.get("bias")) or p.get("bias")
+                        if _pd == _dir_alerta and (ahora - datetime.datetime.fromisoformat(p["t"])).total_seconds() / 3600 < DEDUP_HORAS:
+                            _reciente_g = True
+                            break
+                    except Exception:
+                        continue
+                if not _reciente_g:
+                    est["pend_gate"] = est.get("pend_gate", []) + [
+                        {"t": ahora.isoformat(), "precio": round(t["last"]),
+                         "bias": dirb["bias"], "dir": _dir_alerta, "conf": dirb["confianza"],
+                         "tipo": _tipo_alerta, "motivo": _motivo_alerta[:200],
+                         "gate": gate.get("reason", "sin evidencia"),
+                         "risk": round(umbral * t["last"], 1),
+                         "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
+                                  "fund": senti["funding"], "taker": senti["taker"],
+                                  "fg": fg["valor"]}}]
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
+        if gate_blocked:
+            hist[-1]["motivo_bloqueado"] = _motivo_alerta
         fresco = est.get("runs", 0) == 0
         est["runs"] = est.get("runs", 0) + 1
         res = niv["resistencias"][0]
@@ -4957,11 +5134,15 @@ def main():
         _toque_ok = True
         if os.environ.get("VIGILANTE_SOLO_TOQUE", "0") not in ("", "0", "false", "False"):
             _toque_ok = bool(liq) or bool(rup) or bool(mecha) or bool(pila)
-        if enviar and tipo == "alerta" and dirb["bias"] in ("ALZA", "BAJA") and dirb["confianza"] >= UMBRAL_CONF_SENAL and _z_ok and _veto_ok and _conf_ok and _toque_ok:
+        # Medir la direccion REAL del plan (no el sesgo del bot). Una alerta de
+        # VENTA con sesgo ALZA se evalua como BAJA; un aviso de contexto no entra.
+        _medible = es_alerta_direccional(motivo)
+        if enviar and tipo == "alerta" and _dir_alerta in ("ALZA", "BAJA") and _medible and _z_ok and _veto_ok and _conf_ok and _toque_ok:
             reciente = False
             for p in est.get("pendientes", []):
                 try:
-                    if p.get("bias") == dirb["bias"] and (ahora - datetime.datetime.fromisoformat(p["t"])).total_seconds() / 3600 < DEDUP_HORAS:
+                    _pd = p.get("dir") or direccion_alerta(p.get("motivo", ""), p.get("bias")) or p.get("bias")
+                    if _pd == _dir_alerta and (ahora - datetime.datetime.fromisoformat(p["t"])).total_seconds() / 3600 < DEDUP_HORAS:
                         reciente = True
                         break
                 except Exception:
@@ -4969,8 +5150,9 @@ def main():
             if not reciente:
                 est["pendientes"] = est.get("pendientes", []) + [
                     {"t": ahora.isoformat(), "precio": round(t["last"]),
-                     "bias": dirb["bias"], "conf": dirb["confianza"],
-                     "tipo": tipo_de_motivo(motivo),
+                     "bias": dirb["bias"], "dir": _dir_alerta,
+                     "conf": dirb["confianza"], "tipo": _tipo_alerta,
+                     "motivo": motivo[:200],
                      "risk": round(umbral * t["last"], 1),
                      "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
                               "fund": senti["funding"], "taker": senti["taker"],
@@ -4996,7 +5178,7 @@ def main():
         # Scoreboard semanal (domingo 12:00 UTC): acierto real por tipo, no promesas.
         try:
             if ahora.weekday() == 6 and ahora.hour == 12 and est.get("ultimo_score") != hoy:
-                _txt_sb = texto_scoreboard(est.get("eval_log", []), min_n=5)
+                _txt_sb = texto_scoreboard(est.get("eval_log", []), min_n=5, solo_plan=True)
                 if _txt_sb:
                     send_telegram("🗓️ SCOREBOARD SEMANAL (señales direccionales)\n" + _txt_sb +
                                   "\nSin promesas: es lo que pasó, no lo que va a pasar.")
@@ -5009,7 +5191,7 @@ def main():
                "h1": h1, "h4": h4, "d1": d1, "w1": w1, "senti": senti,
                "notis": notis, "evs": evs, "ahora": ahora, "cb": cb, "smart": sm, "aut": aut,
                "grade": grade, "regimen": regimen, "bloqueo": bloqueo, "pres": pres,
-               "confl": _confl}
+               "confl": _confl, "motor": motor}
         try:
             cmds, new_off = leer_comandos(est.get("offset", 0))
         except Exception:
@@ -5063,6 +5245,11 @@ def main():
                         "iman": liqmap.get("iman")} if isinstance(liqmap, dict) else None),
             "evstudy": {f: {"avg": round(sum(a) / len(a), 2), "n": len(a)}
                         for f, a in ((est.get("ev_study", {}) or {}).items()) if a},
+            "gate": {"n": len(est.get("eval_gate", []) or []),
+                     "hit": sum(1 for e in (est.get("eval_gate", []) or [])
+                                if isinstance(e, dict) and float(e.get("r", 0) or 0) > 0),
+                     "pending": len(est.get("pend_gate", []) or [])},
+            "metodo_eval": "plan",
             "tags": _tags,
         }
         guardar_estado(est, hist)
@@ -5235,6 +5422,7 @@ def main():
                   "mov_ny": mov_ny,
                   "grade": grade,
                   "regimen": regimen,
+                  "motor": motor,
                   "cvd_v": cvd_v,
                   "macro": {"mx": mx, "lectura": lectura_macro(mx)},
                   "senti_viejo": senti_viejo,
