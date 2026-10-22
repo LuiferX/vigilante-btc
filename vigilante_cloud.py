@@ -4900,6 +4900,7 @@ def main():
         if enviar and tipo == "alerta" and not forzado and not gestion_txt:
             if not gate.get("ok") and es_alerta_direccional(motivo):
                 gate_blocked = True
+                print(f"Gate validacion: alerta direccional silenciada ({gate.get('reason', 'sin evidencia')}): {motivo[:120]}")
                 enviar = False
                 tipo = "nada"
                 motivo = f"silenciada por validacion: {gate.get('reason', 'sin evidencia')}"
