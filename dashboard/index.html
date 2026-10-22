@@ -37,6 +37,8 @@
     padding: 12px 14px;
   }
   .card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: 1px; }
+  .chart-wrap { position: relative; width: 100%; height: 240px; max-height: 240px; overflow: hidden; }
+  .chart-wrap canvas { display: block; width: 100% !important; height: 100% !important; max-height: 240px; }
   .span-3 { grid-column: span 3; }
   .span-4 { grid-column: span 4; }
   .span-6 { grid-column: span 6; }
@@ -182,7 +184,7 @@
   <!-- Chart -->
   <div class="card span-8">
     <h3>Precio 1h (48 velas)</h3>
-    <canvas id="priceChart" height="220"></canvas>
+    <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
   </div>
 
   <!-- Levels -->
@@ -433,11 +435,15 @@ async function loadKlines() {
           data: closes,
           borderColor: '#00ff88',
           backgroundColor: 'rgba(0,255,136,0.08)',
-          tension: 0.2, pointRadius: 0, fill: true
+          tension: 0.2, pointRadius: 0, borderWidth: 2, fill: true
         }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        resizeDelay: 150,
+        normalized: true,
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: '#6b6b6b', maxTicksLimit: 8 }, grid: { color: '#151515' } },
