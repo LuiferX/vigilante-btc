@@ -3798,6 +3798,41 @@ def evaluar_mfe(est, ahora, velas=None, pend_key="pendientes", log_key="eval_log
     est[pend_key] = nuevas[-100:]
 
 
+def registrar_pend_gate(est, ahora, precio, dirb, dir_alerta, tipo, motivo,
+                        gate_reason, umbral, h1, h4, senti, fg):
+    """Guarda una alerta silenciada para medirla despues. No la envia.
+
+    Dedup 4h por direccion. Devuelve True si la registro. Es contrafactual:
+    `eval_gate` nunca se mezcla con el scoreboard de alertas enviadas.
+    """
+    if dir_alerta not in ("ALZA", "BAJA"):
+        return False
+    for p in est.get("pend_gate", []):
+        try:
+            _pd = p.get("dir") or direccion_alerta(p.get("motivo", ""), p.get("bias")) or p.get("bias")
+            if _pd == dir_alerta and (ahora - datetime.datetime.fromisoformat(p["t"])).total_seconds() / 3600 < DEDUP_HORAS:
+                return False
+        except Exception:
+            continue
+    try:
+        _conf = dirb.get("confianza", 0)
+    except Exception:
+        _conf = 0
+    try:
+        _risk = round(float(umbral) * float(precio), 1)
+    except Exception:
+        _risk = 0.0
+    est["pend_gate"] = est.get("pend_gate", []) + [
+        {"t": ahora.isoformat(), "precio": round(precio),
+         "bias": dirb.get("bias") if isinstance(dirb, dict) else None,
+         "dir": dir_alerta, "conf": _conf, "tipo": tipo, "motivo": str(motivo or "")[:200],
+         "gate": gate_reason, "risk": _risk,
+         "feat": {"rsi": (h1 or {}).get("rsi"), "adx": (h4 or {}).get("adx", 0),
+                  "fund": (senti or {}).get("funding"), "taker": (senti or {}).get("taker"),
+                  "fg": (fg or {}).get("valor")}}]
+    return True
+
+
 def abrir_todo(est, bias, conf, precio, umbral, ahora):
     """Todo: registra CADA pasada (hable o calle) para medir si callar fue correcto.
     No alerta, no opera, no toca nada vivo. Dedup 1h por sesgo."""
@@ -5093,26 +5128,10 @@ def main():
             # Contrafactual: medir la alerta silenciada con la misma regla que las
             # enviadas. Sirve para saber si el gate protege o si esta bloqueando
             # señales buenas; nunca se envia ni se mezcla con el scoreboard vivo.
-            if _dir_alerta in ("ALZA", "BAJA"):
-                _reciente_g = False
-                for p in est.get("pend_gate", []):
-                    try:
-                        _pd = p.get("dir") or direccion_alerta(p.get("motivo", ""), p.get("bias")) or p.get("bias")
-                        if _pd == _dir_alerta and (ahora - datetime.datetime.fromisoformat(p["t"])).total_seconds() / 3600 < DEDUP_HORAS:
-                            _reciente_g = True
-                            break
-                    except Exception:
-                        continue
-                if not _reciente_g:
-                    est["pend_gate"] = est.get("pend_gate", []) + [
-                        {"t": ahora.isoformat(), "precio": round(t["last"]),
-                         "bias": dirb["bias"], "dir": _dir_alerta, "conf": dirb["confianza"],
-                         "tipo": _tipo_alerta, "motivo": _motivo_alerta[:200],
-                         "gate": gate.get("reason", "sin evidencia"),
-                         "risk": round(umbral * t["last"], 1),
-                         "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
-                                  "fund": senti["funding"], "taker": senti["taker"],
-                                  "fg": fg["valor"]}}]
+            registrar_pend_gate(est, ahora, t["last"], dirb, _dir_alerta,
+                                _tipo_alerta, _motivo_alerta,
+                                gate.get("reason", "sin evidencia"), umbral,
+                                h1, h4, senti, fg)
         hist[-1]["motivo"] = motivo
         hist[-1]["tipo"] = tipo
         if gate_blocked:

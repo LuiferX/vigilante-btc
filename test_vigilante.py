@@ -1615,6 +1615,19 @@ v.evaluar_mfe(e, ah, vel1([(82950, 83000, 82750)]), pend_key="pend_gate",
               log_key="eval_gate", alza_key="alza_gate", baja_key="baja_gate", metodo="gate")
 t("gate eval aparte", e["baja_gate"] == [1] and e["eval_gate"][0]["metodo"] == "gate")
 
+e = {}
+_okg = v.registrar_pend_gate(e, ah, 83000, {"bias": "ALZA", "confianza": 70}, "BAJA",
+                             "toque", "Tocando resistencia · BAJA: stop 83.260", "muestra_chica",
+                             100, {"rsi": 60}, {"adx": 20}, {"funding": 0.01, "taker": 1.0}, {"valor": 50})
+t("gate pend registra", _okg is True and e["pend_gate"][0]["dir"] == "BAJA"
+  and e["pend_gate"][0]["gate"] == "muestra_chica")
+t("gate pend dedup", v.registrar_pend_gate(
+    e, ah, 83000, {"bias": "ALZA", "confianza": 70}, "BAJA", "toque",
+    "Tocando resistencia · BAJA: stop 83.260", "muestra_chica", 100, {}, {}, {}, {}) is False)
+t("gate pend sin dir", v.registrar_pend_gate(
+    {}, ah, 83000, {"bias": "LATERAL", "confianza": 0}, None, "otro",
+    "contexto", "muestra_chica", 100, {}, {}, {}, {}) is False)
+
 e = {"pendientes": [pend()], "alza": [], "baja": [], "eval_log": []}
 v.evaluar_mfe(e, ah, vel1([(83050, 83100, 82950), (83150, 83250, 83100)]))
 t("mfe legacy etiquetado", e["eval_log"][0]["metodo"] == "sesgo_legacy")
