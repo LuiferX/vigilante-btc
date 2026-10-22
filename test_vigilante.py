@@ -235,6 +235,10 @@ t("cmd miedo", "Codicia" in cmd("/miedo")[0])
 t("cmd noticias vacias", "Sin noticias" in cmd("/noticias")[0])
 t("cmd eventos vacios", "Sin eventos" in cmd("/eventos")[0])
 t("cmd precision", "ALZA 60%" in cmd("/precision")[0])
+_rm = v.responder_comando({"chat": 111, "texto": "/motor", "full": "/motor", "nombre": "T"},
+                          dict(CTX, motor={"action": "observar", "bias": "ALZA", "age_min": 8,
+                                           "trigger": "cierre sobre 83.205", "invalidation": "cierre bajo 82.631"}))
+t("cmd motor", "observar" in _rm[0] and "Trigger" in _rm[0] and "no ejecuta" in _rm[0])
 t("cmd alerta ok", cmd("/alerta", "/alerta 85000")[1] is True)
 t("cmd alerta mal", "Uso" in cmd("/alerta", "/alerta")[0])
 t("cmd alertas", "85.000" in cmd("/alertas")[0])
