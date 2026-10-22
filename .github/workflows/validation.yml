@@ -1,0 +1,51 @@
+name: BTC validation bot (manual)
+
+# Corre el validador sobre los datos ya commiteados, sin colectar ni decidir.
+# El pipeline principal ya lo ejecuta cada 15 min; este workflow sirve para
+# revisar a mano despues de un backtest o de un cambio de modelo.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run validation bot
+        run: |
+          python analysis/validation.py \
+            --eval analysis/data/eval.json \
+            --backtest analysis/data/backtest.json \
+            --decisions analysis/data/decisions.jsonl \
+            --klines collector/data/btcusdt/klines_5m.jsonl \
+            --collector-health collector/data/health.json \
+            --out analysis/data/validation.json \
+            --history analysis/data/validation_history.jsonl
+
+      - name: Commit validation
+        run: |
+          git config user.name "trading-data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add analysis/data/validation.json analysis/data/validation_history.jsonl
+          if git diff --cached --quiet; then
+            echo "No validation changes"
+            exit 0
+          fi
+          git commit -m "validation: update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git pull --rebase origin main
+          git push

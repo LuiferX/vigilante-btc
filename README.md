@@ -11,9 +11,9 @@ El sistema de analisis de este README es independiente y no modifica la ejecucio
 ## Componentes
 
 - `collector/`: datos publicos de Binance Futures y noticias RSS, con fallback oficial (Binance Vision, Bybit, Kraken, OKX) y `health.json`.
-- `analysis/`: modelo de aguante, motor de decision, registro, evaluacion, backtest OOS y chequeo de salud.
-- `dashboard/`: dashboard HTML de solo lectura que consume `latest_decision.json` y `eval.json`.
-- `.github/workflows/`: pipeline unico cada 15 min, self-heal desde el Vigilante, tests, salud al final del pipeline y backtest manual.
+- `analysis/`: modelo de aguante, motor de decision, registro, evaluacion, backtest OOS, validation bot y chequeo de salud.
+- `dashboard/`: dashboard HTML de solo lectura que consume `latest_decision.json`, `eval.json` y `validation.json`.
+- `.github/workflows/`: pipeline unico cada 15 min, self-heal desde el Vigilante, tests, salud al final del pipeline, validation bot y backtest manual.
 
 Documentacion: [arquitectura](ARCHITECTURE.md), [runbook](RUNBOOK.md) y [scorecard](SCORECARD.md).
 
@@ -42,6 +42,7 @@ Documentacion: [arquitectura](ARCHITECTURE.md), [runbook](RUNBOOK.md) y [scoreca
 python collector/collector.py
 python analysis/run_decision.py --klines collector/data/btcusdt/klines_5m.jsonl --out analysis/data/decisions.jsonl
 python analysis/evaluate_decisions.py --decisions analysis/data/decisions.jsonl --klines collector/data/btcusdt/klines_5m.jsonl --out analysis/data/eval.json
+python analysis/validation.py --eval analysis/data/eval.json --backtest analysis/data/backtest.json --decisions analysis/data/decisions.jsonl --klines collector/data/btcusdt/klines_5m.jsonl --collector-health collector/data/health.json --out analysis/data/validation.json --history analysis/data/validation_history.jsonl
 python analysis/check_health.py
 python analysis/backtest.py --start 2026-10-01 --out analysis/data/backtest.json
 ```
@@ -60,17 +61,20 @@ cd analysis
 python test_hold_model.py
 python test_decision_engine.py
 python test_pipeline.py
+python test_validation.py
 python test_dashboard.py
 python test_workflows.py
 ```
 
 ## GitHub Actions
 
-- `BTC analysis pipeline`: cada 15 minutos. Colecta, decide, evalua, chequea salud y commitea `collector/data/` + `analysis/data/` en un solo job. Es el flujo principal.
-- `Analysis self-heal`: se dispara al terminar `Vigilante BTC Cloud`; si `latest_decision` tiene 15 min o mas, corre colector + decision.\n- `Collect BTC public data (manual)` y `BTC decision log (manual)`: reintentos a pedido.
-- `Analysis tests`: compile + tests de collector, motor, pipeline, backtest y dashboard.
+- `BTC analysis pipeline`: cada 15 minutos. Colecta, decide, evalua, valida, chequea salud y commitea `collector/data/` + `analysis/data/` en un solo job. Es el flujo principal.
+- `Analysis self-heal`: se dispara al terminar `Vigilante BTC Cloud`; si `latest_decision` tiene 15 min o mas, corre colector + decision + validacion.
+- `Collect BTC public data (manual)` y `BTC decision log (manual)`: reintentos a pedido.
+- `BTC validation bot (manual)`: recalcula `validation.json` sobre los datos ya commiteados.
+- `Analysis tests`: compile + tests de collector, motor, pipeline, validation bot, backtest y dashboard.
 - `Pipeline health (manual)`: inspeccion de frescura y colector a pedido.
-- `OOS backtest (manual)`: reconstruye contexto sin futuro y actualiza `analysis/data/backtest.json`.
+- `OOS backtest (manual)`: reconstruye contexto sin futuro y actualiza `analysis/data/backtest.json` + `validation.json`.
 
 Los workflows de escritura comparten `concurrency: data-write` y hacen `pull --rebase` antes del push para evitar carreras. Solo usan endpoints publicos/RSS y permisos del propio repo. No hay secretos de trading.
 
@@ -78,7 +82,7 @@ GitHub puede demorar o limitar los `schedule` cuando hay muchos workflows progra
 
 ## Dashboard
 
-`dashboard/index.html` se puede abrir local o publicar con GitHub Pages. Lee el mercado y derivados en vivo, y ademas `latest_decision.json`, `eval.json` y el estado de frescura del motor. Es solo lectura; el diario manual se guarda en `localStorage` del navegador.
+`dashboard/index.html` se puede abrir local o publicar con GitHub Pages. Lee el mercado y derivados en vivo, y ademas `latest_decision.json`, `eval.json`, `validation.json` y el estado de frescura del motor. Es solo lectura; el diario manual se guarda en `localStorage` del navegador.
 
 El dashboard actual de Pages se conserva. La version nueva del motor se publica en `https://luiferx.github.io/vigilante-btc/motor.html` y se enlaza desde el dashboard con el boton `Motor 4h`.
 

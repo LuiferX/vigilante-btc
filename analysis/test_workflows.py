@@ -22,13 +22,19 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("group: data-write", text)
 
     def test_manual_workflows_do_not_duplicate_schedule(self):
-        for name in ("collect.yml", "decision.yml", "health.yml", "backtest.yml"):
+        for name in (
+            "collect.yml",
+            "decision.yml",
+            "health.yml",
+            "backtest.yml",
+            "validation.yml",
+        ):
             with self.subTest(name=name):
                 self.assertNotIn("schedule:", read(name))
                 self.assertIn("workflow_dispatch", read(name))
 
     def test_writers_share_concurrency(self):
-        for name in ("pipeline.yml", "collect.yml", "decision.yml"):
+        for name in ("pipeline.yml", "collect.yml", "decision.yml", "validation.yml"):
             with self.subTest(name=name):
                 text = read(name)
                 self.assertIn("group: data-write", text)
@@ -58,6 +64,13 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("group: data-write", text)
         self.assertIn("collector/collector.py", text)
         self.assertIn("run_decision.py", text)
+
+    def test_pipeline_and_selfheal_run_validation(self):
+        for name in ("pipeline.yml", "decision.yml", "selfheal.yml", "backtest.yml"):
+            with self.subTest(name=name):
+                self.assertIn("analysis/validation.py", read(name))
+        self.assertIn("validation.json", read("pipeline.yml"))
+        self.assertIn("validation_history.jsonl", read("pipeline.yml"))
 
 
 if __name__ == "__main__":

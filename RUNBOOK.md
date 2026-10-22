@@ -13,7 +13,12 @@
 4. Abrir `analysis/data/eval.json`:
    - `samples` crece con el tiempo.
    - Menos de 30 muestras = no sacar conclusiones.
-5. Abrir el dashboard y verificar que el boton `Motor 4h` lleva a `/motor.html` y muestra datos frescos.
+5. Abrir `analysis/data/validation.json`:
+   - `status` debe ser `sin_muestras`, `muestra_chica`, `muestra_media`, `vigilar`, `degradado`, `roto` u `ok`.
+   - Menos de 30 muestras efectivas = ruido.
+   - `muestra_media` o `vigilar` no es una falla; es falta de evidencia o calibracion en observacion.
+   - `degradado` o `roto` requiere revisar `warnings`.
+6. Abrir el dashboard y verificar que el boton `Motor 4h` lleva a `/motor.html`, muestra datos frescos y la tarjeta `Validation bot`.
 
 ## Comandos locales
 
@@ -21,6 +26,7 @@
 python collector/collector.py
 python analysis/run_decision.py --klines collector/data/btcusdt/klines_5m.jsonl --out analysis/data/decisions.jsonl
 python analysis/evaluate_decisions.py --decisions analysis/data/decisions.jsonl --klines collector/data/btcusdt/klines_5m.jsonl --out analysis/data/eval.json
+python analysis/validation.py --eval analysis/data/eval.json --backtest analysis/data/backtest.json --decisions analysis/data/decisions.jsonl --klines collector/data/btcusdt/klines_5m.jsonl --collector-health collector/data/health.json --out analysis/data/validation.json --history analysis/data/validation_history.jsonl
 python analysis/check_health.py
 python analysis/backtest.py --start 2026-10-01 --out analysis/data/backtest.json
 ```
@@ -33,6 +39,7 @@ cd analysis
 python test_hold_model.py
 python test_decision_engine.py
 python test_pipeline.py
+python test_validation.py
 python test_dashboard.py
 python test_workflows.py
 ```
@@ -71,6 +78,13 @@ Es geo-bloqueo del runner, no un bug del codigo.
 ### `eval.json` con 0 muestras
 
 Es normal al inicio. Hacen falta 4h de velas futuras después de cada decision. El evaluador tambien necesita que el nivel tenga `hold_prob`.
+
+### `validation.json` en `degradado` o `roto`
+
+- `roto`: revisar `data.klines` (frescura, coverage 24h, gaps, duplicados) y que `eval.json` exista. Si el colector fallo, relanzar `Collect BTC public data (manual)` y despues `BTC validation bot (manual)`.
+- `degradado`: revisar `metrics.brier_skill`, `metrics.calibration_error` y `drift.psi`. No cambiar el modelo por un solo corte; documentar la ventana y esperar 100+ muestras efectivas.
+- `muestra_chica` o `muestra_media`: no es falla. Es falta de datos; no se fuerza el score.
+- El validador descuenta el solapamiento de decisiones cada 15 min. `samples.eval` puede ser mayor que `samples.effective`.
 
 ### Workflow falla al hacer push
 

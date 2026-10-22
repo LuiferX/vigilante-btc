@@ -10,11 +10,11 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **8,7/10** (ponderado).
 |---|---:|---:|---:|---|
 | Confiabilidad y cobertura de datos | 15% | 7,0 | 8,6 | fallback Binance Vision/Bybit/Kraken/OKX, `health.json`, retencion, tests de mapeo |
 | Calidad del motor de decision | 15% | 8,0 | 8,9 | zonas, HTF 1h/4h/1D, POC, sweep, aguante, guardrail de frescura |
-| Medicion y calibracion | 15% | 6,5 | 8,7 | Brier, Brier skill, Wilson, calibracion, corte por lado, backtest OOS |
-| Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 4 dashboard + 7 workflows + 10 colector; compileall |
+| Medicion y calibracion | 15% | 6,5 | 8,7 | Brier, Brier skill, Wilson, calibracion, corte por lado, backtest OOS, muestras efectivas y drift PSI |
+| Tests y CI | 10% | 7,5 | 8,8 | 5 modelo + 18 motor + 7 pipeline + 8 validation + 4 dashboard + 8 workflows + 10 colector; compileall |
 | Confiabilidad operativa | 10% | 6,5 | 8,3 | pipeline unico cada 15 min, self-heal desde Vigilante, concurrency, rebase, health al final; GitHub puede demorar el schedule, dispatch manual documentado |
 | Seguridad y guardrails | 10% | 8,0 | 9,2 | sin claves, sin ordenes, permisos minimos, bloqueo por datos vencidos |
-| Dashboard y UX | 10% | 6,5 | 8,7 | `/motor.html` en Pages, lee decision/eval, frescura, niveles, trigger, invalidacion, Brier |
+| Dashboard y UX | 10% | 6,5 | 8,7 | `/motor.html` en Pages, lee decision/eval/validation, frescura, niveles, trigger, invalidacion, Brier y validation bot |
 | Documentacion y runbook | 5% | 7,0 | 9,0 | README, arquitectura, runbook, scorecard, caveats |
 | Reproducibilidad y code quality | 5% | 7,5 | 8,6 | stdlib, paths, tests sin red, model card, CI |
 | Validacion del modelo | 5% | 7,0 | 7,5 | holdout 2026 AUC 0,665 / Brier 0,175; OOS 39 muestras sin edge demostrado |
@@ -35,7 +35,8 @@ Antes de esta iteracion: **7,2/10** aproximado con la misma rubrica.
 - Motor con `data_status` y bloqueo de trigger si los datos tienen mas de 20 minutos.
 - Evaluador con Brier skill, intervalos de Wilson, calibracion, cobertura y corte por lado.
 - Backtest OOS que reconstruye el contexto sin mirar el futuro.
-- Workflows con `concurrency`, rebase, health al final del pipeline y backtest manual.
+- Validation bot con muestras efectivas (descuenta solapamiento de 4h), drift PSI, estados explicitos y `validation_history.jsonl`.
+- Workflows con `concurrency`, rebase, health al final del pipeline, validation bot y backtest manual.
 - Dashboard con decision, frescura, niveles, trigger, invalidacion y Brier.
 - README, arquitectura, runbook y este scorecard.
 - Restauracion del `.gitignore` original del Vigilante, que se habia sobrescrito por error.
@@ -51,10 +52,12 @@ El backtest OOS del 21-10-2026 (39 muestras, 25 decisiones) da:
 
 La calibracion es razonable, pero **no hay evidencia de edge** frente a predecir la tasa base en esa muestra. La muestra es chica. Por eso Validacion del modelo queda en 7,5 y el repo no se autopuntua 9.
 
+El Validation bot agrega infraestructura para no autoengañarse: descuenta el solapamiento de decisiones cada 15 min, mide muestras efectivas, PSI contra el backtest y estados `muestra_chica`/`muestra_media`/`vigilar`/`degradado`/`roto`. Eso mejora la medicion, pero **no sube por si solo la validacion del modelo**: para eso hacen falta 100+ muestras efectivas y Brier skill positivo.
+
 ## Criterio para subir a 9,0
 
 1. Backtest OOS con 100+ muestras y Brier skill positivo y estable.
 2. Mejor cobertura de top traders (fallback o fuente alternativa).
 3. Mantener `/motor.html` publicado y enlazado sin romper el dashboard actual.
-4. Monitoreo de drift mensual y recalibracion documentada.
+4. Drift automatizado en el pipeline y recalibracion documentada cuando `validation.json` lo justifique.
 5. Revision externa de la rubrica.

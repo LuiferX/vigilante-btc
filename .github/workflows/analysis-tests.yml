@@ -39,5 +39,6 @@ jobs:
           python test_hold_model.py
           python test_decision_engine.py
           python test_pipeline.py
+          python test_validation.py
           python test_dashboard.py
           python test_workflows.py

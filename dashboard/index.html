@@ -163,6 +163,22 @@
     <div class="note" id="dEvalNote">El aguante es probabilidad condicional a 4h, no win rate. Sin ejecución de órdenes.</div>
   </div>
 
+  <!-- Validation bot -->
+  <div class="card span-12">
+    <h3>Validation bot <span id="vStatus" class="status pending">cargando</span></h3>
+    <div class="decision-grid">
+      <div class="box"><div class="k">Muestras</div><div class="v" id="vSamples">—</div></div>
+      <div class="box"><div class="k">Efectivas</div><div class="v" id="vEffective">—</div></div>
+      <div class="box"><div class="k">Brier</div><div class="v" id="vBrier">—</div></div>
+      <div class="box"><div class="k">Brier skill</div><div class="v" id="vSkill">—</div></div>
+      <div class="box"><div class="k">Calibración</div><div class="v" id="vECE">—</div></div>
+      <div class="box"><div class="k">Drift</div><div class="v" id="vDrift">—</div></div>
+      <div class="box"><div class="k">Backtest OOS</div><div class="v" id="vBacktest">—</div></div>
+      <div class="box"><div class="k">Último chequeo</div><div class="v" id="vLast">—</div></div>
+    </div>
+    <div class="note" id="vNote">El validation bot mide calibración y drift. No es win rate ni garantía de edge.</div>
+  </div>
+
   <!-- Chart -->
   <div class="card span-8">
     <h3>Precio 1h (48 velas)</h3>
@@ -328,6 +344,36 @@ async function loadEval() {
     out.textContent = 'Evaluación no disponible';
     out.className = 'val';
     note.textContent = 'No se pudo leer eval.json.';
+  }
+}
+
+async function loadValidation() {
+  const status = $('vStatus');
+  try {
+    const v = await getJSON(DECISION_BASE + 'validation.json?x=' + Date.now());
+    const state = v.status || 'sin_datos';
+    status.textContent = state;
+    status.className = 'status ' + (state === 'ok' ? 'win' : (state === 'degradado' || state === 'roto') ? 'loss' : 'pending');
+
+    const skill = v.metrics?.brier_skill;
+    const ece = v.metrics?.calibration_error;
+    $('vSamples').textContent = v.samples?.eval ?? 0;
+    $('vEffective').textContent = v.samples?.effective ?? 0;
+    $('vBrier').textContent = v.metrics?.brier == null ? 'n/d' : fmt(v.metrics.brier, 4);
+    $('vSkill').textContent = skill == null ? 'n/d' : fmt(skill, 3);
+    $('vSkill').className = 'v ' + (skill > 0 ? 'good' : 'warn');
+    $('vECE').textContent = ece == null ? 'n/d' : fmt(ece, 4);
+    $('vECE').className = 'v ' + (ece <= 0.05 ? 'good' : 'warn');
+    $('vDrift').textContent = v.drift?.status || 'sin_datos';
+    $('vDrift').className = 'v ' + (v.drift?.status === 'ok' ? 'good' : v.drift?.status === 'alert' ? 'bad' : 'warn');
+    $('vBacktest').textContent = `${v.backtest?.samples ?? 0} · skill ${v.backtest?.brier_skill == null ? 'n/d' : fmt(v.backtest.brier_skill, 3)}`;
+    $('vLast').textContent = v.checked_at ? new Date(v.checked_at).toLocaleString('es-ES') : '—';
+    $('vNote').textContent = (v.headline || 'Sin informe de validación.') + (v.warnings?.length ? ' · ' + v.warnings.slice(0, 2).join(' · ') : '');
+  } catch (e) {
+    status.textContent = 'sin datos';
+    status.className = 'status loss';
+    $('vNote').textContent = 'No se pudo leer validation.json.';
+    console.error(e);
   }
 }
 
@@ -579,6 +625,7 @@ $('refreshBtn').addEventListener('click', async () => {
   await loadContextFlags();
   await loadDecision();
   await loadEval();
+  await loadValidation();
   $('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES');
 });
 
@@ -590,6 +637,7 @@ async function init() {
   await loadContextFlags();
   await loadDecision();
   await loadEval();
+  await loadValidation();
   $('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES');
   // auto-check pending plans (silent)
   checkAllPending().catch(()=>{});

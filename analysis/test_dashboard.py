@@ -14,6 +14,7 @@ class DashboardTest(unittest.TestCase):
     def test_reads_decision_and_eval(self):
         self.assertIn("latest_decision.json", self.html)
         self.assertIn("eval.json", self.html)
+        self.assertIn("validation.json", self.html)
         self.assertIn("DECISION_BASE", self.html)
 
     def test_has_no_order_buttons(self):

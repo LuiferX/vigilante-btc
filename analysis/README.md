@@ -215,17 +215,53 @@ python backtest.py --start 2026-10-01 --out data/backtest.json
 python check_health.py
 ```
 
+### Validation bot
+
+`validation.py` es el control de calidad del motor. No cambia el modelo ni ejecuta ordenes: lee `eval.json`, `backtest.json`, `decisions.jsonl` y las velas, y escribe `data/validation.json` + `data/validation_history.jsonl`.
+
+```bash
+python validation.py \
+  --eval data/eval.json \
+  --backtest data/backtest.json \
+  --decisions data/decisions.jsonl \
+  --klines ../collector/data/btcusdt/klines_5m.jsonl \
+  --collector-health ../collector/data/health.json \
+  --out data/validation.json \
+  --history data/validation_history.jsonl
+```
+
+Que mide:
+
+- Muestras nominales y **muestras efectivas**. Las decisiones cada 15 min se solapan a 4h; el validador descuenta ese solapamiento con bloques de 4h.
+- Brier, Brier skill, calibracion y corte por lado que ya calcula el evaluador.
+- Drift basico: PSI entre la distribucion de probabilidades vivas y el backtest OOS.
+- Calidad de datos: frescura, coverage 24h, gaps y duplicados de velas.
+- Estado del backtest OOS, sin presentarlo como validacion viva.
+
+Estados:
+
+- `sin_muestras`: aun no hay decisiones con 4h de futuro.
+- `muestra_chica`: menos de 30 efectivas; ruido.
+- `muestra_media`: 30-99 efectivas; medicion en curso.
+- `vigilar`: 100+ efectivas, pero Brier skill o calibracion en zona de vigilancia.
+- `degradado`: Brier skill muy negativo, calibracion alta o drift alto.
+- `roto`: faltan datos, velas vencidas o gaps graves.
+- `ok`: 100+ efectivas, Brier skill positivo y calibracion aceptable.
+
+El objetivo no es que el bot diga que todo esta bien. Es que diga **cuando no hay evidencia suficiente** y cuando la calibracion se esta rompiendo.
+
 ### Tests
 
 ```bash
 python test_hold_model.py
 python test_decision_engine.py
 python test_pipeline.py
+python test_validation.py
 python test_dashboard.py
 python test_workflows.py
 python ../collector/test_collector.py
 ```
 
-Cobertura actual: 5 del modelo, 18 del motor, 7 de runner/evaluador/backtest/salud, 4 del dashboard, 7 de workflows y 10 del colector. CI compila todo y corre la suite en cada cambio de codigo.
+Cobertura actual: 5 del modelo, 18 del motor, 7 de runner/evaluador/backtest/salud, 8 del validation bot, 4 del dashboard, 8 de workflows y 10 del colector. CI compila todo y corre la suite en cada cambio de codigo.
 
 

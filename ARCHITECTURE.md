@@ -28,6 +28,14 @@ Binance Futures / Binance Vision / Bybit / Kraken / OKX / RSS
               |
               v
        analysis/data/eval.json
+              |
+              v
+       analysis/validation.py
+  (muestras efectivas, drift, estados)
+              |
+              v
+   analysis/data/validation.json
+   analysis/data/validation_history.jsonl
 ```
 
 ## Componentes
@@ -61,12 +69,14 @@ Binance Futures / Binance Vision / Bybit / Kraken / OKX / RSS
 - Reporta Brier, tasa base, Brier skill, calibracion por tramos, intervalos de Wilson y corte por lado.
 - `backtest.py` reconstruye el contexto historico sin mirar el futuro y etiqueta solo con las velas siguientes.
 - Menos de 30 muestras = muestra chica; no se cambia el modelo por un corte.
+- `validation.py` calcula muestras efectivas descontando el solapamiento de 4h, drift PSI contra el backtest y estados explicitos (`sin_muestras`, `muestra_chica`, `muestra_media`, `vigilar`, `degradado`, `roto`, `ok`).
+- El validation bot no cambia el modelo ni ejecuta ordenes; solo decide si hay evidencia suficiente para confiar en la calibracion.
 
 ### Dashboard
 
 - Solo lectura, negro/blanco/gris con acentos neon.
 - Mercado y derivados en vivo desde Binance en el navegador.
-- Lee `latest_decision.json` y `eval.json` desde `raw.githubusercontent.com`.
+- Lee `latest_decision.json`, `eval.json` y `validation.json` desde `raw.githubusercontent.com`.
 - Se publica como `motor.html` en GitHub Pages sin reemplazar el dashboard actual.
 - Diario manual en `localStorage`; no se envia a ningun servidor.
 - No tiene botones de compra/venta ni ejecucion.
@@ -75,12 +85,14 @@ Binance Futures / Binance Vision / Bybit / Kraken / OKX / RSS
 
 | Workflow | Frecuencia | Funcion |
 |---|---|---|
-| `BTC analysis pipeline` | cada 15 min | colecta, decide, evalua, chequea salud y commitea todo |\n| `Analysis self-heal` | al terminar `Vigilante BTC Cloud` | si la decision tiene >=15 min, corre el pipeline |
+| `BTC analysis pipeline` | cada 15 min | colecta, decide, evalua, valida, chequea salud y commitea todo |
+| `Analysis self-heal` | al terminar `Vigilante BTC Cloud` | si la decision tiene >=15 min, corre el pipeline |
 | `Collect BTC public data (manual)` | a pedido | reintento del colector |
 | `BTC decision log (manual)` | a pedido | recalculo sin colector |
+| `BTC validation bot (manual)` | a pedido | recalcula `validation.json` sin colectar |
 | `Analysis tests` | push de codigo | compile + tests |
 | `Pipeline health (manual)` | a pedido | inspeccion de frescura |
-| `OOS backtest (manual)` | a pedido | actualiza `analysis/data/backtest.json` |
+| `OOS backtest (manual)` | a pedido | actualiza `analysis/data/backtest.json` y `validation.json` |
 | `Tests` | push a `main` | suite del Vigilante |
 | `Vigilante BTC Cloud` | cada 5 min (cron externo) | alertas del bot; no opera |
 
