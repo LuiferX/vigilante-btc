@@ -6,7 +6,7 @@ Sistema de **analisis y contexto** para BTC. No ejecuta ordenes, no usa claves p
 
 El bot de alertas sigue en `vigilante_cloud.py` (modelo de aguante v2, detector de toques y avisos). Sus pruebas estan en `test_vigilante.py`. El workflow `Vigilante BTC Cloud` corre cada 5 minutos y solo avisa; no opera.
 
-Desde el 22/10/2026, las **alertas direccionales** consultan `analysis/data/validation.json`. Solo se permiten si el estado es `ok` o `muestra_media`, hay al menos 30 muestras efectivas, el Brier skill es positivo, la calibracion ECE <= 0,08 y no hay drift en alerta. Si no se cumple, la alerta se silencia y se avisa una vez al dia; los avisos de contexto siguen saliendo sin plan de entrada. El umbral de movimiento brusco subio a 1,5% en 1h y el de ritmo a 1,5% en 30 min.
+Desde el 22/10/2026, las **alertas direccionales** consultan `analysis/data/validation.json`. Solo se permiten si el estado es `ok`, hay al menos 100 muestras efectivas, el Brier skill es positivo, la calibracion ECE <= 0,08 y no hay drift en alerta. Si no se cumple, la alerta se silencia y se avisa una vez al dia; los avisos de contexto siguen saliendo sin plan de entrada. El umbral de movimiento brusco subio a 1,5% en 1h y el de ritmo a 1,5% en 30 min.
 
 ## Componentes
 

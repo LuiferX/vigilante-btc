@@ -317,8 +317,8 @@ def _gate_desde_validacion(data):
         ece = None
     drift_status = str(drift.get("status") or "sin_datos")
     ok = (
-        status in ("ok", "muestra_media")
-        and effective >= 30
+        status == "ok"
+        and effective >= 100
         and skill is not None
         and skill > 0
         and ece is not None

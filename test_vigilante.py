@@ -1546,6 +1546,13 @@ _gate_ok = v._gate_desde_validacion({
     "drift": {"status": "ok"},
 })
 t("gate permite validado", _gate_ok["ok"] is True)
+_gate_media = v._gate_desde_validacion({
+    "status": "muestra_media",
+    "samples": {"effective": 60},
+    "metrics": {"brier_skill": 0.08, "calibration_error": 0.04},
+    "drift": {"status": "ok"},
+})
+t("gate exige 100 efectivas", _gate_media["ok"] is False)
 _gate_drift = v._gate_desde_validacion({
     "status": "ok",
     "samples": {"effective": 120},
