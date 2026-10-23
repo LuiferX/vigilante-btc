@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-23T19:21:30.167818+00:00",
+  "checked_at": "2026-10-23T19:22:13.868303+00:00",
   "status": "muestra_chica",
   "healthy": false,
   "sample_status": "muestra_chica",
@@ -201,7 +201,7 @@
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
       "last": "2026-10-23T19:15:00+00:00",
-      "age_min": 6.5,
+      "age_min": 7.23,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-23T19:21:24.088135+00:00",
+      "run_at": "2026-10-23T19:22:05.620792+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -245,6 +245,6 @@
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
   "data_hash": "7bf7b3f7b99c1e65",
-  "code_sha": "23e043af6f38da99c3f8effa997016bc3f553a8f",
+  "code_sha": "4af5fe10c75a1d2d72d5bc96208e12064f1a5638",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
