@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-23T16:06:20.893439+00:00",
+  "run_at": "2026-10-23T16:26:15.146789+00:00",
   "ok": true,
   "kline_ok": true,
   "data_dir": "data/btcusdt",
@@ -7,7 +7,7 @@
     "funding.jsonl": {
       "ok": true,
       "fetched": 100,
-      "added": 1,
+      "added": 0,
       "trimmed": 0,
       "source": "okx_funding",
       "last_key": 1789920000000
@@ -15,18 +15,18 @@
     "open_interest.jsonl": {
       "ok": true,
       "fetched": 575,
-      "added": 3,
+      "added": 4,
       "trimmed": 0,
       "source": "okx_oi",
-      "last_key": 1792599000000
+      "last_key": 1792600200000
     },
     "global_ls.jsonl": {
       "ok": true,
-      "fetched": 575,
-      "added": 2,
+      "fetched": 576,
+      "added": 5,
       "trimmed": 0,
       "source": "okx_global_ls",
-      "last_key": 1792599000000
+      "last_key": 1792600200000
     },
     "top_ls_account.jsonl": {
       "ok": false,
@@ -39,23 +39,23 @@
     "taker_ls.jsonl": {
       "ok": true,
       "fetched": 72,
-      "added": 3,
+      "added": 4,
       "trimmed": 0,
       "source": "okx_taker_ls",
-      "last_key": 1792749900000
+      "last_key": 1792751100000
     },
     "klines_5m.jsonl": {
       "ok": true,
       "fetched": 999,
-      "added": 3,
+      "added": 4,
       "trimmed": 0,
       "source": "binance_vision_klines_5m",
-      "last_key": 1792771200000
+      "last_key": 1792772400000
     },
     "klines_1h.jsonl": {
       "ok": true,
       "fetched": 999,
-      "added": 1,
+      "added": 0,
       "trimmed": 0,
       "source": "binance_vision_klines_1h",
       "last_key": 1792767600000
@@ -63,7 +63,7 @@
     "klines_4h.jsonl": {
       "ok": true,
       "fetched": 499,
-      "added": 1,
+      "added": 0,
       "trimmed": 0,
       "source": "binance_vision_klines_4h",
       "last_key": 1792756800000
@@ -91,8 +91,8 @@
       "fetched": 10
     },
     "ok": true,
-    "added": 0,
+    "added": 1,
     "trimmed": 0
   },
-  "finished_at": "2026-10-23T16:06:27.710023+00:00"
+  "finished_at": "2026-10-23T16:26:23.020665+00:00"
 }
