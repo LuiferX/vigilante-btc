@@ -58,9 +58,19 @@ jobs:
         run: |
           git config user.name "vigilante-bot"
           git config user.email "vigilante-bot@users.noreply.github.com"
+          git config pull.rebase true
           git add analysis/data/backtest.json analysis/data/oos_eval.json || echo "nada que guardar"
           git commit -m "oos: refresco $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
-          ok=0; for i in 1 2 3; do git pull --rebase origin main >/dev/null 2>&1; git push origin HEAD:main && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
+          # Varios workflows escriben en main (pipeline, self-heal, este).
+          # Rebase sobre el origin mas nuevo + --force-with-lease (nunca pisa
+          # trabajo ajeno: solo falla si alguien empujo desde nuestra propia base).
+          ok=0
+          for i in 1 2 3 4 5; do
+            git fetch origin main -q
+            if git rebase origin/main && git push --force-with-lease origin HEAD:main; then ok=1; break; fi
+            echo "reintento $i/5"; sleep 15
+          done
+          [ $ok -eq 1 ]
 
       - name: Publicar replay como artefacto
         uses: actions/upload-artifact@v4
