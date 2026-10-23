@@ -59,6 +59,7 @@ jobs:
           PY
           git add data/wf_folds.json data/wf_muestras.jsonl analysis/experimentos/scoreboard.jsonl || echo "nada"
           git commit -m "wf: control semanal $(date -u +%Y-%m-%d)" || echo "sin cambios"
+          git reset --hard HEAD -q
           git config pull.rebase true
           ok=0
           for i in 1 2 3 4 5; do

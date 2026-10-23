@@ -61,6 +61,10 @@ jobs:
           git config pull.rebase true
           git add analysis/data/backtest.json analysis/data/oos_eval.json || echo "nada que guardar"
           git commit -m "oos: refresco $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
+          # Los pasos de validation de este mismo job tocan archivos versionados
+          # (validation.json, validation_history.jsonl) que commitea el pipeline:
+          # se descartan aqui para que el rebase no encuentre cambios sin commitear.
+          git reset --hard HEAD -q
           # Varios workflows escriben en main (pipeline, self-heal, este).
           # Rebase sobre el origin mas nuevo + --force-with-lease (nunca pisa
           # trabajo ajeno: solo falla si alguien empujo desde nuestra propia base).
