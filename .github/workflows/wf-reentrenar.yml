@@ -1,0 +1,70 @@
+name: WF re-entrenar (semanal)
+
+on:
+  schedule:
+    - cron: '41 2 * * 1'      # lunes 02:41 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  reentrenar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Revisa si el modelo publicado sigue ganando fuera de muestra. NO lo
+      # reemplaza solo: deja la evidencia (wf_folds.json + scoreboard) para que
+      # la decision de publicar sea explicita y quede registrada.
+      - name: Walk-forward de control (11 folds, embargo 24h)
+        run: |
+          python analysis/entrenar_hold.py \
+            --datadir analysis/data/cache \
+            --desde 2023-01-01 --hasta 2026-09-30 \
+            --test-dias 90 --train-dias 365 --embargo-horas 24 \
+            --etiqueta wf-control-semanal \
+            --out-folds data/wf_folds.json \
+            --out-muestras data/wf_muestras.jsonl
+
+      - name: Preparar cache si no existe (descarga publica)
+        run: |
+          if [ ! -f analysis/data/cache/klines_5m.jsonl ]; then
+            python analysis/backfill.py --descargar --cache analysis/data/cache --start 2026-10-01T00:00:00+00:00
+          fi
+
+      - name: Guardar scoreboard de experimentos
+        run: |
+          git config user.name "vigilante-bot"
+          git config user.email "vigilante-bot@users.noreply.github.com"
+          python - <<'PY'
+          import json, os, datetime
+          os.makedirs("analysis/experimentos", exist_ok=True)
+          p = "analysis/experimentos/scoreboard.jsonl"
+          fila = {"t": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  "id": "wf-control-semanal", "estado": "revision"}
+          with open(p, "a", encoding="utf-8") as fh:
+              fh.write(json.dumps(fila, ensure_ascii=False) + "\n")
+          PY
+          git add data/wf_folds.json data/wf_muestras.jsonl analysis/experimentos/scoreboard.jsonl || echo "nada"
+          git commit -m "wf: control semanal $(date -u +%Y-%m-%d)" || echo "sin cambios"
+          ok=0; for i in 1 2 3; do git pull --rebase origin main >/dev/null 2>&1; git push origin HEAD:main && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
+
+      - name: Publicar folds como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: wf-folds
+          path: data/wf_folds.json
+          retention-days: 60
+          if-no-files-found: warn

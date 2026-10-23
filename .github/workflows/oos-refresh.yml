@@ -1,8 +1,8 @@
-name: OOS refresh (semanal)
+name: OOS refresh (diario)
 
 on:
   schedule:
-    - cron: '17 4 * * 1'      # lunes 04:17 UTC: OOS fresco para la semana
+    - cron: '23 3 * * *'      # diario 03:23 UTC
   workflow_dispatch: {}
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   refrescar:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,28 +25,34 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Traer estado vivo (rama estado)
-        run: |
-          git fetch origin estado 2>/dev/null || true
-
-      - name: Replay OOS (baja historial publico, sin claves)
+      - name: Descargar historial publico (Binance Vision, sin claves)
         run: |
           python analysis/backfill.py --descargar \
+            --cache analysis/data/cache \
             --start 2026-10-01T00:00:00+00:00 \
             --out analysis/data/decisions_hist.jsonl \
-            --cache analysis/data/cache \
             --eval-out analysis/data/oos_eval.json
 
-      - name: Backtest OOS
+      - name: Backtest OOS (modelo publicado)
         run: |
           python analysis/backtest.py \
             --klines analysis/data/cache/klines_5m.jsonl \
             --start 2026-10-01T00:00:00+00:00 \
             --out analysis/data/backtest.json
 
-      # OJO: validation.json NO se recalcula ni se commitea aqui. Lo escribe el
-      # pipeline (cada 15 min) con el validation.py nuevo, que ya lee el canal
-      # OOS de backtest.json. Escribirlo desde los dos lados causaba carrera.
+      - name: Validation (canal OOS + deriva + puerta)
+        run: |
+          python analysis/validation.py \
+            --eval analysis/data/eval.json \
+            --backtest analysis/data/backtest.json \
+            --decisions analysis/data/decisions.jsonl \
+            --klines analysis/data/cache/klines_5m.jsonl \
+            --collector-health collector/data/health.json \
+            --out analysis/data/validation.json \
+            --history analysis/data/validation_history.jsonl
+
+      # validation.json lo commitea el pipeline (cada 15 min); aqui solo se
+      # guardan los artefactos OOS que escribe este workflow, para no pisarlo.
 
       - name: Guardar evidencia OOS (solo backtest + eval)
         run: |
@@ -61,5 +67,5 @@ jobs:
         with:
           name: decisions_hist
           path: analysis/data/decisions_hist.jsonl
-          retention-days: 30
+          retention-days: 14
           if-no-files-found: warn
