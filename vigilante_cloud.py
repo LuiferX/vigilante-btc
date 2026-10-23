@@ -14,7 +14,6 @@ Secretos por variables de entorno. Sin API keys, sin trading.
 
 import datetime
 import json
-import math
 import os
 import re
 import sys
@@ -55,31 +54,92 @@ from vigilante.indicadores import (  # noqa: E402,F401  (re-export: API publica)
     validar_velas,
     latido_tarde,
 )
+from vigilante.estado import (  # noqa: E402,F401  (re-export: API publica)
+    cambio,
+    enfriar,
+    cargar_estado,
+    _podar_estado,
+    guardar_estado,
+    ESTADO_FILE,
+    HIST_FILE,
+    MAX_HIST,
+    MAX_PEND_TODO,
+    MAX_EVAL_TODO,
+    MAX_PAPER_ABIERTAS,
+    MAX_OPS,
+    MAX_DELTAS,
+)
+from vigilante.toques import (  # noqa: E402,F401  (re-export: API publica)
+    pivotes_micro,
+    toques_en_nivel,
+    _ema_ultimo,
+    _std_muestral,
+    features_toque,
+    score_toque,
+    detectar_toques_multiples,
+    MODELO_TOQUES,
+    UMBRAL_TOQUE,
+)
+from vigilante.red import (  # noqa: E402,F401  (re-export: API publica)
+    _elegir_fuente,
+    fetch,
+    klines,
+    ticker24,
+    sentiment,
+    FAPI,
+    FDATA,
+    VISION,
+    FUENTE,
+    MERCADO,
+)
+from vigilante.mercado import (  # noqa: E402,F401  (re-export: API publica)
+    macro_ext,
+    yahoo_cierres,
+    lectura_macro,
+    coinbase_premium,
+    coinbase_analisis,
+    cb_veredicto,
+    smart_money,
+    dominancia,
+    veredicto_dom,
+    ls_global,
+    oro_vs_btc,
+    ballenas,
+    cvd,
+    div_cvd,
+    mapa_liq,
+    punto_control,
+    _atr_serie,
+    fvg_velas,
+    fvgs_cercanos,
+    fvgs_activos,
+    texto_fvg,
+    retest,
+    ruptura,
+    liquidez_nivel,
+    liquidez,
+    divergencia,
+    zonas_pilas,
+    mensaje_pila,
+    prob_reaccion,
+    etiquetar_senal,
+    lado_ok,
+    psico,
+    snap_nivel,
+    UMBRAL_BALLENA,
+    UMBRAL_RUPTURA_MIN,
+    UMBRAL_RUPTURA_ESTRICTO,
+    REAC_BASE,
+    REAC_TAB,
+)
 
 VERSION = "v6"
 
-FAPI = "https://fapi.binance.com/fapi/v1"
-FDATA = "https://fapi.binance.com/futures/data"
-VISION = "https://data-api.binance.vision/api/v3"
-FUENTE = {"nombre": "futuros"}
 # Fuente de mercado: se fija UNA vez por pasada para que precio y velas vengan
 # del mismo sitio. Antes cada llamada hacia su propio fallback y una pasada podia
 # quedar con klines de futuros y ticker de spot (mezcla inconsistente).
-MERCADO = {"base": None}
 
 
-def _elegir_fuente():
-    """Fija FAPI (futuros) o VISION (spot) para TODA la pasada. Devuelve la base."""
-    if MERCADO.get("base"):
-        return MERCADO["base"]
-    try:
-        fetch(f"{FAPI}/ping", tries=1)
-        MERCADO["base"] = FAPI
-        FUENTE["nombre"] = "futuros"
-    except Exception:
-        MERCADO["base"] = VISION
-        FUENTE["nombre"] = "spot"
-    return MERCADO["base"]
 
 # ---------------- Noticias (prensa) y calendario (eventos futuros) --------
 
@@ -286,27 +346,16 @@ def plan_entrada(dirb, niv, evs, ahora):
     return lineas
 
 
-ESTADO_FILE = "estado.json"
-HIST_FILE = "historial.jsonl"
-MAX_HIST = 1500
-MAX_PEND_TODO = 100
-MAX_EVAL_TODO = 200
-MAX_PAPER_ABIERTAS = 5
-MAX_OPS = 20
-MAX_DELTAS = 25
 EVAL_HORAS = 8
 UMBRAL_MOV = 0.002
 UMBRAL_CONF_FUERTE = 55
 UMBRAL_CONF_CAMBIO = 40
 UMBRAL_CONF_SENAL = 50    # subido de 45: menos señales, mayor calidad (replay: confluencia > umbral solo)
 UMBRAL_PAPEL = 40         # subido de 35: el papel aprende con menos ruido
-UMBRAL_TOQUE = 0.0025  # 0.25% del nivel = "tocando"
 # F6: anti "ruptura de chop". Una ruptura confirmada DEBE tener la vela en la
 # direccion del break (roja=bajista, verde=alcista), cruzar el nivel de verdad
 # (la vela previa cerraba al otro lado) y superar un margen minimo. Evita cantar
 # "ruptura BAJISTA" cuando el soporte mas cercano sube pegado al precio en subida.
-UMBRAL_RUPTURA_MIN = float(os.environ.get("VIGILANTE_RUPTURA_MIN", "0.30"))   # margen minimo % mas alla del nivel
-UMBRAL_RUPTURA_ESTRICTO = os.environ.get("VIGILANTE_RUPTURA_ESTRICTO", "1") not in ("", "0", "false", "False")
 DEDUP_HORAS = 4          # misma direccion en 4 h = 1 sola senal (sin duplicados)
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
 FEE_PCT = 0.001          # 0.10% ida+vuelta (costo de operar)
@@ -317,7 +366,6 @@ UMBRAL_BRUSCO = float(os.environ.get("VIGILANTE_UMBRAL_BRUSCO", "1.5"))  # +/-1.
 UMBRAL_RITMO = float(os.environ.get("VIGILANTE_UMBRAL_RITMO", "1.5"))    # +/-1.5% en 30min: movimiento real
 GATE_FILE = os.environ.get("VIGILANTE_VALIDATION", "analysis/data/validation.json")
 UMBRAL_DIA_NY = 2.0      # +/-2% en el dia NY = dia de tendencia (avisa)
-UMBRAL_BALLENA = 5       # print >= 5 BTC (~$400k) = huella de ballena
 BLACKOUT_MIN = 30        # sin senales nuevas X min antes/despues de evento High
 SEMILLA_SESION = {"NY": 1.0, "Londres": 1.0, "noche": 1.0, "Asia": 1.0}  # neutra: ver doc
 PAPER_BANCO = float(os.environ.get("PAPER_BANCO", "100.0"))   # perfil XLX: banco virtual en USDT
@@ -711,96 +759,12 @@ def aplicar_gate_alerta(enviar, motivo, tipo, gate, forzado=None, gestion=None):
     return False, f"silenciada por validacion: {gate.get('reason', 'sin evidencia')}", "nada", True
 
 
-def fetch(url, timeout=20, tries=3):
-    last = None
-    for i in range(tries):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "vigilante-cloud/3.0"})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r)
-        except Exception as e:  # noqa: BLE001
-            last = e
-            if i < tries - 1:
-                time.sleep(2 * (i + 1))
-    raise last
 
 
-def klines(interval, limit):
-    base = MERCADO.get("base") or FAPI
-    try:
-        data = fetch(f"{base}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}")
-    except Exception:
-        alt = VISION if base == FAPI else FAPI
-        data = fetch(f"{alt}/klines?symbol=BTCUSDT&interval={interval}&limit={limit}", tries=2)
-        MERCADO["base"] = alt
-        FUENTE["nombre"] = "spot" if alt == VISION else "futuros"
-    if not isinstance(data, list) or not data:
-        raise ValueError("klines vacías o error API")
-    data = [k for k in data if isinstance(k, (list, tuple)) and len(k) >= 6]
-    if not data:
-        raise ValueError("klines sin filas válidas")
-    return [
-        {
-            "t": datetime.datetime.fromtimestamp(k[0] / 1000, datetime.timezone.utc),
-            "o": float(k[1]), "h": float(k[2]), "l": float(k[3]),
-            "c": float(k[4]), "v": float(k[5]),
-        }
-        for k in data
-    ]
 
 
-def ticker24():
-    base = MERCADO.get("base") or FAPI
-    try:
-        t = fetch(f"{base}/ticker/24hr?symbol=BTCUSDT")
-    except Exception:
-        alt = VISION if base == FAPI else FAPI
-        t = fetch(f"{alt}/ticker/24hr?symbol=BTCUSDT", tries=2)
-        MERCADO["base"] = alt
-        FUENTE["nombre"] = "spot" if alt == VISION else "futuros"
-    try:
-        last = float(t.get("lastPrice"))
-        chg = float(t.get("priceChangePercent"))
-        hi = float(t.get("highPrice"))
-        lo = float(t.get("lowPrice"))
-    except Exception:
-        raise ValueError("ticker24 sin claves")
-    return {
-        "last": last,
-        "chg": chg,
-        "hi": hi,
-        "lo": lo,
-        "vol": float(t.get("volume", 0) or 0),
-    }
 
 
-def sentiment():
-    out = {"funding": None, "oi": None, "taker": None, "spread": None}
-    try:
-        f = fetch(f"{FAPI}/premiumIndex?symbol=BTCUSDT", tries=1)
-        out["funding"] = round(float(f["lastFundingRate"]) * 100, 4)
-    except Exception:
-        pass
-    try:
-        oi = fetch(f"{FAPI}/openInterest?symbol=BTCUSDT", tries=1)
-        out["oi"] = float(oi["openInterest"])
-    except Exception:
-        pass
-    try:
-        t = fetch(f"{FDATA}/takerlongshortRatio?symbol=BTCUSDT&period=1h&limit=1", tries=1)
-        if t:
-            out["taker"] = round(float(t[-1]["buySellRatio"]), 3)
-    except Exception:
-        pass
-    try:
-        b = fetch(f"{VISION}/ticker/bookTicker?symbol=BTCUSDT", tries=1)
-        bid, ask = float(b["bidPrice"]), float(b["askPrice"])
-        mid = (bid + ask) / 2
-        if mid > 0:
-            out["spread"] = round((ask - bid) / mid * 10000, 2)
-    except Exception:
-        pass
-    return out
 
 
 def regla_spread(spread_bps):
@@ -980,12 +944,6 @@ def pivots(interval, label):
 GRID_NIVELES = 500  # rejilla fija: max14/min14 caminan cada hora; sin snap cada pasada es un "nivel nuevo" y re-dispara cooldowns
 
 
-def snap_nivel(v):
-    """Ancla un nivel a la rejilla para que tenga identidad estable entre pasadas."""
-    try:
-        return int(round(float(v) / GRID_NIVELES) * GRID_NIVELES)
-    except Exception:
-        return v
 
 
 def ficha_zona(est, nivel):
@@ -1254,247 +1212,23 @@ def toques_hoy(hist, nivel, ahora):
     return n
 
 
-def pivotes_micro(kl, k=5, tol=0.0015):
-    """Niveles locales de corto plazo a partir de pivotes (por defecto 5m).
-    Agrupa pivotes cercanos para que un triple toque sea UN nivel, no tres."""
-    try:
-        if not kl or len(kl) < 2 * k + 3:
-            return []
-        crudos = []
-        for i in range(k, len(kl) - k):
-            ventana = kl[i - k:i + k + 1]
-            if kl[i]["h"] >= max(x["h"] for x in ventana):
-                crudos.append(kl[i]["h"])
-            if kl[i]["l"] <= min(x["l"] for x in ventana):
-                crudos.append(kl[i]["l"])
-        out = []
-        for p in sorted(crudos):
-            hit = next((o for o in out if abs(o["precio"] - p) / p <= tol), None)
-            if hit is None:
-                out.append({"precio": p, "n": 1})
-            else:
-                n = hit["n"]
-                hit["precio"] = (hit["precio"] * n + p) / (n + 1)
-                hit["n"] = n + 1
-        return out
-    except Exception:
-        return []
 
 
-def toques_en_nivel(kl, nivel, tol=0.0015, salida=0.003, sep=12):
-    """Cuenta visitas DISTINTAS: entra en la zona, se aleja 0.3%, y vuelve
-    al menos `sep` velas despues (1 h en 5m). Un rango pegado al nivel no cuenta."""
-    try:
-        n, dentro, last = 0, False, -999
-        for i, x in enumerate(kl):
-            en_zona = x["l"] <= nivel * (1 + tol) and x["h"] >= nivel * (1 - tol)
-            if en_zona and not dentro and (i - last) >= sep:
-                n += 1
-                dentro = True
-                last = i
-            elif not en_zona and abs(x["c"] - nivel) / nivel >= salida:
-                dentro = False
-        return n
-    except Exception:
-        return 0
 
 
 # Modelo logistico de "aguante" de un nivel tras 3+ toques.
 # Entrenado con 394.256 velas de 5m (2023-01 a 2026-09), 3.009 eventos,
 # objetivo: NO cerrar 0,5% mas alla del nivel en las siguientes 4h.
-MODELO_TOQUES = {'version': 'toques-wf-1', 'target': 'hold_4h_0.5pct', 'trained_until': '2026-09-30 22:55:00+00:00', 'holdout_2026': {'auc': None, 'brier': 0.1237, 'skill': 0.0093, 'base': 0.8538, 'n': 212}, 'wf': {'folds': 11, 'muestras_oos': 7757, 'skill_medio': 0.0168, 'racha_positiva': 6, 'skill_folds': [0.0111, 0.0104, 0.0028, 0.019, 0.0304, 0.0231, -0.0055, 0.0204, 0.0348, 0.0132, 0.0251]}, 'features': ['dist', 'atr', 'ema200', 'rng', 'hourc', 'dow', 'x_atr48', 'x_atr144', 'x_atr288'], 'mean': [-0.00014471902899527983, 0.0013422890357383682, -0.00015422267700606877, 0.0015690369453809844, 0.0011800404585300068, -0.08165292068442347, 0.0013385479332434255, 0.0014126025893459204, 0.0014580719082939986], 'scale': [0.006663299240638484, 0.0009287107880874037, 0.007077131053340157, 0.0013562768488327192, 0.7156957839129136, 0.7213757356393746, 0.0007378356425407469, 0.0006942695553991874, 0.0006551650795141382], 'coef': [-0.0, 0.0, -0.0, -0.0, 0.09829794261377577, -0.19040384269895175, 0.0, -0.0, -0.2073024131403363], 'intercept': 1.5426070329136758}
 
 
-def _ema_ultimo(vals, span):
-    k = 2.0 / (span + 1.0)
-    e = vals[0]
-    for x in vals[1:]:
-        e = x * k + e * (1.0 - k)
-    return e
 
 
-def _std_muestral(xs):
-    n = len(xs)
-    if n < 2:
-        return 0.0
-    m = sum(xs) / n
-    return math.sqrt(sum((x - m) ** 2 for x in xs) / (n - 1))
 
 
-def features_toque(kl, nivel, precio, ahora, lado):
-    """Features del modelo de aguante, calculadas igual que en entrenamiento.
-    `kl` son velas de 5m ya cerradas; `precio` es el precio actual."""
-    try:
-        n = len(kl)
-        if n < 300 or nivel <= 0 or precio <= 0:
-            return None
-        c = [x["c"] for x in kl]
-        h = [x["h"] for x in kl]
-        l = [x["l"] for x in kl]
-        o = [x["o"] for x in kl]
-        v = [max(0.0, x["v"]) for x in kl]
-        trs = []
-        for i in range(1, n):
-            trs.append(max(h[i] - l[i], abs(h[i] - c[i - 1]), abs(l[i] - c[i - 1])))
-        atr = (sum(trs[-14:]) / max(1, min(14, len(trs)))) / precio
-        atr48 = (sum(trs[-48:]) / max(1, min(48, len(trs)))) / precio
-        atr144 = (sum(trs[-144:]) / max(1, min(144, len(trs)))) / precio
-        atr288 = (sum(trs[-288:]) / max(1, min(288, len(trs)))) / precio
-        gains, losses = [], []
-        for i in range(1, n):
-            d = c[i] - c[i - 1]
-            gains.append(max(d, 0.0))
-            losses.append(max(-d, 0.0))
-        ag = sum(gains[:14]) / 14.0
-        al = sum(losses[:14]) / 14.0
-        for i in range(14, len(gains)):
-            ag = (ag * 13.0 + gains[i]) / 14.0
-            al = (al * 13.0 + losses[i]) / 14.0
-        rsi = 100.0 - 100.0 / (1.0 + ag / (al + 1e-12))
-        ema50 = _ema_ultimo(c, 50)
-        ema200 = _ema_ultimo(c, 200)
-        lv = [math.log1p(x) for x in v]
-        w = lv[-96:]
-        mu = sum(w) / len(w)
-        volz = (lv[-1] - mu) / (_std_muestral(w) + 1e-12)
-        rets = [math.log(c[i] / c[i - 1]) for i in range(1, n) if c[i - 1] > 0]
-        rv12 = _std_muestral(rets[-12:])
-        rv288 = _std_muestral(rets[-288:])
-        # pivotes del mismo lado en las ultimas 72 velas (k=5)
-        start = max(0, n - 82)
-        sub = kl[start:]
-        pivs = []
-        for i in range(5, len(sub) - 5):
-            if lado == "Soporte":
-                if sub[i]["l"] <= min(sub[j]["l"] for j in range(i - 5, i + 6)):
-                    pivs.append((start + i, sub[i]["l"]))
-            elif sub[i]["h"] >= max(sub[j]["h"] for j in range(i - 5, i + 6)):
-                pivs.append((start + i, sub[i]["h"]))
-        cl72 = [(j, p) for (j, p) in pivs
-                if j >= n - 72 and abs(p - nivel) / nivel <= 0.0015]
-        if not cl72:
-            return None
-        first = cl72[0][0]
-        npiv = len(cl72)
-        span = (n - 1 - first) * 5.0 / 60.0
-        if lado == "Soporte":
-            bounce = max(h[first:n]) / nivel - 1.0
-        else:
-            bounce = 1.0 - min(l[first:n]) / nivel
-        volpiv = (sum(v[j] for j, _ in cl72) / len(cl72)) / (sum(v[-96:]) / len(v[-96:]) + 1e-12)
-        rango = h[-1] - l[-1]
-        rng = rango / c[-1] if c[-1] else 0.0
-        body = (c[-1] - o[-1]) / (rango + 1e-12)
-        if lado == "Soporte":
-            wick = (min(o[-1], c[-1]) - l[-1]) / (rango + 1e-12)
-        else:
-            wick = (h[-1] - max(o[-1], c[-1])) / (rango + 1e-12)
-        hh = ahora.hour + ahora.minute / 60.0
-        return {
-            "npiv": float(npiv), "span": span, "bounce": bounce,
-            "dist": (precio - nivel) / nivel, "atr": atr, "rsi": rsi,
-            "ema50": precio / ema50 - 1.0 if ema50 else 0.0,
-            "ema200": precio / ema200 - 1.0 if ema200 else 0.0,
-            "x_atr48": atr48, "x_atr144": atr144, "x_atr288": atr288,
-            "volz": volz, "volpiv": volpiv, "rng": rng, "body": body, "wick": wick,
-            "rvratio": rv12 / (rv288 + 1e-12),
-            "trend48": precio / c[-48] - 1.0 if n >= 48 and c[-48] else 0.0,
-            "trend288": precio / c[-288] - 1.0 if n >= 288 and c[-288] else 0.0,
-            "round500": 1.0 if abs(nivel / 500.0 - round(nivel / 500.0)) < 0.002 else 0.0,
-            "round1000": 1.0 if abs(nivel / 1000.0 - round(nivel / 1000.0)) < 0.001 else 0.0,
-            "hour": math.sin(2 * math.pi * hh / 24.0),
-            "hourc": math.cos(2 * math.pi * hh / 24.0),
-            "dow": math.sin(2 * math.pi * ahora.weekday() / 7.0),
-            "dowc": math.cos(2 * math.pi * ahora.weekday() / 7.0),
-            "side": 1.0 if lado == "Soporte" else 0.0,
-        }
-    except Exception:
-        return None
 
 
-def score_toque(f):
-    """Probabilidad estimada de que el nivel aguante 4h (sin cierre 0,5% fuera)."""
-    try:
-        z = MODELO_TOQUES["intercept"]
-        for name, mu, sd, co in zip(MODELO_TOQUES["features"], MODELO_TOQUES["mean"],
-                                    MODELO_TOQUES["scale"], MODELO_TOQUES["coef"]):
-            z += co * (f[name] - mu) / (sd + 1e-12)
-        if z > 30:
-            return 1.0
-        if z < -30:
-            return 0.0
-        return 1.0 / (1.0 + math.exp(-z))
-    except Exception:
-        return None
 
 
-def detectar_toques_multiples(kl, precio, ahora, est, niv=None, min_toques=3, horas=6,
-                              cerca=0.003, por_hora=12):
-    """Avisa cuando un nivel local se prueba varias veces seguidas.
-    Es CONTEXTO, no entrada: sirve para ver defensa o desgaste del nivel.
-    Si se pasa `niv`, exige que el nivel micro este cerca de la rejilla mayor
-    (asi no avisa de cualquier ruido de 5m). Por defecto asume velas de 5m."""
-    try:
-        if not kl or not precio:
-            return None
-        mayores = []
-        if isinstance(niv, dict):
-            for _k in ("soportes", "resistencias"):
-                for _x in (niv.get(_k) or []):
-                    try:
-                        mayores.append(float(_x["precio"]))
-                    except Exception:
-                        continue
-        n_win = max(24, int(horas * por_hora))
-        klw = kl[-n_win:]
-        klp = kl[-max(2 * n_win, 144):]
-        cands = []
-        for nv in pivotes_micro(klp):
-            p = nv["precio"]
-            if nv.get("n", 1) < 3:  # nivel formado por al menos 3 pivotes
-                continue
-            if mayores and min(abs(p - m) / p for m in mayores) > 0.006:
-                continue  # nivel micro lejos de la rejilla mayor = ruido
-            if abs(precio - p) / precio > cerca:
-                continue
-            n = toques_en_nivel(klw, p)
-            if n < min_toques:
-                continue
-            ult = None
-            for x in reversed(klw):
-                if x["l"] <= p * (1 + UMBRAL_TOQUE) and x["h"] >= p * (1 - UMBRAL_TOQUE):
-                    ult = x
-                    break
-            if not ult:
-                continue
-            lado = "Soporte" if p <= precio else "Resistencia"
-            # Si el ultimo toque cerro del otro lado, el nivel se rompio: no es defensa.
-            if lado == "Soporte" and ult["c"] < p * (1 - UMBRAL_TOQUE):
-                continue
-            if lado == "Resistencia" and ult["c"] > p * (1 + UMBRAL_TOQUE):
-                continue
-            cands.append((n, abs(precio - p) / precio, p, lado))
-        cands.sort(key=lambda z: (-z[0], z[1]))
-        for n, _, p, lado in cands[:4]:
-            feat = features_toque(kl, p, precio, ahora, lado)
-            if not feat or feat.get("npiv", 0) < 3:
-                continue
-            sc = score_toque(feat)
-            if sc is None:
-                continue
-            if not enfriar(est, f"toques:{int(p / 500) * 500}", 6, ahora):
-                continue
-            if sc >= 0.80:
-                tier = "alto"
-            elif sc >= 0.60:
-                tier = "medio"
-            else:
-                tier = "frágil, posible ruptura"
-            return (f"🧱 {lado} {fmt_miles(p)} probado {n} veces en {horas}h. "
-                    f"Aguante 4h (0,5%): {sc * 100:.0f}% ({tier}). No es entrada.")
-        return None
-    except Exception:
-        return None
 
 
 def vs_ayer(hist, precio, ahora):
@@ -1924,229 +1658,24 @@ def puede_papel(est, bias, conf, ahora):
         return True
 
 
-def dominancia(data=None):
-    """Dominancia BTC/ETH (CoinGecko global, gratis). Acepta data inyectada (tests)."""
-    try:
-        if data is None:
-            data = fetch("https://api.coingecko.com/api/v3/global", timeout=15, tries=1)
-        pct = (data.get("data") or {}).get("market_cap_percentage") or {}
-        btc, eth = pct.get("btc"), pct.get("eth")
-        if btc is None:
-            return None
-        return {"btc": round(float(btc), 1), "eth": round(float(eth or 0), 1)}
-    except Exception:
-        return None
 
 
-def veredicto_dom(btc, prev=None):
-    try:
-        b = float(btc)
-        base = "temporada BTC 🟠" if b >= 55 else ("zona mixta ⚪" if b >= 48 else "aires de altseason 🟣")
-        if prev is None:
-            return base
-        d = b - float(prev)
-        fle = "▲" if d > 0.2 else ("▼" if d < -0.2 else "＝")
-        return f"{base} {fle}"
-    except Exception:
-        return "s/d"
 
 
-REAC_BASE = 0.522
-REAC_TAB = {  # mini-IA contenida: P(reaccion>=0.3%/4h en PILAS). Entrenada replay
-    # 8m (2026-02 a 2026-10, n=314); test temporal: top25 72.7% / mid 54.4% / bot 51.5%.
-    # SOLO lectura (etiqueta en el mensaje). No decide, no opera, no toca red.
-    "rsi=0": 0.456, "rsi=1": 0.523, "rsi=2": 0.586,
-    "adx=0": 0.418, "adx=1": 0.573,
-    "er=0": 0.562, "er=1": 0.5, "er=2": 0.501,
-    "ses=Asia": 0.473, "ses=Londres": 0.617, "ses=NY": 0.533,
-    "h1t=ALCISTA": 0.558, "h1t=BAJISTA": 0.437, "h1t=lateral": 0.56,
-    "zt=0": 0.471, "zt=1": 0.583, "zt=2": 0.538}
 
 
-def prob_reaccion(feats):
-    """Puntaje 0..1 de reaccion probable (media de tablas). None si falla."""
-    try:
-        vals = [REAC_TAB.get(k + "=" + str((feats or {}).get(k)), REAC_BASE)
-                for k in ("rsi", "adx", "er", "ses", "h1t", "zt")]
-        return round(sum(vals) / len(vals), 3)
-    except Exception:
-        return None
 
 
-def punto_control(kl, n=168):
-    """POC + área de valor (microestructura sin dependencias):
-    nivel con más volumen negociado en las últimas n velas 1H y rango
-    que concentra el 70% del volumen. None si no hay datos."""
-    try:
-        velas = [c for c in (kl or [])[-n:] if c.get("v", 0) > 0 and c.get("h") and c.get("l")]
-        if len(velas) < 24:
-            return None
-        lo = min(c["l"] for c in velas)
-        hi = max(c["h"] for c in velas)
-        if hi <= lo:
-            return None
-        nb = 20
-        paso = (hi - lo) / nb
-        cubos = [0.0] * nb
-        for c in velas:
-            i = min(nb - 1, int((c["c"] - lo) / paso)) if paso > 0 else 0
-            cubos[i] += float(c["v"])
-        tot = sum(cubos)
-        if tot <= 0:
-            return None
-        ipoc = max(range(nb), key=lambda i: cubos[i])
-        poc = round(lo + (ipoc + 0.5) * paso)
-        orden = sorted(range(nb), key=lambda i: -cubos[i])
-        acum, eleg = 0.0, []
-        for i in orden:
-            acum += cubos[i]
-            eleg.append(i)
-            if acum >= 0.7 * tot:
-                break
-        vah = round(lo + (max(eleg) + 1) * paso)
-        val = round(lo + min(eleg) * paso)
-        return {"poc": poc, "vah": vah, "val": val}
-    except Exception:
-        return None
 
 
-def _atr_serie(kl, n=14):
-    """ATR simple por vela (sin pandas). None en las primeras n."""
-    atr = [None] * len(kl)
-    trs = []
-    for i in range(1, len(kl)):
-        try:
-            h, l, pc = float(kl[i]["h"]), float(kl[i]["l"]), float(kl[i - 1]["c"])
-        except Exception:
-            trs.append(None)
-            continue
-        trs.append(max(h - l, abs(h - pc), abs(l - pc)))
-        if i >= n and all(x is not None for x in trs[i - n:i]):
-            atr[i] = sum(trs[i - n:i]) / n
-    return atr
 
 
-def fvg_velas(kl, min_atr=0.25, max_bars=400):
-    """Fair Value Gaps SIN LLENAR (ICT) sobre velas cerradas.
-
-    Medido en BTC (5.000 velas 1H + 2.000 4H, in/out-of-sample): como señal
-    de entrada NO funciona (esperanza out-of-sample negativa, incluso con
-    barrido+recuperacion). Como IMAN si: 81-86 % de los huecos se vuelven a
-    tocar y ~69 % se llenan del todo en 1H. Uso: zona de referencia/objetivo,
-    nunca gatillo de compra/venta.
-    """
-    n = len(kl) if kl else 0
-    if n < 5:
-        return []
-    atr = _atr_serie(kl, 14)
-    desde = max(2, n - max_bars)
-    zonas = []
-    for i in range(desde, n):
-        a = atr[i]
-        if not a or a <= 0:
-            continue
-        try:
-            c0, c2 = kl[i - 2], kl[i]
-            h0, l2 = float(c0["h"]), float(c2["l"])
-            l0, h2 = float(c0["l"]), float(c2["h"])
-        except Exception:
-            continue
-        if l2 > h0:  # FVG alcista: hueco entre el alto de i-2 y el bajo de i
-            lo, hi = h0, l2
-            if hi - lo >= min_atr * a:
-                zonas.append({"dir": "ALZA", "lo": lo, "hi": hi, "i": i,
-                              "size": hi - lo, "atr": a})
-        elif h2 < l0:  # FVG bajista
-            lo, hi = h2, l0
-            if hi - lo >= min_atr * a:
-                zonas.append({"dir": "BAJA", "lo": lo, "hi": hi, "i": i,
-                              "size": hi - lo, "atr": a})
-    activas = []
-    for z in zonas:
-        lleno = False
-        for k in range(z["i"] + 1, n):
-            try:
-                if z["dir"] == "ALZA" and float(kl[k]["l"]) <= z["lo"]:
-                    lleno = True
-                    break
-                if z["dir"] == "BAJA" and float(kl[k]["h"]) >= z["hi"]:
-                    lleno = True
-                    break
-            except Exception:
-                continue
-        if lleno:
-            continue
-        z["edad"] = n - 1 - z["i"]
-        z["size_atr"] = round(z["size"] / z["atr"], 2) if z["atr"] else None
-        activas.append(z)
-    return activas
 
 
-def fvgs_cercanos(kl, precio, min_atr=0.25, max_bars=400, max_zonas=3):
-    """FVG sin llenar mas cercanos al precio, deduplicados. Solo contexto."""
-    try:
-        precio = float(precio)
-    except Exception:
-        return []
-    if precio <= 0:
-        return []
-    zonas = fvg_velas(kl, min_atr=min_atr, max_bars=max_bars)
-    for z in zonas:
-        if z["lo"] <= precio <= z["hi"]:
-            z["dist_pct"] = 0.0
-            z["dentro"] = True
-        elif precio < z["lo"]:
-            z["dist_pct"] = round((z["lo"] - precio) / precio * 100, 2)
-            z["dentro"] = False
-        else:
-            z["dist_pct"] = -round((precio - z["hi"]) / precio * 100, 2)
-            z["dentro"] = False
-    zonas.sort(key=lambda z: abs(z["dist_pct"]))
-    out = []
-    for z in zonas:
-        if len(out) >= max_zonas:
-            break
-        solapa = False
-        for q in out:
-            if q["dir"] != z["dir"]:
-                continue
-            inter = max(0.0, min(q["hi"], z["hi"]) - max(q["lo"], z["lo"]))
-            union = max(q["hi"], z["hi"]) - min(q["lo"], z["lo"])
-            if union > 0 and inter / union > 0.6:
-                solapa = True
-                break
-        if not solapa:
-            out.append(z)
-    return out
 
 
-def fvgs_activos(kl_h1, kl_h4, precio):
-    """Estructura compacta para snapshot/parte: {'h1': [...], 'h4': [...]}."""
-    return {"h1": fvgs_cercanos(kl_h1, precio),
-            "h4": fvgs_cercanos(kl_h4, precio)}
 
 
-def texto_fvg(fvg, precio, max_partes=2, max_dist=1.2):
-    """Linea corta con FVG sin llenar relevantes (iman). NO es una alerta."""
-    try:
-        dentro, cerca = [], []
-        etiqueta = {"h1": "1H", "h4": "4H"}
-        for tf in ("h1", "h4"):
-            for z in (fvg or {}).get(tf, []):
-                d = z.get("dist_pct")
-                if d is None:
-                    continue
-                _etq = etiqueta.get(tf, tf)
-                if z.get("dentro"):
-                    dentro.append(f"FVG {_etq} dentro de {fmt_miles(z['lo'])}-{fmt_miles(z['hi'])}")
-                elif abs(d) <= max_dist:
-                    cerca.append(f"FVG {_etq} {fmt_miles(z['lo'])}-{fmt_miles(z['hi'])} ({d:+.1f}%)")
-        partes = dentro + cerca
-        if not partes:
-            return ""
-        return "🧲 " + " · ".join(partes[:max_partes])
-    except Exception:
-        return ""
 
 
 def kelly_half(rs, r_mult=2.0):
@@ -2386,537 +1915,42 @@ def journal_check(ops, kl_h1, last):
     return abiertas, msgs
 
 
-def yahoo_cierres(sym):
-    u = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=5d"
-    req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-    try:
-        with urllib.request.urlopen(req, timeout=12) as r:
-            d = json.load(r)["chart"]["result"][0]
-        q = [v for v in d["indicators"]["quote"][0]["close"] if v]
-    except Exception:
-        return None
-    if len(q) < 2 or not q[-2]:
-        return None
-    return {"px": round(q[-1], 2), "chg": round((q[-1] - q[-2]) / q[-2] * 100, 2)}
 
 
-def macro_ext():
-    """Dolar (DXY) y bolsa (SPX) gratis via Yahoo. Devuelve dict o None."""
-    try:
-        out = {}
-        dxy = yahoo_cierres("DX-Y.NYB")
-        spx = yahoo_cierres("%5EGSPC")
-        if dxy:
-            out["dxy"] = dxy
-        if spx:
-            out["spx"] = spx
-        return out or None
-    except Exception:
-        return None
 
 
-def lectura_macro(mx):
-    if not mx or "dxy" not in mx or "spx" not in mx:
-        return "macro n/d"
-    d, s = mx["dxy"]["chg"], mx["spx"]["chg"]
-    if d <= -0.2 and s >= 0:
-        return "macro a favor de BTC (dólar débil + bolsa fuerte)"
-    if d >= 0.2 and s <= 0:
-        return "macro en contra de BTC (dólar fuerte + bolsa débil)"
-    return "macro mixto"
 
 
-def coinbase_premium(last):
-    """Premium de Coinbase vs Binance: USA pagando mas = demanda institucional."""
-    try:
-        req = urllib.request.Request("https://api.exchange.coinbase.com/products/BTC-USD/ticker",
-                                     headers={"User-Agent": "vigilante-cloud/3.0"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            cb = float(json.load(r)["price"])
-        return round((cb - last) / last * 100, 3) if last else None
-    except Exception:
-        return None
 
 
-def coinbase_analisis(last, vol_bin):
-    """Coinbase (puerta institucional USA): premium vs Binance, peso de su
-    volumen y desbalance del libro (muros). Todo gratis, sin llaves."""
-    out = {"prem": None, "vol_share": None, "imb": None}
-    try:
-        tk = json.load(urllib.request.urlopen(urllib.request.Request(
-            "https://api.exchange.coinbase.com/products/BTC-USD/ticker",
-            headers={"User-Agent": "vigilante-cloud/3.0"}), timeout=10))
-        cb = float(tk["price"])
-        out["prem"] = round((cb - last) / last * 100, 3) if last else None
-        cv = float(tk.get("volume", 0) or 0)
-        if vol_bin and vol_bin > 0:
-            out["vol_share"] = round(cv / vol_bin * 100, 1)
-        bk = json.load(urllib.request.urlopen(urllib.request.Request(
-            "https://api.exchange.coinbase.com/products/BTC-USD/book?level=2",
-            headers={"User-Agent": "vigilante-cloud/3.0"}), timeout=10))
-        nb = sum(float(p) * float(s) for p, s, _ in bk.get("bids", [])[:30])
-        na = sum(float(p) * float(s) for p, s, _ in bk.get("asks", [])[:30])
-        if nb + na > 0:
-            out["imb"] = round((nb - na) / (nb + na) * 100, 1)
-    except Exception:
-        pass
-    return out
 
 
-def cb_veredicto(cb):
-    p = cb.get("prem") or 0
-    ib = cb.get("imb") or 0
-    if p > 0.03 and ib > 5:
-        return "USA comprando + muro comprador: demanda real"
-    if p < -0.03 and ib < -5:
-        return "USA vendiendo + muro vendedor: presión real"
-    if p > 0.03:
-        return "USA paga de más: interés comprador"
-    if p < -0.03:
-        return "USA con descuento: interés vendedor"
-    return "Coinbase neutro vs Binance"
 
 
-def smart_money(t, h1, senti, notis, prem=None):
-    """Instituciones vs minoristas con proxies gratuitos (premium, ETFs, funding, taker)."""
-    if prem is None:
-        prem = coinbase_premium(t["last"])
-    etf = None
-    for n in notis:
-        tl = n["titulo"].lower()
-        if "etf" in tl and any(k in tl for k in ("inflow", "buy", "bought", "record", "demand")):
-            etf = "entradas"
-            break
-        if "etf" in tl and any(k in tl for k in ("outflow", "sell", "sold", "exit")):
-            etf = "salidas"
-            break
-    inst, ret, det = 50, 50, []
-    if prem is not None:
-        if prem > 0.03:
-            inst += 20
-            det.append(f"Coinbase premium +{prem}%: USA comprando spot")
-        elif prem < -0.03:
-            inst -= 20
-            det.append(f"Coinbase descuento {prem}%: USA vendiendo")
-    if etf == "entradas":
-        inst += 15
-        det.append("ETFs con entradas: instituciones comprando")
-    elif etf == "salidas":
-        inst -= 15
-        det.append("ETFs con salidas: instituciones vendiendo")
-    f = senti["funding"]
-    if f is not None:
-        if f >= 0.03:
-            ret += 20
-            det.append(f"funding alto ({f:+.4f}%): retail eufórico en longs")
-        elif f <= -0.01:
-            ret -= 10
-            det.append("funding negativo: retail con miedo o en shorts")
-    tk = senti["taker"]
-    if tk is not None:
-        if tk >= 1.2:
-            ret += 10
-            det.append("takers comprando agresivo (FOMO)")
-        elif tk <= 0.9:
-            ret -= 10
-            det.append("takers vendiendo agresivo (pánico)")
-    if h1["rsi"] >= 75:
-        ret += 10
-    elif h1["rsi"] <= 25:
-        ret -= 10
-    inst = clamp(inst, 0, 100)
-    ret = clamp(ret, 0, 100)
-    if inst >= 60 and ret >= 60:
-        ver = "todos compran: sube pero cuidado con el techo"
-    elif inst >= 60 and ret < 40:
-        ver = "instituciones acumulan y retail con miedo: gasolina alcista"
-    elif inst < 40 and ret >= 60:
-        ver = "retail eufórico e instituciones vendiendo: techo probable"
-    elif inst < 40 and ret < 40:
-        ver = "todos venden: pánico, los rebotes se venden"
-    else:
-        ver = "sin manos claras: mercado mixto"
-    return {"inst": inst, "ret": ret, "veredicto": ver, "det": det[:3]}
 
 
-def psico(last):
-    """Niveles psicologicos (miles redondos) mas cercanos arriba/abajo."""
-    up = (int(last // 1000) + 1) * 1000
-    down = int(last // 1000) * 1000
-    if down >= last:  # B5: si last es multiplo exacto, el de abajo es 1000 menos
-        down -= 1000
-    return up, down
 
 
-def retest(kl, res, sup, last):
-    """Ruptura + vuelta al nivel en las ultimas 24 velas 1H (trampa o confirmacion)."""
-    if len(kl) < 24:
-        return None
-    rec = kl[-24:]
-    if last < res["precio"] and any(c["h"] > res["precio"] for c in rec):
-        if abs(last - res["precio"]) / res["precio"] <= UMBRAL_TOQUE * 1.5:
-            return f"ruptura fallida + re-test de {fmt_miles(res['precio'])}: posible trampa, espera cierre"
-    if last > sup["precio"] and any(c["l"] < sup["precio"] for c in rec):
-        if abs(last - sup["precio"]) / sup["precio"] <= UMBRAL_TOQUE * 1.5:
-            return f"defensa + re-test de {fmt_miles(sup['precio'])}: el soporte aguanta"
-    return None
 
 
-def ruptura(kl_h1, sup, res):
-    """Ruptura confirmada: la última vela 1H CERRADA quedó más allá del
-    soporte (bajista) o la resistencia (alcista) más cercanos.
-    F6: exige vela en dirección del break, cruce real del nivel (la vela previa
-    cerraba al otro lado) y margen mínimo, para no cantar "rupturas" de chop
-    cuando el soporte/resistencia más cercano se pega al precio.
-    Reversible: VIGILANTE_RUPTURA_ESTRICTO=0 vuelve al comportamiento anterior."""
-    try:
-        if not kl_h1 or len(kl_h1) < 2:
-            return None
-        vc = kl_h1[-2]
-        c = vc["c"]
-        o = vc.get("o", c)
-        prev = kl_h1[-3] if len(kl_h1) >= 3 else None
-        pc = prev.get("c", c) if prev else None
-        hh = ""
-        try:
-            hh = vc["t"].strftime("%H:%M")
-        except Exception:
-            pass
-        estricto = UMBRAL_RUPTURA_ESTRICTO
-        if sup and c < sup:
-            d = (sup - c) / sup * 100
-            if estricto and not (c < o and pc is not None and pc >= sup and d >= UMBRAL_RUPTURA_MIN):
-                return None
-            return f"ruptura BAJISTA confirmada bajo {fmt_miles(sup)} (cierre 1H {hh} en {fmt_miles(c)}, {d:.2f}% debajo)"
-        if res and c > res:
-            d = (c - res) / res * 100
-            if estricto and not (c > o and pc is not None and pc <= res and d >= UMBRAL_RUPTURA_MIN):
-                return None
-            return f"ruptura ALCISTA confirmada sobre {fmt_miles(res)} (cierre 1H {hh} en {fmt_miles(c)}, {d:.2f}% encima)"
-        return None
-    except Exception:
-        return None
 
 
-def liquidez_nivel(kl, last):
-    """Toma de liquidez con datos para plan: barrido 24h + cierre de vuelta.
-
-    Devuelve {"lado": "max"|"min", "nivel", "extremo", "cluster", "texto"} o None.
-    "extremo" es la mecha del barrido: sirve de stop estructural del fade.
-    Puro, sin red."""
-    if len(kl) < 27:
-        return None
-    base = kl[-27:-3]
-    hi = max(c["h"] for c in base)
-    lo = min(c["l"] for c in base)
-    # niveles iguales (cluster de liquidez): cuantas velas tocan el extremo
-    n_hi = sum(1 for c in base if c["h"] >= hi * 0.999)
-    n_lo = sum(1 for c in base if c["l"] <= lo * 1.001)
-    ult3 = kl[-3:]
-    MIN_SWEEP = 0.0005  # 0.05% minimo de barrido (evita ruido)
-    if (any(c["h"] > hi * (1 + MIN_SWEEP) for c in ult3)
-            and last < hi and abs(last - hi) / hi <= 0.004):
-        extra = f" (×{n_hi})" if n_hi >= 3 else ""
-        return {"lado": "max", "nivel": hi,
-                "extremo": max(c["h"] for c in ult3), "cluster": n_hi,
-                "texto": f"barrido sobre máximos {fmt_miles(hi)}{extra} con devolución (trampa para compradores)"}
-    if (any(c["l"] < lo * (1 - MIN_SWEEP) for c in ult3)
-            and last > lo and abs(last - lo) / lo <= 0.004):
-        extra = f" (×{n_lo})" if n_lo >= 3 else ""
-        return {"lado": "min", "nivel": lo,
-                "extremo": min(c["l"] for c in ult3), "cluster": n_lo,
-                "texto": f"barrido bajo mínimos {fmt_miles(lo)}{extra} con devolución (trampa para vendedores)"}
-    return None
 
 
-def liquidez(kl, last):
-    """Texto del barrido de liquidez (compatibilidad). None si no hay."""
-    d = liquidez_nivel(kl, last)
-    return d["texto"] if d else None
 
 
-def lado_ok(bias, texto):
-    """Un solo lado por sesgo: ALZA solo PISO, BAJA solo TECHO, LATERAL ambos.
-    Puro. Evita el doble mensaje contradictorio (techo y piso seguidos)."""
-    try:
-        lado = "PISO" if "PISO" in str(texto) else ("TECHO" if "TECHO" in str(texto) else "?")
-        if bias == "LATERAL" or lado == "?":
-            return True
-        if bias == "ALZA":
-            return lado == "PISO"
-        if bias == "BAJA":
-            return lado == "TECHO"
-        return True
-    except Exception:
-        return True
 
 
-def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
-    """Texto claro de la zona PILAS mas cercana (o (None, None) si esta lejos).
-    Incluye el encajonamiento piso/techo para no confundir (ayer: short bueno
-    entre dos zonas). sops/ress: soportes y resistencias ({precio})."""
-    if not zonas or not last:
-        return None, None
-    try:
-        zp = min(zonas, key=lambda z: abs(z["precio"] - last))
-        dist = abs(zp["precio"] - last) / last
-        if dist > 0.0035:
-            return None, None
-        razones = "+".join(zp.get("razones", [])[:3])
-        debajo = sorted((z["precio"] for z in zonas if z["precio"] < last), reverse=True)
-        encima = sorted(z["precio"] for z in zonas if z["precio"] > last)
-        ctx = ""
-        if debajo and encima:
-            ctx = f" Estás entre 🛡 {fmt_miles(debajo[0])} y 🧲 {fmt_miles(encima[0])}."
-        adv = ""
-        try:
-            if isinstance(h1, dict):
-                er = h1.get("er")
-                rsi = h1.get("rsi", 50)
-                if zp["precio"] > last and h1.get("tend") == "ALCISTA" and (
-                        (er is not None and er >= 0.4) or rsi >= 60):
-                    adv = " Va contra momentum 1H: tamaño pequeño o espera."
-                elif zp["precio"] <= last and h1.get("tend") == "BAJISTA" and (
-                        (er is not None and er >= 0.4) or rsi <= 40):
-                    adv = " Va contra momentum 1H: tamaño pequeño o espera."
-        except Exception:
-            pass
-        rc = ""
-        try:
-            if isinstance(h1, dict) and isinstance(a4, dict) and hora is not None:
-                rsi = h1.get("rsi", 50)
-                er = h1.get("er")
-                f = {"rsi": 0 if rsi < 40 else (1 if rsi < 60 else 2),
-                     "adx": 1 if (a4.get("adx", 0) or 0) >= 20 else 0,
-                     "er": 0 if (er if er is not None else 0.2) < 0.15 else (1 if er < 0.4 else 2),
-                     "ses": sesion_bucket(hora),
-                     "h1t": h1.get("tend", "?"),
-                     "zt": 0 if abs(h1.get("z") or 0) < 1.0 else (1 if abs(h1.get("z") or 0) < 2.0 else 2)}
-                p = prob_reaccion(f)
-                if p is not None:
-                    # F7: el puntaje de prob_reaccion vive en [0.459, 0.580] (media de 6
-                    # tablas, base 0.522). Los umbrales 0.55/0.65 dejaban "ALTA" inalcanzable
-                    # y "BAJA" en ~89% de los casos. Se alinean a los percentiles reales
-                    # (p25≈0.505, p75≈0.537) para que la etiqueta informe de verdad.
-                    rc = f" Reacción probable {'ALTA' if p >= 0.540 else ('BAJA' if p < 0.505 else 'MEDIA')} (historial)."
-        except Exception:
-            pass
-        if zp["precio"] <= last:
-            inv = (sops[0]["precio"] if sops else zp["precio"])
-            return (f"Zona de referencia: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
-                    f"({razones}) → 🛡 PISO: estás encima; si cae hasta ahí puede devolver hacia arriba. "
-                    f"Se anula SOLO si 1H cierra bajo {fmt_miles(inv)}.{ctx}{adv}{rc}"
-                    f" Zona de referencia, no una entrada.", str(zp["precio"]))
-        inv = (ress[0]["precio"] if ress else zp["precio"])
-        return (f"Zona de referencia: a {dist * 100:.1f}% de {fmt_miles(zp['precio'])} "
-                f"({razones}) → 🧱 TECHO: estás debajo; si sube hasta ahí puede devolver hacia abajo. "
-                f"Se anula SOLO si 1H cierra sobre {fmt_miles(inv)}.{ctx}{adv}{rc}"
-                f" Zona de referencia, no una entrada.", str(zp["precio"]))
-    except Exception:
-        return None, None
 
 
-def zonas_pilas(pw, d1, w1, last, ima):
-    """Zonas mayores de largo plazo (semanales, diarias, psicologicos, imanes).
-    La paciencia vive aqui: el precio vuelve a estas zonas."""
-    cands = []
-    if pw:
-        if pw.get("S1"):
-            cands.append((pw["S1"], "S1 semanal"))
-        if pw.get("R1"):
-            cands.append((pw["R1"], "R1 semanal"))
-    cands.append((d1["winL"], "mín 1D"))
-    cands.append((d1["winH"], "máx 1D"))
-    cands.append((w1["winL"], "mín 1S"))
-    cands.append((w1["winH"], "máx 1S"))
-    pu, pdn = psico(last)
-    cands.append((pu, "psicológico"))
-    cands.append((pdn, "psicológico"))
-    if ima:
-        if ima.get("up"):
-            cands.append((ima["up"], "imán"))
-        if ima.get("down"):
-            cands.append((ima["down"], "imán"))
-    zonas = []
-    for v, o in cands:
-        if not v:
-            continue
-        v = snap_nivel(v)
-        hall = None
-        for z in zonas:
-            if abs(z["precio"] - v) < 25:
-                hall = z
-                break
-        if hall:
-            if o not in hall["razones"]:
-                hall["razones"].append(o)
-        else:
-            zonas.append({"precio": v, "razones": [o]})
-    return zonas
 
 
-def divergencia(kl):
-    """Divergencia RSI 1H: precio hace minimo mas bajo pero RSI sube (alcista) y viceversa."""
-    closes = [c["c"] for c in kl]
-    if len(closes) < 30:
-        return None
-    p1 = min(closes[-21:-7])
-    p2 = min(closes[-7:])
-    q1 = max(closes[-21:-7])
-    q2 = max(closes[-7:])
-    r_prev = rsi(closes[:-7])
-    r_now = rsi(closes)
-    if p2 < p1 and r_now > r_prev + 2:
-        return "alcista"
-    if q2 > q1 and r_now < r_prev - 2:
-        return "bajista"
-    return None
 
 
-def div_cvd(data=None):
-    """Divergencia CVD: precio maximo nuevo + CVD cayendo (distribucion)
-    o minimo nuevo + CVD subiendo (absorcion)."""
-    if data is None:
-        data = None
-        for base in (FAPI, VISION):
-            try:
-                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-                break
-            except Exception:
-                continue
-    if not data or len(data) < 200:
-        return None
-    mid = len(data) // 2
-
-    def _cv(trs):
-        s = 0.0
-        for tr in trs:
-            try:
-                q = float(tr["q"])
-            except Exception:
-                continue
-            s += -q if tr.get("m") else q
-        return s
-
-    c1, c2 = _cv(data[:mid]), _cv(data[mid:])
-    p1 = [float(t["p"]) for t in data[:mid] if t.get("p")]
-    p2 = [float(t["p"]) for t in data[mid:] if t.get("p")]
-    if not p1 or not p2:
-        return None
-    if max(p2) > max(p1) and c2 < c1:
-        return "bajista (máximo nuevo + CVD cayendo: distribución)"
-    if min(p2) < min(p1) and c2 > c1:
-        return "alcista (mínimo nuevo + CVD subiendo: absorción)"
-    return None
 
 
-def mapa_liq(kl, last, funding):
-    """Mapa ESTIMADO de liquidaciones: los stops viven tras maximos/minimos
-    recientes y numeros redondos. El funding cargado marca el lado jugoso
-    (contrarian: longs recargados -> stops abajo).
-    Devuelve top-5 por lado + imán (lado con más score)."""
-    if len(kl) < 30:
-        return None
-    rec = kl[-72:]
-    altos, bajos = [], []
-    for i in range(5, len(rec) - 5):
-        if all(rec[i]["h"] >= rec[j]["h"] for j in range(i - 5, i + 6) if j != i):
-            altos.append(rec[i]["h"])
-        if all(rec[i]["l"] <= rec[j]["l"] for j in range(i - 5, i + 6) if j != i):
-            bajos.append(rec[i]["l"])
-    cands = []
-    for h in altos[-5:]:
-        cands.append({"precio": round(h), "origen": "stop sobre máximo"})
-    for l in bajos[-5:]:
-        cands.append({"precio": round(l), "origen": "stop bajo mínimo"})
-    base = (int(last // 1000)) * 1000
-    for r in (base - 1000, base, base + 1000):
-        if r > 0:
-            cands.append({"precio": r, "origen": "redondo"})
-    f = funding or 0.0
-    mag = min(1.0, abs(f) / 0.05)
-    for c in cands:
-        s = 50
-        if c["origen"] == "redondo":
-            s += 25
-        if f > 0 and c["precio"] < last:
-            s += round(25 * mag)
-        if f < 0 and c["precio"] > last:
-            s += round(25 * mag)
-        c["score"] = s
-        c["dist"] = round((c["precio"] - last) / last * 100, 2)
-    arriba = sorted([c for c in cands if c["precio"] > last], key=lambda x: -x["score"])[:5]
-    abajo = sorted([c for c in cands if c["precio"] < last], key=lambda x: -x["score"])[:5]
-    if not arriba and not abajo:
-        return None
-    ta = sum(c["score"] for c in arriba)
-    tb = sum(c["score"] for c in abajo)
-    tot = ta + tb or 1
-    lado = "abajo" if tb >= ta else "arriba"
-    return {"arriba": arriba, "abajo": abajo,
-            "iman": {"lado": lado, "pct": round(100 * (tb if lado == "abajo" else ta) / tot)}}
 
 
-def ballenas(data=None):
-    """Cinta de ballenas: prints >= UMBRAL_BALLENA en ~3000 trades recientes
-    (fapi, con fallback a spot). m=True = vendedor agresivo.
-    Ventana ancha porque los prints 5+ son ralos (1-5 por cada 1000)."""
-    if data is None:
-        data = []
-        for base in (FAPI, VISION):
-            try:
-                pg = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-            except Exception:
-                continue
-            if not pg:
-                continue
-            data = list(pg)
-            try:
-                vistos = {t.get("a") for t in data}
-                for _ in range(2):
-                    viejos = [t.get("a") for t in data if isinstance(t.get("a"), int)]
-                    if not viejos:
-                        break
-                    pg2 = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000&fromId=%d"
-                                % max(0, min(viejos) - 1000), tries=1)
-                    if not pg2:
-                        break
-                    for t in pg2:
-                        if t.get("a") not in vistos:
-                            vistos.add(t.get("a"))
-                            data.append(t)
-            except Exception:
-                pass
-            break
-    if not data:
-        return None
-    buys = sells = 0.0
-    nb = ns = 0
-    big = 0.0
-    for tr in data:
-        try:
-            q = float(tr["q"])
-        except Exception:
-            continue
-        if q < UMBRAL_BALLENA:
-            continue
-        if tr.get("m"):
-            sells += q
-            ns += 1
-        else:
-            buys += q
-            nb += 1
-        big = max(big, q)
-    if nb + ns == 0:
-        return {"nb": 0, "ns": 0, "buys": 0, "sells": 0, "big": 0, "txt": "sin prints de ballenas"}
-    if sells > buys * 1.5:
-        ver = "ballenas distribuyendo"
-    elif buys > sells * 1.5:
-        ver = "ballenas acumulando"
-    else:
-        ver = "ballenas mixtas"
-    return {"nb": nb, "ns": ns, "buys": round(buys, 1), "sells": round(sells, 1),
-            "big": round(big, 1), "txt": ver}
 
 
 def imanes(last):
@@ -2956,36 +1990,10 @@ def imanes(last):
         return None
 
 
-def oro_vs_btc(btc_chg):
-    """Oro (PAXG) vs BTC: refugio contra riesgo."""
-    try:
-        paxg = yahoo_cierres("PAXG-USD") or yahoo_cierres("GC=F")
-        if not paxg:
-            return None
-        diff = round(btc_chg - paxg["chg"], 2)
-        if diff > 1:
-            lec = "apetito por riesgo (BTC manda)"
-        elif diff < -1:
-            lec = "huida al refugio (oro manda)"
-        else:
-            lec = "a la par"
-        return {"oro": paxg["chg"], "diff": diff, "lectura": lec}
-    except Exception:
-        return None
 
 
 
 
-def etiquetar_senal(senti, hora, dcvd):
-    """Tags solo-medición para validar señales en papel (funding/OI/CVD/sesión).
-    Puro, sin red, NO decide nada: solo etiqueta para futuro PF por régimen."""
-    try:
-        s = senti if isinstance(senti, dict) else {}
-        return {"funding": s.get("funding"), "taker": s.get("taker"),
-                "sesion": sesion_bucket(hora) if isinstance(hora, int) else "?",
-                "cvd_div": dcvd if isinstance(dcvd, str) else ("sí" if dcvd else "no")}
-    except Exception:
-        return {"funding": None, "taker": None, "sesion": "?", "cvd_div": "no"}
 
 
 
@@ -3046,20 +2054,6 @@ def auto_stats(eval_log):
     return {"mejor": (mejor, res[mejor][0]), "peor": (peor, res[peor][0]), "n": len(eval_log)}
 
 
-def ls_global():
-    """Ratio long/short global de cuentas (Binance, gratis): lectura contrarian."""
-    try:
-        d = fetch(f"{FDATA}/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=1", tries=1)
-        r = round(float(d[-1]["longShortRatio"]), 2)
-        if r >= 1.5:
-            lec = "cuentas cargadas long (contrarian: cuidado arriba)"
-        elif r <= 0.8:
-            lec = "cuentas cargadas short (contrarian: cuidado abajo)"
-        else:
-            lec = "posicionamiento equilibrado"
-        return {"ratio": r, "lectura": lec}
-    except Exception:
-        return None
 
 
 DIR_BULL = ("inflow", "inflows", "buy", "buys", "bought", "record", "demand", "adopt",
@@ -3310,149 +2304,18 @@ def blackout(evs, ahora):
     return False, ""
 
 
-def cvd(data=None):
-    """Cumulative Volume Delta con la cinta (fapi, fallback spot).
-    Divergencia CVD vs precio = absorcion/distribucion oculta."""
-    if data is None:
-        data = None
-        for base in (FAPI, VISION):
-            try:
-                data = fetch(base + "/aggTrades?symbol=BTCUSDT&limit=1000", tries=1)
-                break
-            except Exception:
-                continue
-    if not data:
-        return None
-    cv = 0.0
-    precios = []
-    for tr in data:
-        try:
-            q = float(tr["q"])
-            precios.append(float(tr["p"]))
-        except Exception:
-            continue
-        cv += -q if tr.get("m") else q
-    dpx = (precios[-1] - precios[0]) / precios[0] * 100 if len(precios) > 1 and precios[0] else 0
-    if cv > 0 and dpx < -0.1:
-        lec = "CVD sube y precio baja: absorción (alcista oculto)"
-    elif cv < 0 and dpx > 0.1:
-        lec = "CVD baja y precio sube: distribución (bajista oculto)"
-    elif cv > 0:
-        lec = "flujo comprador dominando"
-    else:
-        lec = "flujo vendedor dominando"
-    return {"cvd": round(cv, 1), "dpx": round(dpx, 2), "lectura": lec}
 
 
 # ---------------- Estado / historial / precision ----------------
 
-def cambio(est, clave, valor, eps):
-    """True si el valor cambió vs el último parte (y lo guarda).
-    Con texto compara exacto; con numeros usa tolerancia eps."""
-    try:
-        prev = (est.get("deltas") or {}).get(clave)
-    except Exception:
-        prev = None
-    est.setdefault("deltas", {})[clave] = valor
-    if prev is None:
-        return True
-    try:
-        return abs(float(valor) - float(prev)) > eps
-    except Exception:
-        return valor != prev
 
 
-def enfriar(est, clave, horas, ahora=None):
-    """Anti-spam: True solo si la categoria no aviso en las ultimas `horas`
-    (y deja marca). Lo importante pasa; lo repetido se calla."""
-    try:
-        t0 = (est.get("cools") or {}).get(clave)
-        ref = ahora or datetime.datetime.now(datetime.timezone.utc)
-        if t0 and (ref - datetime.datetime.fromisoformat(t0)).total_seconds() / 3600 < horas:
-            return False
-    except Exception:
-        pass
-    try:
-        ref = ahora or datetime.datetime.now(datetime.timezone.utc)
-        est.setdefault("cools", {})[clave] = ref.isoformat()
-    except Exception:
-        pass
-    return True
 
 
-def cargar_estado():
-    est = {"ultimo_bias": "?", "ultima_conf": 0, "ultimo_precio": 0,
-           "ultimo_run": "", "ultimo_resumen": "", "ultimo_resumen_noche": "",
-           "alza": [], "baja": [], "pendientes": [], "offset": 0, "runs": 0, "vistas": []}
-    try:
-        with open(ESTADO_FILE, encoding="utf-8") as fh:
-            d = json.load(fh)
-            if isinstance(d, dict):
-                est.update(d)
-    except Exception:
-        pass
-    try:
-        est["offset"] = int(est.get("offset") or 0)
-    except Exception:
-        est["offset"] = 0
-    hist = []
-    try:
-        with open(HIST_FILE, encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    h = json.loads(line)
-                except Exception:
-                    continue
-                if isinstance(h, dict):
-                    hist.append(h)
-    except Exception:
-        pass
-    return est, hist
 
 
-def _podar_estado(est):
-    """Poda con cota dura todo lo que crece por pasada."""
-    try:
-        if isinstance(est.get("cools"), dict) and len(est["cools"]) > 200:
-            est["cools"] = dict(sorted(est["cools"].items(),
-                key=lambda kv: str(kv[1] or ""))[-200:])
-        if isinstance(est.get("pilas"), dict) and len(est["pilas"]) > 200:
-            est["pilas"] = dict(list(est["pilas"].items())[-200:])
-        if isinstance(est.get("preavisos"), dict) and len(est["preavisos"]) > 100:
-            est["preavisos"] = dict(list(est["preavisos"].items())[-100:])
-        for k, n in (("pend_todo", MAX_PEND_TODO), ("eval_todo", MAX_EVAL_TODO),
-                     ("pend_sombra", MAX_PEND_TODO), ("eval_sombra", MAX_EVAL_TODO),
-                     ("pendientes", MAX_PEND_TODO), ("eval_log", MAX_EVAL_TODO),
-                     ("pend_gate", MAX_PEND_TODO), ("eval_gate", MAX_EVAL_TODO),
-                     ("alza_gate", 50), ("baja_gate", 50),
-                     ("paper_abiertas", MAX_PAPER_ABIERTAS), ("ops", MAX_OPS),
-                     ("journal", 50), ("sim_cerradas", 20), ("paper_cerradas", 100)):
-            v = est.get(k)
-            if isinstance(v, list) and len(v) > n:
-                est[k] = v[-n:]
-        d = est.get("deltas")
-        if isinstance(d, dict) and len(d) > MAX_DELTAS:
-            est["deltas"] = dict(list(d.items())[-MAX_DELTAS:])
-    except Exception:
-        pass
-    return est
 
 
-def guardar_estado(est, hist):
-    _podar_estado(est)
-    hist = hist[-MAX_HIST:]
-    tmp_e = ESTADO_FILE + ".tmp"
-    with open(tmp_e, "w", encoding="utf-8") as fh:
-        json.dump(est, fh)
-    os.replace(tmp_e, ESTADO_FILE)
-    tmp_h = HIST_FILE + ".tmp"
-    with open(tmp_h, "w", encoding="utf-8") as fh:
-        for h in hist:
-            fh.write(json.dumps(h) + "\n")
-    os.replace(tmp_h, HIST_FILE)
 
 
 def prec_str(lista):

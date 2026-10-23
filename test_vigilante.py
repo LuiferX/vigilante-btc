@@ -16,6 +16,11 @@ import sys
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location('v', os.path.join(_AQUI, 'vigilante_cloud.py'))
 v = importlib.util.module_from_spec(spec)
+# la costura de red vive en vigilante/red.py: importarla por el sistema normal
+# garantiza que es LA MISMA instancia que usa vigilante_cloud.py (parchear una
+# copia aparte no tendria efecto).
+import vigilante.red as vr  # noqa: E402
+import vigilante.mercado as vm  # noqa: E402
 spec.loader.exec_module(v)
 
 ok = 0
@@ -625,9 +630,11 @@ t("ruptura F6 sin cruce real", v.ruptura(
 t("ruptura F6 margen corto", v.ruptura(
     [{"o": 82050, "c": 82030}, {"o": 82030, "c": 81970}, {"o": 81970, "c": 81960}], 82000, 84000) is None)
 _rup_orig = v.UMBRAL_RUPTURA_ESTRICTO
-v.UMBRAL_RUPTURA_ESTRICTO = False
+_rup_orig_m = vm.UMBRAL_RUPTURA_ESTRICTO
+v.UMBRAL_RUPTURA_ESTRICTO = vm.UMBRAL_RUPTURA_ESTRICTO = False
 t("ruptura F6 off restaura legacy", (v.ruptura([{"c": 81900}, {"c": 82000}], 82000, 84000) or "").startswith("ruptura BAJISTA"))
 v.UMBRAL_RUPTURA_ESTRICTO = _rup_orig
+vm.UMBRAL_RUPTURA_ESTRICTO = _rup_orig_m
 # F8: proxima_sesion debe dar la próxima ocurrencia real (< 24 h), no siempre mañana
 _px = v.proxima_sesion()
 t("proxima_sesion < 24h", 0 <= float(_px.split("~")[1].split(" ")[0]) <= 24.0)
@@ -1142,13 +1149,14 @@ t("send None no tumba run", v.send_telegram(None) in (True, False))
 t("ajeno sin chat_id no fuga", v.responder_comando({"chat": 999, "texto": "/precio", "full": "/precio", "nombre": "T"}, CTX) == (None, False))
 try:
     _of = v.fetch
-    v.fetch = lambda *a, **k: {"code": -1000}
+    _of_red = vr.fetch
+    v.fetch = vr.fetch = lambda *a, **k: {"code": -1000}
     try:
         v.klines("1h", 5)
         t("klines dict error", False)
     except ValueError:
         t("klines dict error", True)
-    v.fetch = lambda *a, **k: [[1, "2", "3", "4", "5"]]
+    v.fetch = vr.fetch = lambda *a, **k: [[1, "2", "3", "4", "5"]]
     try:
         v.klines("1h", 5)
         t("klines fila corta", False)
@@ -1156,32 +1164,37 @@ try:
         t("klines fila corta", True)
 finally:
     v.fetch = _of
+    vr.fetch = _of_red
 try:
     _of2 = v.fetch
-    v.fetch = lambda *a, **k: {"x": 1}
+    _of2_red = vr.fetch
+    v.fetch = vr.fetch = lambda *a, **k: {"x": 1}
     try:
         v.ticker24()
         t("ticker exige claves", False)
     except ValueError:
         t("ticker exige claves", True)
 finally:
-    v.fetch = _of2
+    v.fetch = _of
+    vr.fetch = _of2_red
 # Fuente sticky: una sola por pasada (futuros si FAPI responde; spot si no).
 _of3 = v.fetch
 _o_mercado = dict(v.MERCADO)
 try:
-    v.fetch = lambda *a, **k: {}
+    v.fetch = vr.fetch = lambda *a, **k: {}
     v.MERCADO["base"] = None
     t("fuente prefiere futuros", v._elegir_fuente() == v.FAPI)
     v.MERCADO["base"] = None
     def _sin_fapi(*a, **k):
         raise RuntimeError("sin fapi")
-    v.fetch = _sin_fapi
+    v.fetch = vr.fetch = _sin_fapi
     t("fuente cae a spot", v._elegir_fuente() == v.VISION)
 finally:
     v.MERCADO.clear(); v.MERCADO.update(_o_mercado)
     v.fetch = _of3
-t("cb prem none", "if last else None" in open(os.path.join(_AQUI, "vigilante_cloud.py"), encoding="utf-8").read())
+t("cb prem none", "if last else None" in "".join(
+    open(os.path.join(_AQUI, f), encoding="utf-8").read()
+    for f in ("vigilante_cloud.py", "vigilante/mercado.py")))
 t("offset str sana", (lambda _r: isinstance(_r, tuple) and isinstance(_r[1], int))(v.leer_comandos("5")))
 t("poda existe", hasattr(v, "_podar_estado") and len(v._podar_estado({"cools": {str(i): "x" for i in range(300)}})["cools"]) <= 200)
 _zp = [{"precio": 83850, "razones": ["r"]}]
