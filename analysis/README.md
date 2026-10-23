@@ -308,3 +308,29 @@ python ../collector/test_collector.py
 Cobertura actual: 5 del modelo, 18 del motor, 7 de runner/evaluador/backtest/salud, 8 del validation bot, 5 del dashboard, 8 de workflows y 10 del colector. CI compila todo y corre la suite en cada cambio de codigo.
 
 
+
+### Modelo `toques-wf-1` (23-10-2026): reemplaza a `toques-v2-l1`
+
+Entrenado **dentro del repo** con `analysis/entrenar_hold.py` (stdlib puro,
+walk-forward con embargo de 24 h, 11 folds, 7.757 muestras OOS):
+
+| Metrica | WF (11 folds) | Holdout octubre 2026 |
+|---|---:|---:|
+| Muestras | 7.757 | 198 (132 decisiones) |
+| Brier | — | 0,1239 |
+| Tasa base | 81,8% | 84,85% |
+| Brier skill | **+0,0168** (10/11 folds > 0, racha 6) | **+0,0364** |
+| ECE | 0,013-0,058 por fold | 0,025 |
+| PSI vivo-vs-OOS | — | **0,157 (watch)**; el viejo daba 1,20 |
+
+- **Coeficientes sparse**: `hourc` +0,098 · `dow` -0,190 · `x_atr288` -0,207.
+  Las 6 features de precio se apagan: el aguante depende de hora, dia y
+  volatilidad de 24 h, no de la distancia al nivel.
+- **Por lado (holdout)**: soporte **+0,0575** (n=103) · resistencia +0,0065 (n=95).
+- **Por regimen (WF agregado, 7.757)**: compresion +0,031 · normal +0,007 ·
+  **expansion -0,029** (n=1.085: el modelo falla en alta volatilidad — limite
+  conocido, documentado).
+- Modelo anterior (`toques-v2-l1`): negativo en los 11 folds y en el holdout
+  (-0,054); fue reemplazado. Sus coeficientes quedan en el historial del repo.
+- Ver `EXPERIMENTOS.md` (pre-registro y resultados, incluidos los negativos) y
+  `RECALIBRACION.md` (por que NO se calibró al final: el fit por fold ya calibra).

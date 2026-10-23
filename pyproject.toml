@@ -1,0 +1,28 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv-nn", "analysis/data", "collector/data", "entrenamiento"]
+
+# Gate del repo: pyflakes (F) = bugs reales (imports muertos, nombres sin
+# definir, variables asignadas y no usadas). El monolito heredado tiene deuda
+# de estilo; las reglas estrictas (E/W/I/B/UP) se exigen solo al codigo nuevo
+# desde el workflow lint.yml, para no bloquear el repo con reformateos masivos.
+[tool.ruff.lint]
+select = ["F"]
+ignore = ["F841"]  # variables asignadas y no usadas: deuda heredada, no bug
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["F401"]
+"modelo_aprendizaje.py" = ["F401"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+check_untyped_defs = false
+exclude = "(analysis/data|collector/data|entrenamiento|\\.venv)"

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 backfill.py - REPLAY HISTORICO sin mirada al futuro (canal OOS auditable).
 
@@ -21,6 +20,7 @@ No opera, no usa claves, no toca el log vivo. Uso:
   python backfill.py --klines ... --start 2026-10-01T00:00:00+00:00 \
       --out data/decisions_hist.jsonl [--evaluar] [--descargar]
 """
+
 import argparse
 import datetime
 import json
@@ -36,7 +36,7 @@ import evaluate_decisions as ev  # noqa: E402
 import hold_model as hm  # noqa: E402
 import run_decision as rd  # noqa: E402
 
-UTC = datetime.timezone.utc
+UTC = datetime.UTC
 VISION = "https://data-api.binance.vision/api/v3/klines"
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 # Cache independiente del CWD: analysis/data/cache (no versionado).
@@ -59,8 +59,7 @@ def descargar_intervalo(interval, path, desde):
     nuevas = 0
     with open(path, "a", encoding="utf-8") as fh:
         while cur < ahora_ms:
-            url = (f"{VISION}?symbol=BTCUSDT&interval={interval}"
-                   f"&startTime={cur}&limit=1000")
+            url = f"{VISION}?symbol=BTCUSDT&interval={interval}" f"&startTime={cur}&limit=1000"
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": "vigilante-backfill/1.0"})
                 with urllib.request.urlopen(req, timeout=30) as r:
@@ -73,13 +72,25 @@ def descargar_intervalo(interval, path, desde):
                 if int(k[0]) in vistas:
                     continue
                 vistas.add(int(k[0]))
-                fh.write(json.dumps({
-                    "source": f"binance_vision_klines_{interval}", "interval": interval,
-                    "openTime": int(k[0]), "open": k[1], "high": k[2], "low": k[3],
-                    "close": k[4], "volume": k[5], "closeTime": int(k[6]),
-                    "quoteVolume": k[7], "trades": k[8],
-                    "collected_at": datetime.datetime.now(UTC).isoformat(),
-                }) + "\n")
+                fh.write(
+                    json.dumps(
+                        {
+                            "source": f"binance_vision_klines_{interval}",
+                            "interval": interval,
+                            "openTime": int(k[0]),
+                            "open": k[1],
+                            "high": k[2],
+                            "low": k[3],
+                            "close": k[4],
+                            "volume": k[5],
+                            "closeTime": int(k[6]),
+                            "quoteVolume": k[7],
+                            "trades": k[8],
+                            "collected_at": datetime.datetime.now(UTC).isoformat(),
+                        }
+                    )
+                    + "\n"
+                )
                 nuevas += 1
             cur = int(data[-1][0]) + 1
             if len(data) < 1000:
@@ -92,9 +103,12 @@ def asegurar_datos(cache_dir, desde):
     """Garantiza velas 5m/1h/4h/1d en cache desde `desde`. Devuelve rutas."""
     os.makedirs(cache_dir, exist_ok=True)
     rutas = {}
-    planes = {"5m": desde, "1h": desde - datetime.timedelta(days=3),
-              "4h": desde - datetime.timedelta(days=10),
-              "1d": desde - datetime.timedelta(days=400)}
+    planes = {
+        "5m": desde,
+        "1h": desde - datetime.timedelta(days=3),
+        "4h": desde - datetime.timedelta(days=10),
+        "1d": desde - datetime.timedelta(days=400),
+    }
     for iv, ini in planes.items():
         p = os.path.join(cache_dir, f"klines_{iv}.jsonl")
         n = descargar_intervalo(iv, p, ini)
@@ -125,9 +139,9 @@ def replay(kl, htf, start=None, end=None, step=48, warmup=300):
     ini = datetime.datetime.fromisoformat(start) if start else None
     fin = datetime.datetime.fromisoformat(end) if end else None
     if ini and ini.tzinfo is None:
-        ini = ini.replace(tzinfo=datetime.timezone.utc)
+        ini = ini.replace(tzinfo=datetime.UTC)
     if fin and fin.tzinfo is None:
-        fin = fin.replace(tzinfo=datetime.timezone.utc)
+        fin = fin.replace(tzinfo=datetime.UTC)
     registros = []
     for i in range(warmup, len(kl) - step, step):
         cutoff = kl[i]["t"]
@@ -135,8 +149,12 @@ def replay(kl, htf, start=None, end=None, step=48, warmup=300):
             continue
         if fin and cutoff > fin:
             break
-        out = de.decide(kl[: i + 1], price=kl[i]["c"], now=cutoff,
-                        htf_klines=_slice_htf(htf, cutoff))
+        out = de.decide(
+            kl[: i + 1],
+            price=kl[i]["c"],
+            now=cutoff,
+            htf_klines=_slice_htf(htf, cutoff),
+        )
         if not out.get("ok"):
             continue
         rec = rd.compact_record(out)
@@ -168,9 +186,12 @@ def escribir_jsonl(path, registros):
 
 def main():
     ap = argparse.ArgumentParser(description="Replay historico OOS (canal auditable)")
-    ap.add_argument("--klines", default="",
-                    help="klines_5m.jsonl (o vacio si se usa --descargar)")
-    ap.add_argument("--datadir", default=None, help="dir con klines_1h/4h/1d.jsonl (por defecto, el de --klines)")
+    ap.add_argument("--klines", default="", help="klines_5m.jsonl (o vacio si se usa --descargar)")
+    ap.add_argument(
+        "--datadir",
+        default=None,
+        help="dir con klines_1h/4h/1d.jsonl (por defecto, el de --klines)",
+    )
     ap.add_argument("--out", default=os.path.join("data", "decisions_hist.jsonl"))
     ap.add_argument("--eval-out", default=None, help="si se pasa, evalua el registro y escribe ahi")
     ap.add_argument("--start", default=None)
@@ -179,11 +200,21 @@ def main():
     ap.add_argument("--horizon", type=int, default=48)
     ap.add_argument("--warmup", type=int, default=300)
     ap.add_argument("--sobreescribir", action="store_true")
-    ap.add_argument("--descargar", action="store_true",
-                    help="baja/completa el historico publico en --cache antes de replicar")
-    ap.add_argument("--cache", default=CACHE_DEFAULT,
-                    help="dir de cache de velas (no versionado; por defecto analysis/data/cache)")
-    ap.add_argument("--vigilante", default=None, help="estado.json local o URL (niveles del Vigilante)")
+    ap.add_argument(
+        "--descargar",
+        action="store_true",
+        help="baja/completa el historico publico en --cache antes de replicar",
+    )
+    ap.add_argument(
+        "--cache",
+        default=CACHE_DEFAULT,
+        help="dir de cache de velas (no versionado; por defecto analysis/data/cache)",
+    )
+    ap.add_argument(
+        "--vigilante",
+        default=None,
+        help="estado.json local o URL (niveles del Vigilante)",
+    )
     args = ap.parse_args()
 
     if args.sobreescribir and os.path.exists(args.out):
@@ -215,8 +246,10 @@ def main():
         with open(args.eval_out, "w", encoding="utf-8") as fh:
             json.dump(res, fh, ensure_ascii=False, indent=1)
         m = res.get("overall", {})
-        print(f"eval OOS: n={m.get('n')} brier={m.get('brier')} skill={m.get('brier_skill')} "
-              f"base={m.get('base_rate')} status={res.get('status')}")
+        print(
+            f"eval OOS: n={m.get('n')} brier={m.get('brier')} skill={m.get('brier_skill')} "
+            f"base={m.get('base_rate')} status={res.get('status')}"
+        )
 
 
 if __name__ == "__main__":

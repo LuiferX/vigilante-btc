@@ -104,3 +104,17 @@
   consume el enfriamiento del otro. Con flag=0 vuelve al independiente.
 - Tests: +7 (699 en total). Proyeccion del ahorro real: ~0,1-1,5 alertas/dia segun
   la volatilidad del dia; el valor esta en que nunca se repite el mismo movimiento.
+
+## Modelo re entrado y validado (23/10, `analysis/entrenar_hold.py`)
+- **Walk-forward honesto, hecho dentro del repo** (stdlib puro, L1 C=0.03):
+  11 folds de 90 dias con 365 de train y 24h de embargo -> **7.757 muestras OOS**,
+  skill medio **+0,0168**, 10 de 11 folds positivos (racha 6).
+- **Holdout octubre 2026** (nadie lo entreno): 198 muestras, **skill +0,0364**,
+  ECE 0,025, PSI vivo-vs-OOS **0,157** (el modelo viejo daba -0,015 skill y 1,20 PSI).
+- **Publicado `toques-wf-1`** en las 3 copias del modelo (hold_model.py,
+  vigilante_cloud.py MODELO_TOQUES, modelo_toques.json). Coeficientes sparse:
+  manda la hora/dia/volatilidad de 24h, no el precio.
+- Recalibracion de intercepto (H2): **no aporto nada** -> revertida y documentada.
+- Por lado: soporte +0,0575 · resistencia +0,0065 (holdout). Por regimen:
+  compresion +0,031 · **expansion -0,029** (limite conocido: en alta volatilidad
+  el modelo no sirve; queda documentado, no se oculta).

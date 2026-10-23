@@ -1,0 +1,44 @@
+name: Lint y tipado
+
+on:
+  push:
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - '.github/workflows/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar herramientas (solo CI; el runtime sigue siendo stdlib)
+        run: pip install ruff==0.17.2 black mypy
+
+      - name: ruff (bugs reales, todo el repo)
+        run: ruff check .
+
+      - name: ruff estricto (codigo nuevo)
+        run: |
+          ruff check --select F,E,W,I,B,UP --ignore E501 \
+            analysis/entrenar_hold.py analysis/backfill.py \
+            analysis/test_entrenar_hold.py tools/secret_scan.py
+
+      - name: black (formato, solo codigo nuevo)
+        run: |
+          black --check analysis/entrenar_hold.py analysis/backfill.py \
+            analysis/test_entrenar_hold.py tools/secret_scan.py
+
+      - name: mypy (tipado, no bloqueante en la primera pasada)
+        continue-on-error: true
+        run: mypy analysis/entrenar_hold.py analysis/validation.py

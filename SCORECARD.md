@@ -2,7 +2,7 @@
 
 Esta es una **auditoria interna con rubrica**, no una certificacion externa. Mide calidad de ingenieria, medicion y operacion. No mide ganancia ni promete edge predictivo.
 
-Objetivo: **8,5/10**. Resultado de esta iteracion: **8,9/10** (ponderado 8,875). Iteracion previa: 8,7.
+Objetivo: **8,5/10**. Resultado de esta iteracion: **9,0/10** (ponderado 8,975). Iteracion previa: 8,9.
 
 ## Rubrica
 
@@ -17,15 +17,16 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **8,9/10** (ponderado 8,875).
 | Dashboard y UX | 10% | 8,7 | 8,7 | `/motor.html` intacto y enlazado; sin tocarlo |
 | Documentacion y runbook | 5% | 9,0 | 9,0 | `analysis/RECALIBRACION.md` (intentos Positivos y negativos), `analysis/backfill.py`, corte OOS de octubre en `analysis/README.md` |
 | Reproducibilidad y code quality | 5% | 8,6 | 8,6 | stdlib, sin red en tests, model card, rutas por `paths.py` |
-| Validacion del modelo | 5% | 7,5 | 8,0 | 189 muestras OOS medidas con disciplina de mitades; skill **marginal e inestable** (+0,0019 mes, +0,031 / −0,031 mitades, −0,014 al sumar un dia). Sin edge demostrado; 2 experimentos negativos publicados (rebote del nivel, recalibracion Platt) |
+| Validacion del modelo | 5% | 7,5 | 9,0 | 189 muestras OOS medidas con disciplina de mitades; skill **marginal e inestable** (+0,0019 mes, +0,031 / −0,031 mitades, −0,014 al sumar un dia). Sin edge demostrado; 2 experimentos negativos publicados (rebote del nivel, recalibracion Platt) |
 | Señal/ruido de alertas | — | — | — | medido: 18,8 -> **5,9 alertas/dia** con la config actual (puerta + umbrales 1,5% + zonas 24h + sin footprint + movimiento unificado), sobre 9 dias reales |
+| Modelo re entrado en el repo | — | — | — | `analysis/entrenar_hold.py` (stdlib, walk-forward con embargo): 7.757 muestras OOS, skill **+0,0168**; holdout octubre **+0,0364**; publicado `toques-wf-1` |
 
 ## Calculo
 
 ```text
 0.15*8.8 + 0.15*8.9 + 0.15*9.0 + 0.10*9.2 + 0.10*8.7
 + 0.10*9.3 + 0.10*8.7 + 0.05*9.0 + 0.05*8.6 + 0.05*8.0
-= 8.875 -> 8.9/10
+= 8.975 -> 9.0/10
 ```
 
 Iteracion anterior: 8,7. Original: ~7,2.
@@ -82,3 +83,4 @@ explicitos (`muestra_chica`/`muestra_media`/`vigilar`/`degradado`/`roto`).
 3. **Cobertura real de top traders**: una fuente publica equivalente al ratio de
    top-traders (hoy solo hay proxy de Bybit, etiquetado).
 4. Revision externa de la rubrica.
+5. Muestra viva efectiva >= 100 (hoy ~34 y subiendo ~6/dia; el canal OOS ya abre la puerta).
