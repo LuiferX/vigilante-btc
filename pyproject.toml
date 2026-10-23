@@ -1,7 +1,9 @@
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = [".venv-nn", "analysis/data", "collector/data", "entrenamiento"]
+# exclusiones: datos, caches y codigo de estudio de terceros (no versionado)
+extend-exclude = [".venv-nn", "analysis/data", "collector/data", "entrenamiento",
+                  "laboratorio", "modelo_*_demo", "docs"]
 
 # Gate del repo: pyflakes (F) = bugs reales (imports muertos, nombres sin
 # definir, variables asignadas y no usadas). El monolito heredado tiene deuda
