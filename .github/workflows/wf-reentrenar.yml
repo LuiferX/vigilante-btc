@@ -59,7 +59,14 @@ jobs:
           PY
           git add data/wf_folds.json data/wf_muestras.jsonl analysis/experimentos/scoreboard.jsonl || echo "nada"
           git commit -m "wf: control semanal $(date -u +%Y-%m-%d)" || echo "sin cambios"
-          ok=0; for i in 1 2 3; do git pull --rebase origin main >/dev/null 2>&1; git push origin HEAD:main && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
+          git config pull.rebase true
+          ok=0
+          for i in 1 2 3 4 5; do
+            git fetch origin main -q
+            if git rebase origin/main && git push --force-with-lease origin HEAD:main; then ok=1; break; fi
+            echo "reintento $i/5"; sleep 15
+          done
+          [ $ok -eq 1 ]
 
       - name: Publicar folds como artefacto
         uses: actions/upload-artifact@v4
