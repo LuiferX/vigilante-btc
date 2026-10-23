@@ -1758,7 +1758,9 @@ import os as _os
 
 _UM = "VIGILANTE_RUIDO_UNIFICADO"
 _est_r = {"cools": {}}
-_ah_r = datetime.datetime.now(datetime.timezone.utc)
+# hora fija (12:00 UTC): evita que los briefs horarios del bot disparen y
+# hagan el test dependiente del reloj.
+_ah_r = datetime.datetime(2026, 10, 22, 12, 0, tzinfo=datetime.timezone.utc)
 _os.environ[_UM] = "1"
 _e1 = v.decidir_alerta(83000.0, {"resistencias": [{"precio": 84000}], "soportes": [{"precio": 82000}]},
                        {"bias": "ALZA", "confianza": 50}, _est_r, _ah_r,
