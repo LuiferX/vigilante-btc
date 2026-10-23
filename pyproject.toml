@@ -14,6 +14,9 @@ ignore = ["F841"]  # variables asignadas y no usadas: deuda heredada, no bug
 [tool.ruff.lint.per-file-ignores]
 "test_*.py" = ["F401"]
 "modelo_aprendizaje.py" = ["F401"]
+# el codigo extraido del monolito usa 'l' como variable local (low): cosmetico,
+# renombrarlo masivamente aumenta el riesgo sin ganancia funcional.
+"vigilante/indicadores.py" = ["E741"]
 
 [tool.black]
 line-length = 100
