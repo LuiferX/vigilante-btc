@@ -23,7 +23,7 @@ jobs:
           python-version: "3.11"
 
       - name: Instalar herramientas (solo CI; el runtime sigue siendo stdlib)
-        run: pip install ruff black mypy
+        run: pip install ruff==0.17.2 black mypy
 
       - name: ruff (bugs reales, todo el repo)
         run: ruff check .

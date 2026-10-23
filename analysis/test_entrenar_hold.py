@@ -50,10 +50,7 @@ class EntrenarTest(unittest.TestCase):
         self.assertEqual(abs(m["coef"][0]) > abs(m["coef"][3]), True)
 
     def test_recalibrar_intercepto_solo_mueve_intercepto(self):
-        datos = [
-            _muestra([0.01 if i % 2 == 0 else -0.01] + [0.0] * 8, i % 2)
-            for i in range(100)
-        ]
+        datos = [_muestra([0.01 if i % 2 == 0 else -0.01] + [0.0] * 8, i % 2) for i in range(100)]
         m = eh.entrenar(datos, C=0.03, iters=200)
         r = eh.recalibrar_intercepto(m, datos)
         self.assertEqual(m["coef"], r["coef"])
@@ -90,10 +87,7 @@ class EntrenarTest(unittest.TestCase):
         self.assertEqual(fs[0][1].date().isoformat(), "2024-01-01")
 
     def test_cortar_htf_sin_futuro(self):
-        barras = [
-            {"t": datetime.datetime(2024, 1, i + 1, tzinfo=UTC), "c": 1}
-            for i in range(10)
-        ]
+        barras = [{"t": datetime.datetime(2024, 1, i + 1, tzinfo=UTC), "c": 1} for i in range(10)]
         tiempos = [b["t"] for b in barras]
         corte = datetime.datetime(2024, 1, 5, 12, tzinfo=UTC)
         out = eh.cortar_htf({"1h": barras}, {"1h": tiempos}, corte)

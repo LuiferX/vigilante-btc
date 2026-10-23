@@ -243,9 +243,7 @@ def predecir(modelo: dict, feats: Sequence[float]) -> float:
     z = modelo["intercept"]
     for j, k in enumerate(idx):
         z += (
-            modelo["coef"][j]
-            * (float(feats[k]) - modelo["mean"][j])
-            / (modelo["scale"][j] + 1e-12)
+            modelo["coef"][j] * (float(feats[k]) - modelo["mean"][j]) / (modelo["scale"][j] + 1e-12)
         )
     return _sig(z)
 
@@ -378,9 +376,7 @@ def _racha_positiva(vals: Sequence[float | None]) -> int:
 # orquestacion
 # --------------------------------------------------------------------------- #
 def main() -> int:
-    ap = argparse.ArgumentParser(
-        description="Walk-forward honesto del modelo de aguante"
-    )
+    ap = argparse.ArgumentParser(description="Walk-forward honesto del modelo de aguante")
     ap.add_argument("--datadir", required=True)
     ap.add_argument("--desde", default="2023-01-01")
     ap.add_argument("--hasta", default="2026-09-30")
@@ -389,9 +385,7 @@ def main() -> int:
     ap.add_argument("--embargo-horas", type=int, default=24)
     ap.add_argument("--C", type=float, default=0.03)
     ap.add_argument("--iters", type=int, default=400)
-    ap.add_argument(
-        "--recalibrar", action="store_true", help="H2: intercepto sobre train"
-    )
+    ap.add_argument("--recalibrar", action="store_true", help="H2: intercepto sobre train")
     ap.add_argument("--features", default=None, help="H4: subconjuto p.ej. 0,1,6,7,8")
     ap.add_argument("--out-folds", default="data/wf_folds.json")
     ap.add_argument("--out-muestras", default="data/wf_muestras.jsonl")
@@ -447,15 +441,9 @@ def main() -> int:
         )
         i1 = _idx_paraFecha(tiempos, t_fin)
         muestras = replay(kl, htf, i0, i1)
-        train = [
-            m
-            for m in muestras
-            if datetime.datetime.fromisoformat(m["t"]) <= corte_train
-        ]
+        train = [m for m in muestras if datetime.datetime.fromisoformat(m["t"]) <= corte_train]
         test = [
-            m
-            for m in muestras
-            if corte_train < datetime.datetime.fromisoformat(m["t"]) <= t_fin
+            m for m in muestras if corte_train < datetime.datetime.fromisoformat(m["t"]) <= t_fin
         ]
         if len(train) < 200 or len(test) < 20:
             print(f"fold {t_ini.date()}: train={len(train)} test={len(test)} -> salta")
@@ -500,9 +488,7 @@ def main() -> int:
         "recalibrado": bool(args.recalibrar),
         "features": args.features,
         "holdout": (
-            {"ini": args.holdout_ini, "fin": args.holdout_fin}
-            if args.holdout_ini
-            else None
+            {"ini": args.holdout_ini, "fin": args.holdout_fin} if args.holdout_ini else None
         ),
     }
     if args.guardar_modelo and modelo_final:
@@ -514,8 +500,7 @@ def main() -> int:
             "l1": modelo_final.get("l1", True),
             "recalibrado_intercepto": bool(args.recalibrar),
             "features": [
-                FEATURES[i]
-                for i in (modelo_final.get("features_idx") or range(len(FEATURES)))
+                FEATURES[i] for i in (modelo_final.get("features_idx") or range(len(FEATURES)))
             ],
             "coef": modelo_final["coef"],
             "intercept": modelo_final["intercept"],
@@ -531,9 +516,7 @@ def main() -> int:
         print(f"modelo guardado en {args.guardar_modelo}")
     os.makedirs(os.path.dirname(args.out_folds) or ".", exist_ok=True)
     with open(args.out_folds, "w", encoding="utf-8") as fh:
-        json.dump(
-            {"resumen": resumen, "folds": filas}, fh, ensure_ascii=False, indent=1
-        )
+        json.dump({"resumen": resumen, "folds": filas}, fh, ensure_ascii=False, indent=1)
     with open(args.out_muestras, "w", encoding="utf-8") as fh:
         for m in todas[-20000:]:
             fh.write(json.dumps(m, ensure_ascii=False) + "\n")
