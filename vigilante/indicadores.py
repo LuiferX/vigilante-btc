@@ -533,3 +533,15 @@ def latido_tarde(ultimo_run_iso, ahora_iso, max_min=15):
         return (t1 - t0).total_seconds() / 60 > max_min
     except Exception:
         return False
+
+
+def cuenta_regresiva(cuando, ahora):
+    d = cuando - ahora
+    dias = d.days
+    hs = d.seconds // 3600
+    ms = (d.seconds % 3600) // 60
+    if dias > 0:
+        return f"en {dias}d {hs}h"
+    if hs > 0:
+        return f"en {hs}h {ms}m"
+    return f"en {ms}m"
