@@ -160,8 +160,28 @@ class ValidationTest(unittest.TestCase):
             self.assertEqual(out["samples"]["eval"], 120)
             self.assertEqual(out["samples"]["effective"], 120)
             self.assertEqual(out["sample_status"], "suficiente")
+            # H6: los eventos sinteticos quedan fuera de la ventana de 48h ->
+            # la deriva es indeterminada (no "ok"); con eventos recientes es 0.
+            self.assertEqual(out["drift"]["status"], "sin_datos")
+
+    def test_drift_ok_con_eventos_recientes(self):
+        with tempfile.TemporaryDirectory() as td:
+            paths = _setup(td, events=120, spacing=48, eval_samples=120)
+            # comprimir los eventos sinteticos dentro de la ventana de 48h
+            # (120 eventos cada 20 min = 40 h, todos recientes)
+            with open(paths["decisions"], encoding="utf-8") as fh:
+                filas = [json.loads(l) for l in fh if l.strip()]
+            base = paths["now"] - timedelta(hours=40)
+            with open(paths["decisions"], "w", encoding="utf-8") as fh:
+                for i, r in enumerate(filas):
+                    r["event_time"] = (base + timedelta(minutes=20 * i)).isoformat()
+                    fh.write(json.dumps(r) + "\n")
+            out = v.validate(
+                paths["eval"], paths["backtest"], paths["decisions"],
+                paths["klines"], now=paths["now"],
+            )
             self.assertEqual(out["drift"]["status"], "ok")
-            self.assertEqual(out["drift"]["psi"], 0.0)
+            self.assertAlmostEqual(out["drift"]["psi"], 0.0, places=2)
 
     def test_overlap_reduces_effective_sample(self):
         with tempfile.TemporaryDirectory() as td:
@@ -364,6 +384,29 @@ class OosChannelTest(unittest.TestCase):
                 paths["klines"], now=paths["now"], collector_health_path=chp,
             )
             self.assertEqual(out["status"], "roto")
+
+    def test_deriva_ventana_reciente(self):
+        # H6: la deriva se mide sobre una ventana reciente, no sobre todo el
+        # historico (decisiones viejas nunca salen del log).
+        viejo = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        ahora = datetime(2026, 10, 23, tzinfo=timezone.utc)
+        decisions = [
+            # viejas: muchas prob bajas (distribucion del modelo anterior)
+            *[{"event_time": (viejo + timedelta(minutes=5 * i)).isoformat(),
+               "levels": [{"hold_prob": 0.65}]} for i in range(50)],
+            # recientes: todas altas (modelo nuevo)
+            *[{"event_time": (ahora - timedelta(minutes=5 * i)).isoformat(),
+               "levels": [{"hold_prob": 0.85}]} for i in range(50)],
+        ]
+        backtest = {"ok": True, "bins": [{"bin": "0.80-1.01", "n": 100,
+                                          "pred": 0.85, "real": 0.87}]}
+        con_ventana = v._drift_summary(decisions, backtest, ahora=ahora,
+                                       ventana_horas=48)
+        sin_ventana = v._drift_summary(decisions, backtest, ahora=ahora,
+                                       ventana_horas=100000)
+        # recientes == backtest (PSI ~0; el suavizado de psi() deja un residuo)
+        self.assertLess(con_ventana["psi"], 0.05)
+        self.assertGreater(sin_ventana["psi"], 0.25)  # mezcla vieja+reciente
 
 
 if __name__ == "__main__":

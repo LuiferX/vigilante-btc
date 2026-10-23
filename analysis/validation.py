@@ -40,6 +40,8 @@ SKILL_ALERT = -0.05
 BIN_EDGES = (0.00, 0.60, 0.70, 0.80, 1.01)
 BIN_LABELS = ("0.00-0.60", "0.60-0.70", "0.70-0.80", "0.80-1.01")
 HISTORY_LIMIT = 500
+DRIFT_VENTANA_H = 48.0   # ventana reciente para medir deriva (H6, pre-registrado)
+DRIFT_MIN_PROBS = 30     # con menos probs vivas, PSI es ruido -> deriva indeterminada
 
 
 def _read_json(path: str) -> Optional[dict]:
@@ -300,9 +302,38 @@ def _sample_status(
 def _drift_summary(
     decisions: list[dict],
     backtest: dict,
+    ahora: Optional[datetime] = None,
+    ventana_horas: Optional[float] = None,
 ) -> dict:
+    """PSI entre la distribucion de probabilidades vivas y la del backtest OOS.
+
+    La deriva se mide sobre una ventana RECIENTE (por defecto 48 h). Comparar
+    contra todo el historico mezcla versiones del modelo y hace la metrica
+    pegajosa: decisiones viejas nunca salen del log. Lo que importa es si el
+    regimen de ahora se parece al que el modelo vio fuera de muestra.
+    Pre-registro: analysis/EXPERIMENTOS.md (H6).
+    """
+    if ventana_horas is None:
+        ventana_horas = DRIFT_VENTANA_H
+    if ahora is None:
+        ahora = datetime.now(timezone.utc)
+
+    limite = ahora - timedelta(hours=ventana_horas)
     live_probs = []
+    usadas = 0
     for rec in decisions:
+        ev = rec.get("event_time") or rec.get("t")
+        if not ev:
+            continue
+        try:
+            t = datetime.fromisoformat(str(ev).replace("Z", "+00:00"))
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if t < limite:
+            continue
+        usadas += 1
         for level in rec.get("levels") or []:
             prob = level.get("hold_prob")
             if prob is None:
@@ -314,7 +345,11 @@ def _drift_summary(
     live_counts = _prob_bin_counts(live_probs)
     backtest_counts = _backtest_bin_counts(backtest)
     value = psi(backtest_counts or [], live_counts)
-    if value is None:
+    if len(live_probs) < DRIFT_MIN_PROBS:
+        # PSI sobre pocas muestras es ruido: la derivaqueda indeterminada.
+        status = "sin_datos"
+        value = None
+    elif value is None:
         status = "sin_datos"
     elif value >= PSI_ALERT:
         status = "alert"
@@ -673,7 +708,7 @@ def validate(
         # IP de EE.UU.) quedan registrados en failed_jobs y en warnings.
         data_ok = False
 
-    drift = _drift_summary(decisions, backtest)
+    drift = _drift_summary(decisions, backtest, ahora=now)
     oos = oos_summary(backtest)
     oos_ok = data_ok and oos_valido(oos, drift)
     status = _overall_status(
