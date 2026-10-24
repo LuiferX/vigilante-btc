@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-24T09:16:24.330981+00:00",
+  "checked_at": "2026-10-24T09:28:57.105374+00:00",
   "status": "degradado",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -15,13 +15,13 @@
     "eval": 472,
     "effective": 31,
     "resolved_levels": 472,
-    "levels_with_hold": 504,
-    "events": 309,
+    "levels_with_hold": 506,
+    "events": 310,
     "resolved_events": 293,
     "independent_events": 19,
-    "coverage": 0.9482,
+    "coverage": 0.9452,
     "avg_levels_per_event": 1.61,
-    "span_hours": 80.0,
+    "span_hours": 80.2,
     "effective_fallback": null
   },
   "metrics": {
@@ -112,7 +112,7 @@
         ]
       }
     },
-    "coverage": 0.9482
+    "coverage": 0.9452
   },
   "backtest": {
     "samples": 207,
@@ -149,7 +149,7 @@
   },
   "drift": {
     "status": "watch",
-    "psi": 0.1775,
+    "psi": 0.1667,
     "watch_threshold": 0.1,
     "alert_threshold": 0.25,
     "live_bins": [
@@ -159,15 +159,15 @@
       },
       {
         "bin": "0.60-0.70",
-        "n": 18
+        "n": 17
       },
       {
         "bin": "0.70-0.80",
-        "n": 49
+        "n": 48
       },
       {
         "bin": "0.80-1.01",
-        "n": 264
+        "n": 266
       }
     ],
     "backtest_bins": [
@@ -188,20 +188,20 @@
         "n": 168
       }
     ],
-    "live_mean_prob": 0.821,
+    "live_mean_prob": 0.8219,
     "backtest_mean_prob": 0.837,
-    "mean_shift": -0.016,
+    "mean_shift": -0.0151,
     "detail": "PSI compara la distribucion de probabilidades vivas contra el backtest OOS. No mide resultados; detecta cambio de regimen."
   },
   "data": {
     "klines": {
       "ok": true,
-      "bars": 2460,
-      "unique_bars": 2460,
+      "bars": 2462,
+      "unique_bars": 2462,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-24T09:10:00+00:00",
-      "age_min": 6.41,
+      "last": "2026-10-24T09:20:00+00:00",
+      "age_min": 8.95,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-24T09:16:17.635470+00:00",
+      "run_at": "2026-10-24T09:28:48.858397+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -243,7 +243,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "bc5b620faf38bd8c",
-  "code_sha": "c0d3d8b9c2cd1f658f01ce8b470cdad623bdcedf",
+  "data_hash": "183e5c7af349cac1",
+  "code_sha": "8c25a55b702235aa7a925e7a042a221ef3a5f600",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
