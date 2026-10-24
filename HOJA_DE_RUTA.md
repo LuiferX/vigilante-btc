@@ -118,3 +118,5 @@
 - Por lado: soporte +0,0575 · resistencia +0,0065 (holdout). Por regimen:
   compresion +0,031 · **expansion -0,029** (limite conocido: en alta volatilidad
   el modelo no sirve; queda documentado, no se oculta).
+
+- [x] Modelo toques-wf-1 congelado (2026-10-24)

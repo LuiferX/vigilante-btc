@@ -1,3 +1,6 @@
+
+# NOTA: El modelo publicado (toques-wf-1) está CONGELADO.
+# Cualquier re-entrenamiento debe seguir los criterios de EXPERIMENTOS.md.
 #!/usr/bin/env python3
 """
 entrenar_hold.py - WALK-FORWARD honesto del modelo de aguante (stdlib puro).

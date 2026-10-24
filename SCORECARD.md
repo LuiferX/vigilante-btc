@@ -84,3 +84,5 @@ explicitos (`muestra_chica`/`muestra_media`/`vigilar`/`degradado`/`roto`).
    top-traders (hoy solo hay proxy de Bybit, etiquetado).
 4. Revision externa de la rubrica.
 5. Muestra viva efectiva >= 100 (hoy ~34 y subiendo ~6/dia; el canal OOS ya abre la puerta).
+
+- [x] Modelo toques-wf-1 congelado (2026-10-24)

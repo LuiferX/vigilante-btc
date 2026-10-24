@@ -120,6 +120,20 @@ MODELO_TOQUES = {
         -0.2073024131403363,
     ],
     "intercept": 1.5426070329136758,
+    "congelado": {
+        "congelado": True,
+        "fecha_congelacion": "2026-10-24",
+        "descongelar_si": [
+            "PSI estable < 0.25 durante 1 semana completa con este modelo en produccion",
+            ">= 300 muestras efectivas nuevas posteriores a la congelacion (~5-6 semanas)",
+            "Hipotesis registrada en EXPERIMENTOS.md ANTES de entrenar",
+            "El candidato supera a toques-wf-1 en el MISMO walk-forward (mismos folds, mismo embargo)"
+        ],
+        "excepciones_inmediatas": [
+            "Bug en features o scoring (correccion > congelacion)",
+            "Cambio estructural en la fuente de datos que altere la semantica de las features"
+        ]
+    },
 }
 
 
