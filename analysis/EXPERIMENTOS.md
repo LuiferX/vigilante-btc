@@ -59,3 +59,34 @@ python analysis/entrenar_hold.py --datadir <velas> \
 ```
 
 Coste orientativo: ~1,3 min por fold de 90 dias con 435k velas cargadas.
+
+## CONGELAMIENTO (toques-wf-1)
+
+**Fecha:** 2026-10-24 · **Estado:** CONGELADO
+
+El modelo `toques-wf-1` y su entrenador `analysis/entrenar_hold.py` quedan
+congelados para que las metricas de produccion (PSI, Brier skill, ECE) tengan
+una **referencia fija**: sin modelo congelado, cada metrica se resetea y deja de
+ser comparable periodo a periodo. Sello: clave `congelado` en las 3 copias del
+modelo (`vigilante/toques.py`, `analysis/hold_model.py`, `modelo_toques.json`).
+
+### Des-congelar SOLO si se cumplen TODAS:
+
+1. PSI estable < 0.25 durante 1 semana completa con este modelo en produccion.
+2. >= 300 muestras efectivas nuevas posteriores a la congelacion (~5-6 semanas).
+3. Hipotesis registrada en este archivo ANTES de entrenar.
+4. El candidato supera a toques-wf-1 en el MISMO walk-forward (mismos folds,
+   mismo embargo). No en un corte elegido a posteriori.
+
+### Excepciones inmediatas (fuera de ese proceso):
+
+- Bug en features o scoring (correccion > congelamiento).
+- Cambio estructural en la fuente de datos que altere la semantica de features.
+
+### Lo que "congelar" NO significa:
+
+- NO parar de medir: el refresco OOS diario y el control WF semanal siguen
+  corriendo (son el detector de decaimiento).
+- NO es para siempre: los criterios de arriba se pre-registran hoy.
+- Si el regimen cambia y el modelo se degrada, el gate + PSI lo silencian:
+  el costo de un modelo congelado y obsoleto es "callarse", nunca "mentir".
