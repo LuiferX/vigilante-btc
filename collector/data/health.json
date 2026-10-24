@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-24T15:56:12.264042+00:00",
+  "run_at": "2026-10-24T16:11:19.808820+00:00",
   "ok": true,
   "kline_ok": true,
   "data_dir": "data/btcusdt",
@@ -7,10 +7,10 @@
     "funding.jsonl": {
       "ok": true,
       "fetched": 100,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "okx_funding",
-      "last_key": 1789977600000
+      "last_key": 1790006400000
     },
     "open_interest.jsonl": {
       "ok": true,
@@ -18,7 +18,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_oi",
-      "last_key": 1792684800000
+      "last_key": 1792685700000
     },
     "global_ls.jsonl": {
       "ok": true,
@@ -26,7 +26,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_global_ls",
-      "last_key": 1792684800000
+      "last_key": 1792685700000
     },
     "top_ls_account.jsonl": {
       "ok": false,
@@ -42,7 +42,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_taker_ls",
-      "last_key": 1792835700000
+      "last_key": 1792836600000
     },
     "klines_5m.jsonl": {
       "ok": true,
@@ -50,23 +50,23 @@
       "added": 3,
       "trimmed": 0,
       "source": "binance_vision_klines_5m",
-      "last_key": 1792857000000
+      "last_key": 1792857900000
     },
     "klines_1h.jsonl": {
       "ok": true,
       "fetched": 999,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "binance_vision_klines_1h",
-      "last_key": 1792850400000
+      "last_key": 1792854000000
     },
     "klines_4h.jsonl": {
       "ok": true,
       "fetched": 499,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "binance_vision_klines_4h",
-      "last_key": 1792828800000
+      "last_key": 1792843200000
     },
     "klines_1d.jsonl": {
       "ok": true,
@@ -91,8 +91,8 @@
       "fetched": 10
     },
     "ok": true,
-    "added": 0,
+    "added": 1,
     "trimmed": 0
   },
-  "finished_at": "2026-10-24T15:56:18.648791+00:00"
+  "finished_at": "2026-10-24T16:11:25.920615+00:00"
 }
