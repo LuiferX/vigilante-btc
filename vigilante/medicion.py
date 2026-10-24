@@ -599,3 +599,13 @@ def evaluar_sombra(est, ahora, velas=None):
         est["pend_sombra"] = nuevas[-MAX_PEND_TODO:]
     except Exception:
         pass
+
+
+MIN_SENALES = 5  # minimo de senales para mostrar % de precision
+
+
+def prec_str(lista):
+    if len(lista) < MIN_SENALES:
+        return f"pocas ({len(lista)})" if lista else "s/d"
+    ok = sum(lista)
+    return f"{round(ok / len(lista) * 100)}% ({ok}/{len(lista)})"

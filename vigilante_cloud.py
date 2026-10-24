@@ -17,9 +17,7 @@ import json
 import os
 import re
 import sys
-import time
 import urllib.request
-import xml.etree.ElementTree as ET
 
 # --- Fase 1 modularizacion: matematicas puras en vigilante/indicadores.py ---
 _AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -171,6 +169,51 @@ from vigilante.alertas import (  # noqa: E402,F401
     UMBRAL_DIA_NY,
     cuenta_regresiva,
 )
+from vigilante.comandos import (  # noqa: E402,F401
+    leer_comandos,
+    responder_comando,
+)
+from vigilante.render import (  # noqa: E402,F401
+    VERSION,
+    build_parte,
+    _u16,
+    trocear,
+)
+from vigilante.eventos import (  # noqa: E402,F401
+    regla_spread,
+    narrar,
+    toques_hoy,
+    vs_ayer,
+    stats_fecha,
+    cierre_ayer,
+    imanes,
+    scoreboard,
+    texto_scoreboard,
+    acuerdo_tecnica,
+    linea_escenario,
+    familia_evento,
+    estudiar_eventos,
+    linea_estudio,
+    preaviso,
+    marcar_preaviso,
+    tca_linea,
+    linea_runbook,
+)
+from vigilante.noticias import (  # noqa: E402,F401
+    FEEDS,
+    GRUPOS,
+    EXPLICA,
+    peso_noticia,
+    impacto_noticia,
+    explicar_noticia,
+    noticias,
+    CAL_EXP,
+    explicar_evento,
+    impacto_evento,
+    calendario,
+    direccion_noticia,
+    presion_noticias,
+)
 from vigilante.precision import (  # noqa: E402,F401
     _gate_desde_validacion,
     cargar_gate_validacion,
@@ -199,21 +242,23 @@ from vigilante.precision import (  # noqa: E402,F401
     PRECISION_EVAL_HORAS,
 )
 from vigilante.medicion import (  # noqa: E402,F401
-    resumen_medicion,
-    precision_plan,
-    tabla_calibracion,
-    auto_stats,
-    calibrar,
-    registrar_pend_gate,
-    evaluar_mfe,
-    abrir_todo,
-    evaluar_todo,
-    abrir_sombra,
-    evaluar_sombra,
-    EVAL_HORAS,
     DEDUP_HORAS,
+    EVAL_HORAS,
+    MIN_SENALES,
     SEMILLA_SESION,
     UMBRAL_MOV,
+    abrir_sombra,
+    abrir_todo,
+    auto_stats,
+    calibrar,
+    evaluar_mfe,
+    evaluar_sombra,
+    evaluar_todo,
+    prec_str,
+    precision_plan,
+    registrar_pend_gate,
+    resumen_medicion,
+    tabla_calibracion,
 )
 from vigilante.analisis import (  # noqa: E402,F401
     analyze,
@@ -229,7 +274,6 @@ from vigilante.analisis import (  # noqa: E402,F401
     proxima_sesion,
 )
 
-VERSION = "v6"
 
 # Fuente de mercado: se fija UNA vez por pasada para que precio y velas vengan
 # del mismo sitio. Antes cada llamada hacia su propio fallback y una pasada podia
@@ -239,154 +283,22 @@ VERSION = "v6"
 
 # ---------------- Noticias (prensa) y calendario (eventos futuros) --------
 
-FEEDS = [
-    'https://cointelegraph.com/rss',
-    'https://cryptoslate.com/feed/',
-    'https://decrypt.co/feed',
-    'https://bitcoinmagazine.com/feed',
-    'https://bitcoinist.com/feed/',
-    'https://watcher.guru/news/feed',
-    'https://www.theblock.co/rss.xml',
-]
-GRUPOS = [
-    ('macro', 6, r'\b(fed|fomc|rate[- ]?cut|rate[- ]?hike|inflation|cpi|treasury|yield|recession|tariff|dollar)\b'),
-    ('institucional', 4, r'\b(etf|blackrock|fidelity|microstrateg|mstr|institution|sovereign|reserve|adoption)\b'),
-    ('regulacion', 4, r'\b(sec|gensler|regulat|court|ruling|lawsuit|cftc|doj|indict|charged)\b'),
-    ('flujos', 5, r'\b(binance|coinbase|tether|usdt|stablecoin|outflow|inflow)\b'),
-    ('red', 2, r'\b(halving|hash[- ]?rate|mining|miner|difficulty|lightning|ordinals)\b'),
-]
-EXPLICA = {
-    'macro': 'macro EE.UU.: mueve al dolar y a todo el riesgo, incluido BTC',
-    'institucional': 'dinero grande (ETFs/empresas): entradas = compra, salidas = venta',
-    'regulacion': 'reglas y juicios: deciden si el dinero grande entra o sale',
-    'flujos': 'movimiento en exchanges/stablecoins: anticipa compra o venta',
-    'red': 'salud de la red Bitcoin (mineria): efecto lento, poco inmediato',
-}
 
 
-def peso_noticia(titulo):
-    t = titulo.lower()
-    s = 0
-    tags = []
-    if re.search(r'\bbtc\b', t) or 'bitcoin' in t:
-        s += 4
-    for tag, peso, rx in GRUPOS:
-        if re.search(rx, t):
-            s += peso
-            tags.append(tag)
-    return s, tags
 
 
-def impacto_noticia(score):
-    if score >= 9:
-        return 'ALTO (±2-6%)'
-    if score >= 6:
-        return 'MEDIO (±0.5-2%)'
-    return 'BAJO (<±1%)'
 
 
-def explicar_noticia(tags):
-    if not tags:
-        return 'tema crypto general con posible efecto en BTC'
-    return ' + '.join(EXPLICA[t] for t in tags[:2])
 
 
-def noticias(limit=5, _presupuesto_s=40):
-    titulos = []
-    _t0_notis = time.monotonic()
-    for f in FEEDS:
-        try:
-            if time.monotonic() - _t0_notis > _presupuesto_s:
-                break
-            req = urllib.request.Request(f, headers={"User-Agent": "vigilante-cloud/3.0"})
-            with urllib.request.urlopen(req, timeout=12) as r:
-                raw = r.read(512 * 1024)
-            root = ET.fromstring(raw)
-            n = 0
-            for el in root.iter():
-                if el.tag.split('}')[-1] not in ('item', 'entry'):
-                    continue
-                if n >= 6:
-                    break
-                titulo = ''
-                for ch in el:
-                    if ch.tag.split('}')[-1] == 'title' and ch.text:
-                        titulo = ch.text.strip()
-                        break
-                if titulo:
-                    titulos.append(titulo)
-                    n += 1
-        except Exception:
-            continue
-    scored = []
-    vistos = set()
-    for tt in titulos:
-        if tt in vistos:
-            continue
-        vistos.add(tt)
-        s, tags = peso_noticia(tt)
-        if s >= 5:
-            scored.append({"titulo": tt, "score": s, "tags": tags})
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored[:limit]
 
 
-CAL_EXP = [
-    (r'fomc|fed funds|rate decision|statement', 'la Fed decide las tasas: el evento que mas mueve a BTC'),
-    (r'\bcpi\b', 'inflacion de EE.UU.: si sale alta, caen los activos de riesgo'),
-    (r'nfp|non-farm|nonfarm|unemployment|jobless|payroll', 'empleo de EE.UU.: dato fuerte = menos recortes = cae BTC'),
-    (r'\bpce\b', 'inflacion favorita de la Fed (PCE)'),
-    (r'\bppi\b', 'inflacion mayorista (PPI): adelanta al CPI'),
-    (r'retail sales', 'ventas minoristas: mide al consumidor de EE.UU.'),
-    (r'\bgdp\b', 'crecimiento (PIB) de EE.UU.'),
-    (r'powell|fomc member|testimony|speech', 'habla la Fed: cada palabra mueve al dolar y a BTC'),
-]
 
 
-def explicar_evento(titulo):
-    t = titulo.lower()
-    for rx, exp in CAL_EXP:
-        if re.search(rx, t):
-            return exp
-    return 'dato macro de EE.UU.: mueve al dolar y a BTC'
 
 
-def impacto_evento(impact):
-    return 'ALTO (±3-8%)' if impact == 'High' else 'MEDIO (±0.5-2%)'
 
 
-def calendario(limit=5, incluir_pasadas_h=0):
-    """Próximos eventos USD (High/Medium). Con `incluir_pasadas_h>0` también
-    devuelve los ocurridos en las últimas N horas (para el estudio de eventos)."""
-    evs = []
-    try:
-        req = urllib.request.Request(
-            'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
-            headers={"User-Agent": "vigilante-cloud/3.0"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.load(r)
-    except Exception:
-        return []
-    ahora = datetime.datetime.now(datetime.timezone.utc)
-    try:
-        limite_pasado = ahora - datetime.timedelta(hours=max(0.0, float(incluir_pasadas_h or 0)))
-    except Exception:
-        limite_pasado = ahora
-    for e in data:
-        if e.get('country') != 'USD':
-            continue
-        if e.get('impact') not in ('High', 'Medium'):
-            continue
-        try:
-            cuando = datetime.datetime.fromisoformat(e['date'].replace('Z', '+00:00'))
-        except Exception:
-            continue
-        if cuando < limite_pasado:
-            continue
-        evs.append({"titulo": e.get('title', ''), "cuando": cuando, "impact": e.get('impact'),
-                      "forecast": e.get('forecast'), "previous": e.get('previous')})
-    evs.sort(key=lambda x: x['cuando'])
-    return evs[:limit]
 
 
 
@@ -400,7 +312,6 @@ def calendario(limit=5, incluir_pasadas_h=0):
 # (la vela previa cerraba al otro lado) y superar un margen minimo. Evita cantar
 # "ruptura BAJISTA" cuando el soporte mas cercano sube pegado al precio en subida.
 UMBRAL_ATR_MULT = 0.5    # acierto = moverse >= 0.5 * ATR 1H a favor (relativo al mercado)
-MIN_SENALES = 5          # minimo de senales para mostrar % de precision
 
 
 
@@ -450,17 +361,6 @@ PRECISION_MODO = os.environ.get("VIGILANTE_PRECISION", "1") not in ("", "0", "fa
 
 
 
-def regla_spread(spread_bps):
-    """Ejecución por spread (Kaiko/Bybit): market/limit/pausa. Puro."""
-    try:
-        s = float(spread_bps)
-    except Exception:
-        return "s/d"
-    if s <= 3:
-        return "market ok"
-    if s <= 5:
-        return "mejor limit"
-    return "pausa"
 
 
 
@@ -547,44 +447,8 @@ ABRIDORES = [
 ]
 
 
-def narrar(dirb, h1, h4, d1, res, sup, precio):
-    b, c = dirb["bias"], dirb["confianza"]
-    if b == "ALZA":
-        base = (f"los compradores mandan con {c}% de confianza: el corto plazo empuja "
-                f"y busca romper {fmt_miles(res['precio'])}")
-    elif b == "BAJA":
-        base = (f"los vendedores mandan con {c}% de confianza: la presión va "
-                f"hacia {fmt_miles(sup['precio'])}")
-    else:
-        if h1["tend"] == "ALCISTA":
-            base = ("el corto plazo quiere subir pero los marcos grandes no confirman: mercado indeciso, "
-                    f"atrapado entre {fmt_miles(sup['precio'])} y {fmt_miles(res['precio'])}")
-        elif h1["tend"] == "BAJISTA":
-            base = ("el corto plazo quiere caer pero los marcos grandes no confirman: mercado indeciso, "
-                    f"atrapado entre {fmt_miles(sup['precio'])} y {fmt_miles(res['precio'])}")
-        else:
-            base = (f"nadie manda: todos los marcos laterales entre {fmt_miles(sup['precio'])} y "
-                    f"{fmt_miles(res['precio'])}. Cuando esto pasa, el movimiento que rompa suele ser fuerte")
-    extra = ""
-    if h1["rsi"] >= 70:
-        extra = " El 1H va caliente (RSI alto): puede seguir, pero no persigas entradas tarde."
-    elif h1["rsi"] <= 30:
-        extra = " El 1H va sobrevendido: los rebotes pueden ser bruscos."
-    return base + "." + extra
 
 
-def toques_hoy(hist, nivel, ahora):
-    hoy = ahora.strftime("%Y-%m-%d")
-    n = 0
-    for h in hist:
-        try:
-            if not h.get("t", "").startswith(hoy):
-                continue
-            if abs(h["precio"] - nivel) / nivel <= UMBRAL_TOQUE:
-                n += 1
-        except Exception:
-            continue
-    return n
 
 
 
@@ -606,500 +470,96 @@ def toques_hoy(hist, nivel, ahora):
 
 
 
-def vs_ayer(hist, precio, ahora):
-    obj = (ahora - datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H")
-    cand = None
-    for h in reversed(hist):
-        if h.get("t", "")[:13] <= obj:
-            cand = h
-            break
-    if not cand or not cand.get("precio"):
-        return None
-    return round((precio - cand["precio"]) / cand["precio"] * 100, 2)
 
 
-def stats_fecha(hist, fecha):
-    ps = [h["precio"] for h in hist if h.get("t", "").startswith(fecha) and h.get("precio")]
-    bs = [h["bias"] for h in hist if h.get("t", "").startswith(fecha) and h.get("bias")]
-    if not ps:
-        return None
-    dom = max(set(bs), key=bs.count) if bs else "?"
-    return {"max": max(ps), "min": min(ps), "dom": dom, "n": len(ps)}
 
 
 def stats_dia(hist, ahora):
     return stats_fecha(hist, ahora.strftime("%Y-%m-%d"))
 
 
-def cierre_ayer(hist, ahora):
-    ay = (ahora - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    ps = [h["precio"] for h in hist if h.get("t", "").startswith(ay) and h.get("precio")]
-    return ps[-1] if ps else None
-
-
-def leer_comandos(offset):
-    """Lee mensajes nuevos dirigidos al bot (chat en 2 vías con retardo)."""
-    try:
-        offset = int(offset or 0)
-    except Exception:
-        offset = 0
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    if not token:
-        return [], offset
-    try:
-        url = f"https://api.telegram.org/bot{token}/getUpdates?offset={offset}&timeout=10"
-        req = urllib.request.Request(url, headers={"User-Agent": "vigilante-cloud/3.0"})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            data = json.load(r)
-        msgs = []
-        new_off = offset
-        res = data.get("result", []) if isinstance(data, dict) else []
-        if res:
-            try:
-                new_off = max(new_off, int(res[-1].get("update_id", 0)) + 1)
-            except Exception:
-                pass
-        for u in res:
-            try:
-                new_off = max(new_off, int(u.get("update_id", 0)) + 1)
-            except Exception:
-                pass
-            m = u.get("message") or u.get("edited_message") or {}
-            txt = (m.get("text") or "").strip()
-            cid = (m.get("chat") or {}).get("id")
-            if txt.startswith("/"):
-                tk = txt.split()[0].split("@")[0].lower()
-                msgs.append({"chat": cid, "texto": tk, "full": txt[:500],
-                             "nombre": str(((m.get("from") or {}).get("first_name") or ""))[:30].replace("\n", " ")})
-        return msgs, new_off
-    except Exception:
-        return [], offset
-
-
-def responder_comando(cmd, ctx):
-    """Solo responde al dueño (seguridad: verifica el chat). Devuelve (texto, dirty)."""
-    chat_ok = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-    if not chat_ok or str((cmd or {}).get("chat")) != str(chat_ok):
-        return None, False
-    c = str((cmd or {}).get("texto") or "").split("@")[0].strip().lower() or "/ayuda"
-    try:
-        t = ctx["t"]
-        dirb = ctx["dirb"]
-        niv = ctx["niv"]
-        fg = ctx["fg"]
-        est = ctx["est"]
-        ahora = ctx["ahora"]
-        _rs = (niv.get("resistencias") or [])
-        _ss = (niv.get("soportes") or [])
-        if not _rs or not _ss:
-            return ("Niveles en cálculo, prueba /precio en la próxima pasada.", False)
-        res = _rs[0]
-        sup = _ss[0]
-    except Exception:
-        return ("No entiendo el estado ahora mismo, prueba en la próxima pasada.", False)
-    if c == "/precio":
-        return (f"BTC ahora: {fmt_miles(t['last'])} ({t['chg']:+.2f}% 24h). "
-                f"Rango del día: {fmt_miles(t['lo'])} - {fmt_miles(t['hi'])}.", False)
-    if c == "/direccion":
-        def _tf(x):
-            return f"{x.get('tf', '?')} {x.get('tend', '?')} RSI {x.get('rsi', '?')} MACD {'+' if x.get('macd', 0) > 0 else '-'}"
-        return (f"Dirección: {dirb['bias']} (confianza {dirb['confianza']}%). " +
-                " | ".join(_tf(ctx[k]) for k in ("h1", "h4", "d1", "w1")) + ".", False)
-    if c == "/niveles":
-        return ("Soportes: " + " | ".join(fmt_miles(x['precio']) for x in niv['soportes']) +
-                "\nResistencias: " + " | ".join(fmt_miles(x['precio']) for x in niv['resistencias']), False)
-    if c == "/miedo":
-        ff = f"{ctx['senti']['funding']:+.4f}%" if ctx['senti']['funding'] is not None else "n/d"
-        tk = ctx['senti']['taker'] if ctx['senti']['taker'] is not None else "n/d"
-        return (f"{fg['etiqueta']}: {fg['valor']}/100 (RSI 1D {ctx['d1']['rsi']}, funding {ff}, taker {tk}).", False)
-    if c == "/noticias":
-        ns = (ctx.get("notis") or [])[:3]
-        if not ns:
-            return ("Sin noticias relevantes ahora mismo.", False)
-        base = "Top noticias:\n" + "\n".join(f"• [{n['score']}] {n['titulo']}" for n in ns)
-        pr = ctx.get("pres")
-        if pr:
-            base += f"\nPresión: {pr['txt']}."
-        return (base, False)
-    if c == "/eventos":
-        evs = ctx["evs"][:3]
-        if not evs:
-            return ("Sin eventos fuertes esta semana.", False)
-        return ("Próximos eventos:\n" + "\n".join(
-            f"• {e['titulo']} ({e['cuando'].strftime('%a %d %H:%M')} UTC)" + (
-                f"\n  📊 {linea_estudio(est, e['titulo'])}" if linea_estudio(est, e['titulo']) else "")
-            for e in evs), False)
-    if c == "/precision":
-        _pp = precision_plan(est)
-        if _pp:
-            _pa, _pb = _pp
-            base = (f"Precisión (dirección del plan): ALZA {prec_str(_pa)} · "
-                    f"BAJA {prec_str(_pb)}.")
-        else:
-            base = (f"Precisión (histórico por sesgo): ALZA {prec_str(est.get('alza', []))} · "
-                    f"BAJA {prec_str(est.get('baja', []))}. Aún sin muestras de plan.")
-        aut = ctx.get("aut")
-        if aut:
-            base += (f"\nAuto: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · "
-                     f"peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}.")
-        cal = calibrar(est)
-        if cal:
-            base += "\nCalib: " + ", ".join(f"{s}x{f}" for s, f in sorted(cal.items())) + "."
-        tc = tabla_calibracion(est.get("eval_log", []))
-        if tc:
-            cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
-            base += f"\nConciencia: cuando digo 40s/50s/60+ acierto {cub} · Brier {tc['brier']} (0 perfecto) · n={tc['n']}."
-        return (base, False)
-    if c == "/sombra":
-        try:
-            slog = [e for e in (est.get("eval_sombra", []) or []) if isinstance(e, dict)]
-            n = len(slog)
-            if not n:
-                return ("Sombra: sin evaluaciones aún (mide toda señal con sesgo, sin operar).", False)
-            ok = sum(1 for e in slog if float(e.get("r", 0) or 0) > 0)
-            pct = round(ok / n * 100) if n else 0
-            base = f"Sombra: n={n} · acierto {pct}% ({ok}/{n})."
-            try:
-                tc = tabla_calibracion(slog)
-            except Exception:
-                tc = None
-            if tc and tc.get("cubetas"):
-                cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
-                base += f"\nPor confianza: {cub}."
-            return (base, False)
-        except Exception:
-            return ("Sombra: sin datos válidos aún.", False)
-    if c == "/evals":
-        try:
-            elog_all = [e for e in (est.get("eval_log", []) or []) if isinstance(e, dict)]
-            elog_plan = [e for e in elog_all if e.get("metodo") == "plan"]
-            elog = elog_plan or elog_all
-            n = len(elog)
-            if not n:
-                return ("Evals: sin evaluaciones aún.", False)
-            etiqueta = "plan" if elog_plan else "histórico por sesgo"
-            ok = sum(1 for e in elog if float(e.get("r", 0) or 0) > 0)
-            pct = round(ok / n * 100) if n else 0
-            base = f"Evals ({etiqueta}): n={n} · acierto {pct}% ({ok}/{n})."
-            try:
-                tc = tabla_calibracion(elog)
-            except Exception:
-                tc = None
-            if tc and tc.get("cubetas"):
-                cub = ", ".join(f"{k}:{v[1]}%({v[0]})" for k, v in sorted(tc["cubetas"].items()))
-                base += f"\nPor confianza: {cub} · Brier {tc['brier']} (0 perfecto)."
-            try:
-                glog = [e for e in (est.get("eval_gate", []) or []) if isinstance(e, dict)]
-                if glog:
-                    gok = sum(1 for e in glog if float(e.get("r", 0) or 0) > 0)
-                    gpct = round(gok / len(glog) * 100) if glog else 0
-                    base += (f"\nGate (silenciadas, contrafactual): {gok}/{len(glog)} = {gpct}%."
-                             " No se enviaron; solo auditan el filtro.")
-            except Exception:
-                pass
-            base += "\nDesde este fix: direccion real del plan. Antes se media el sesgo."
-            return (base, False)
-        except Exception:
-            return ("Evals: sin datos válidos aún.", False)
-    if c == "/manos":
-        sm = ctx.get("smart")
-        if not sm:
-            return ("Sin datos de flujos ahora.", False)
-        try:
-            return ((f"Instituciones {sm.get('inst', '?')}/100 · Minoristas {sm.get('ret', '?')}/100.\n" + str(sm.get("veredicto", "sin veredicto"))), False)
-        except Exception:
-            return ("Sin datos de flujos ahora.", False)
-    if c == "/calidad":
-        g = ctx.get("grade", "?")
-        rg = ctx.get("regimen", "?")
-        bl = " (blackout: sin señales nuevas)" if ctx.get("bloqueo") else ""
-        return (f"Calidad: {g} · régimen {rg}{bl}. Opera solo las A.", False)
-    if c in ("/motor", "/motor4h"):
-        m = ctx.get("motor") or cargar_motor_nuevo()
-        if not m:
-            return ("Motor 4h: sin lectura fresca. El pipeline corre cada 15 min; revisa /motor.html.", False)
-        base = f"Motor 4h: {m.get('action', '?')} · sesgo {m.get('bias') or '?'} · {m.get('age_min')} min."
-        if m.get("trigger"):
-            base += f"\nTrigger: {m['trigger']}"
-        if m.get("invalidation"):
-            base += f"\nInvalida: {m['invalidation']}"
-        base += "\nEs contexto, no una orden: el motor no ejecuta."
-        return (base, False)
-    if c == "/detalle":
-        return ("Te mando el parte completo ahora.", False)
-    if c == "/alerta":
-        parts = cmd.get("full", "").split()
-        if len(parts) != 2:
-            return ("Uso: /alerta 85000 (te aviso al tocarlo).", False)
-        try:
-            px = float(parts[1])
-        except Exception:
-            return ("Precio inválido.", False)
-        if px <= 0:
-            return ("Precio debe ser > 0.", False)
-        if not (1000 <= px <= 1000000):
-            return ("Precio fuera de rango sensato (1.000–1.000.000).", False)
-        d = "sube" if px >= t["last"] else "baja"
-        al = est.get("mis_alertas") or []
-        if len(al) >= 20:
-            return ("Tienes 20 alertas (máximo). Borra con /borrar.", False)
-        al.append({"precio": px, "dir": d})
-        est["mis_alertas"] = al
-        verbo = "suba a" if d == "sube" else "baje a"
-        return (f"Alerta creada: te aviso cuando BTC {verbo} {fmt_miles(px)}.", True)
-    if c == "/alertas":
-        al = est.get("mis_alertas") or []
-        limpias = [a for a in al if isinstance(a, dict) and a.get("precio") and a.get("dir")]
-        if not limpias:
-            if al:
-                return ("Tus alertas están corruptas. Usa /borrar y crea de nuevo.", False)
-            return ("Sin alertas de precio. Crea con /alerta 85000.", False)
-        try:
-            txt = "\n".join(f"• {fmt_miles(float(a['precio']))} ({a['dir']})" for a in limpias)
-        except Exception:
-            return ("Tus alertas están corruptas. Usa /borrar y crea de nuevo.", False)
-        return (("Tus alertas:\n" + txt), False)
-    if c == "/borrar":
-        est["mis_alertas"] = []
-        return ("Alertas de precio borradas.", True)
-    if c == "/opere":
-        parts = cmd.get("full", "").split()
-        if len(parts) != 5:
-            return ("Uso: /opere LONG|SHORT entrada stop tp (ej: /opere LONG 83000 82500 84000).", False)
-        d = parts[1].upper()
-        if d not in ("LONG", "SHORT"):
-            return ("Dirección: LONG o SHORT.", False)
-        try:
-            e, s, tp = float(parts[2]), float(parts[3]), float(parts[4])
-        except Exception:
-            return ("Números inválidos.", False)
-        if not (e > 0 and s > 0 and tp > 0 and e != s):
-            return ("Revisa precios (stop distinto de entrada).", False)
-        if d == "LONG" and not (s < e):
-            return ("En LONG el stop va bajo la entrada.", False)
-        if d == "SHORT" and not (s > e):
-            return ("En SHORT el stop va sobre la entrada.", False)
-        ops = est.get("ops") or []
-        if len(ops) >= MAX_OPS:
-            return ("Tienes 20 operaciones abiertas (máximo). Cierra con /cerrar.", False)
-        ops.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
-        est["ops"] = ops
-        return ((f"Registrada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}). "
-                 "Te aviso al cerrar."), True)
-    if c == "/voy":
-        ops = est.get("ops") or []
-        if not ops:
-            return ("Sin operaciones abiertas.", False)
-        lines = []
-        for o in (ops or []):
-            try:
-                e, s = float(o["entrada"]), float(o["stop"])
-                riesgo = abs(e - s) or 1
-                rr = (t["last"] - e) / riesgo if o.get("dir") == "LONG" else (e - t["last"]) / riesgo
-                lines.append(f"{o.get('dir', '?')} {fmt_miles(e)}: {rr:+.1f}R ahora (SL {fmt_miles(s)} / TP {fmt_miles(float(o.get('tp', s)))})")
-            except Exception:
-                continue
-        return ("\n".join(lines) or "Sin operaciones válidas.", False)
-    if c == "/diario":
-        j = est.get("journal", [])
-        if not j:
-            return ("Diario vacío: registra con /opere LONG entrada stop tp.", False)
-        w = sum(1 for x in j if x.get("r", 0) > 0)
-        tr = round(sum(x.get("r", 0) for x in j), 1)
-        return (f"Diario: {len(j)} ops · ganadas {w} ({round(w / len(j) * 100)}%) · total {tr:+.1f}R.", False)
-    if c == "/papel":
-        try:
-            banco = float(est.get("banco", PAPER_BANCO))
-        except Exception:
-            banco = float(PAPER_BANCO)
-        j = est.get("paper_cerradas", [])
-        ops = est.get("paper_abiertas", [])
-        if not j and not ops:
-            return (f"Papel XLX: banco {PAPER_BANCO:.0f} USDT, lev {PAPER_LEV}x, sin operaciones aún. Abro solo con señales ALZA/BAJA de 35%+.", False)
-        w = sum(1 for x in j if x.get("pnl", 0) > 0)
-        wr = f"{round(w / len(j) * 100)}% ({w}/{len(j)})" if j else "s/d"
-        tr = round(sum(x.get("r", 0) for x in j), 1) if j else 0
-        txt = (f"Papel XLX: banco {fmt_miles(banco)} USDT ({banco - PAPER_BANCO:+.0f}) · lev {PAPER_LEV}x · cerradas {len(j)} · ganadas {wr} · total {tr:+.1f}R.")
-        if racha_perdidas(est) >= 3:
-            txt += " Penalizado: arriesga 0.5% (3+ pérdidas seguidas)."
-        if ops:
-            txt += "\nAbiertas:\n" + "\n".join(
-                f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])} / LIQ {fmt_miles(o.get('liq', 0))})" for o in ops)
-        return (txt, False)
-    if c == "/cerrar":
-        ops = est.get("ops", [])
-        if not ops:
-            return ("No hay operaciones abiertas.", False)
-        j = est.get("journal", [])
-        outs = []
-        for o in ops:
-            e, s = o["entrada"], o["stop"]
-            riesgo = abs(e - s) or 1
-            rr = (t["last"] - e) / riesgo if o["dir"] == "LONG" else (e - t["last"]) / riesgo
-            j.append({"dir": o["dir"], "res": "MANUAL", "r": round(rr, 2), "t": ahora.isoformat()})
-            outs.append(f"{o['dir']} cerrada en {fmt_miles(t['last'])} ({rr:+.1f}R)")
-        est["ops"] = []
-        est["journal"] = j[-50:]
-        return ("\n".join(outs), True)
-    if c == "/simula":
-        parts = cmd.get("full", "").split()
-        sims = est.get("sim_abiertas", [])
-        if len(parts) == 1:
-            cerr = est.get("sim_cerradas", [])
-            w = sum(1 for x in cerr if x.get("r", 0) > 0)
-            base = f"Simulador: {len(sims)} abiertas · {len(cerr)} cerradas ({w} ganadas)."
-            if sims:
-                base += "\n" + "\n".join(
-                    f"• {o['dir']} {fmt_miles(o['entrada'])} (SL {fmt_miles(o['stop'])} / TP {fmt_miles(o['tp'])})" for o in sims[-5:])
-            base += "\nUso: /simula LONG|SHORT entrada [stop tp] (sin dinero, solo aprendizaje)."
-            return (base, False)
-        if len(parts) not in (3, 5) or parts[1].upper() not in ("LONG", "SHORT"):
-            return ("Uso: /simula LONG 83000 o /simula SHORT 83000 82500 84000.", False)
-        if len(sims) >= 5:
-            return ("Tienes 5 simuladas abiertas (máximo). Espera cierres.", False)
-        d = parts[1].upper()
-        try:
-            e = float(parts[2])
-            if len(parts) == 5:
-                s, tp = float(parts[3]), float(parts[4])
-            elif d == "LONG":
-                s = niv["soportes"][0]["precio"]
-                tp = e + 2 * (e - s)
-            else:
-                s = niv["resistencias"][0]["precio"]
-                tp = e - 2 * (s - e)
-        except Exception:
-            return ("Números inválidos.", False)
-        if not (e > 0 and s > 0 and tp > 0 and e != s):
-            return ("Revisa los precios (stop distinto de entrada).", False)
-        if d == "LONG" and not (s < e):
-            return ("En LONG el stop va bajo la entrada.", False)
-        if d == "SHORT" and not (s > e):
-            return ("En SHORT el stop va sobre la entrada.", False)
-        riesgo = abs(e - s) or 1
-        rr = abs(tp - e) / riesgo
-        sims.append({"dir": d, "entrada": e, "stop": s, "tp": tp, "t": ahora.isoformat()})
-        est["sim_abiertas"] = sims
-        return ((f"🔬 Simulada: {d} {fmt_miles(e)} (SL {fmt_miles(s)} / TP {fmt_miles(tp)}, {rr:.1f}R). "
-                 "Sin dinero, solo aprendizaje. Te aviso al cerrar."), True)
-    _nom = str((cmd or {}).get("nombre") or "").strip().replace("\n", " ")[:30]
-    hola = f" Hola {_nom}." if _nom else " Hola."
-    return ((hola + " Te respondo en cada pasada (máx ~30 min).\n"
-             "Comandos: /precio /direccion /niveles /miedo /noticias /eventos /motor /precision /sombra /evals /manos "
-             "/alerta /alertas /borrar /opere /voy /diario /cerrar /calidad /detalle /papel /simula"), False)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def imanes(last):
-    """Imanes de precio: strikes con mas Open Interest en opciones Deribit
-    (gratis) + ratio put/call."""
-    try:
-        req = urllib.request.Request(
-            "https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=option",
-            headers={"User-Agent": "vigilante-cloud/3.0"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.load(r)
-        oi = {}
-        for ins in data.get("result", []):
-            parts = (ins.get("instrument_name") or "").split("-")
-            if len(parts) != 4:
-                continue
-            try:
-                strike = float(parts[2])
-            except Exception:
-                continue
-            o = oi.setdefault(strike, {"C": 0.0, "P": 0.0})
-            if parts[3] in ("C", "P"):
-                o[parts[3]] += float(ins.get("open_interest", 0) or 0)
-        if not oi:
-            return None
-        calls = sum(v["C"] for v in oi.values())
-        puts = sum(v["P"] for v in oi.values())
-        top = sorted(oi.items(), key=lambda kv: kv[1]["C"] + kv[1]["P"], reverse=True)[:3]
-        niveles = [{"strike": int(s), "oi": round(v["C"] + v["P"], 1)} for s, v in top]
-        arriba = sorted(s for s in oi if s > last)
-        abajo = sorted((s for s in oi if s < last), reverse=True)
-        return {"top": niveles,
-                "pc": round(puts / calls, 2) if calls else None,
-                "up": int(arriba[0]) if arriba else None,
-                "down": int(abajo[0]) if abajo else None}
-    except Exception:
-        return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1115,36 +575,8 @@ DIRECCIONES_MEDIBLES = ("fuerte", "cambio", "toque", "ruptura", "estructura", "m
 
 
 
-def scoreboard(eval_log, min_n=1, solo_plan=False):
-    """Acierto REAL por tipo de alerta, medido en vivo (eval_log).
-    Devuelve filas (tipo, n, aciertos, pct), mejor primero. Sin promesas.
-    `solo_plan=True` excluye el histórico viejo, que medía sesgo y no plan."""
-    acc = {}
-    for e in (eval_log or []):
-        if not isinstance(e, dict):
-            continue
-        if solo_plan and e.get("metodo") != "plan":
-            continue
-        t = e.get("tipo") or "?"
-        if t in ("?", "otro"):
-            continue
-        n, h = acc.get(t, (0, 0))
-        acc[t] = (n + 1, h + (1 if e.get("r") else 0))
-    rows = [(t, n, h, 100.0 * h / n) for t, (n, h) in acc.items() if n >= min_n]
-    rows.sort(key=lambda x: (-x[3], -x[1]))
-    return rows
 
 
-def texto_scoreboard(eval_log, min_n=5, max_filas=6, solo_plan=False):
-    """Linea(s) de scoreboard para Telegram. Vacío si no hay muestra."""
-    rows = scoreboard(eval_log, min_n=min_n, solo_plan=solo_plan)
-    if not rows:
-        return ""
-    partes = [f"{t} {h}/{n} ({p:.0f}%)" for t, n, h, p in rows[:max_filas]]
-    total_n = sum(r[1] for r in rows)
-    total_h = sum(r[2] for r in rows)
-    cab = f"📊 Medido en vivo ({total_h}/{total_n} = {100.0*total_h/total_n:.0f}%)"
-    return cab + "\n· " + "\n· ".join(partes)
 
 
 
@@ -1157,51 +589,6 @@ DIR_BEAR = ("outflow", "outflows", "sell", "sells", "sold", "lawsuit", "ban", "h
             "crash", "hike", "crackdown", "fraud", "charged", "fine", "bankrupt")
 
 
-def direccion_noticia(titulo):
-    t = titulo.lower()
-    b = any(k in t for k in DIR_BULL)
-    s = any(k in t for k in DIR_BEAR)
-    if b and not s:
-        return 1
-    if s and not b:
-        return -1
-    return 0
-
-
-def presion_noticias(notis):
-    """Presion direccional neta de las noticias (-100..+100), ponderada por peso."""
-    if not notis:
-        return {"valor": 0, "txt": "sin noticias", "nb": 0, "ns": 0}
-    sw = sum(n["score"] * direccion_noticia(n["titulo"]) for n in notis)
-    w = sum(n["score"] for n in notis) or 1
-    v = round(sw / w * 100)
-    nb = sum(1 for n in notis if direccion_noticia(n["titulo"]) > 0)
-    ns = sum(1 for n in notis if direccion_noticia(n["titulo"]) < 0)
-    et = "alcista" if v >= 25 else ("bajista" if v <= -25 else "mixta")
-    return {"valor": v, "txt": f"{v:+d} {et} ({nb}🟢/{ns}🔴)", "nb": nb, "ns": ns}
-
-
-def acuerdo_tecnica(bias, valor):
-    if abs(valor) < 25:
-        return "noticias neutras: manda la técnica"
-    if (bias == "ALZA") == (valor > 0):
-        return f"viento a favor de la técnica ({bias})"
-    return f"VIENTO EN CONTRA: técnica {bias} vs noticias"
-
-
-
-
-def linea_escenario(e):
-    """Escenario honesto para eventos con pronostico: que pasa si sale alto/bajo."""
-    f = num_txt(e.get("forecast"))
-    p = num_txt(e.get("previous"))
-    if f is None or p is None:
-        return ""
-    t = e["titulo"].lower()
-    base = f"escenario (esp {e['forecast']} vs prev {e['previous']})"
-    if re.search(r'cpi|ppi|pce|nfp|non-farm|nonfarm|payroll|unemployment|jobless|fomc|rate|interest', t):
-        return base + ": ALTO = baja | BAJO = sube"
-    return base + ": la sorpresa manda la dirección"
 
 
 
@@ -1210,124 +597,22 @@ def linea_escenario(e):
 
 
 
-def familia_evento(titulo):
-    """Agrupa eventos por familia para el estudio (CPI, FOMC...)."""
-    try:
-        tl = str(titulo or "")
-        for fam, pats in (("CPI", ("CPI", "IPC")), ("PPI", ("PPI",)),
-                          ("FOMC", ("FOMC", "FED ", "POWELL", "TASA", "RATE DECISION")),
-                          ("NFP", ("NFP", "NON-FARM", "NOMINAS", "PAYROLL", "EMPLEO")),
-                          ("PIB", ("PIB", "GDP")), ("VENTAS", ("VENTAS", "RETAIL"))):
-            if any(p in tl.upper() for p in pats):
-                return fam
-        return "OTRO"
-    except Exception:
-        return "OTRO"
 
 
-def estudiar_eventos(est, hist, evs, ahora):
-    """Aprende de eventos pasados: mide |movimiento| 2h post-evento con el
-    propio historial. Sin historia no inventa (arranca frío, lo dice)."""
-    try:
-        evs = evs or []
-        hechas = est.get("ev_study_keys", [])
-        nuevas = 0
-        for e in evs:
-            try:
-                cu = e.get("cuando")
-                if getattr(cu, "tzinfo", None) is None:
-                    continue
-                if (ahora - cu).total_seconds() / 3600 < 2:
-                    continue
-                key = str(getattr(cu, "isoformat", lambda: str(cu))()) + "|" + str(e.get("titulo", ""))
-                if key in hechas:
-                    continue
-                pre = [h for h in hist if isinstance(h, dict) and h.get("t", "") <= cu.isoformat() and h.get("precio")]
-                post = [h for h in hist if isinstance(h, dict) and cu.isoformat() < h.get("t", "") <= (cu + datetime.timedelta(hours=2)).isoformat() and h.get("precio")]
-                if not pre or not post:
-                    continue
-                mv = abs(post[-1]["precio"] - pre[-1]["precio"]) / pre[-1]["precio"] * 100
-                fam = familia_evento(e.get("titulo", ""))
-                stu = est.get("ev_study", {})
-                stu.setdefault(fam, []).append(round(mv, 2))
-                est["ev_study"] = {k: v[-30:] for k, v in stu.items()}
-                hechas.append(key)
-                nuevas += 1
-            except Exception:
-                continue
-        if nuevas:
-            est["ev_study_keys"] = hechas[-100:]
-        return nuevas
-    except Exception:
-        return 0
 
 
-def linea_estudio(est, titulo):
-    """'CPI suele mover ±0.8% (n=5)'. '' si hay menos de 3 casos."""
-    try:
-        arr = (est.get("ev_study", {}) or {}).get(familia_evento(titulo), [])
-        if len(arr) < 3:
-            return ""
-        return f"{familia_evento(titulo)} suele mover ±{sum(arr) / len(arr):.2f}% (n={len(arr)})"
-    except Exception:
-        return ""
 
 
-def preaviso(est, evs, ahora, hoy=None):
-    """Aviso único 15–60 min antes de un evento High (con su historial medido).
-    Devuelve texto o None. Puro: NO marca; la marca la pone marcar_preaviso()
-    solo tras envío real (evita perder el aviso si no hay señal principal)."""
-    try:
-        if hoy is None:
-            hoy = ahora.strftime("%Y-%m-%d")
-        for e in evs or []:
-            if e.get("impact") != "High":
-                continue
-            try:
-                dt = (e["cuando"] - ahora).total_seconds() / 60
-            except Exception:
-                continue
-            if not (15 <= dt <= 60):
-                continue
-            key = str(e["cuando"]) + "|" + str(e.get("titulo", ""))
-            if (est.get("preavisos", {}) or {}).get(key) == hoy:
-                continue
-            stu = linea_estudio(est, e.get("titulo", ""))
-            return (f"⚠️ {e['titulo']} en {cuenta_regresiva(e['cuando'], ahora)}"
-                    + (f" ({stu})" if stu else "") +
-                    ": cierro la boca ±30 min (blackout). Cuida el apalancamiento.")
-        return None
-    except Exception:
-        return None
 
 
-def marcar_preaviso(est, evs, ahora, hoy=None):
-    """Marca el preaviso como enviado (solo tras envío real). Jamás lanza."""
-    try:
-        try:
-            if hoy is None:
-                hoy = ahora.strftime("%Y-%m-%d")
-        except Exception:
-            return False
-        marcado = False
-        for e in evs or []:
-            try:
-                if e.get("impact") != "High":
-                    continue
-                dt = (e["cuando"] - ahora).total_seconds() / 60
-            except Exception:
-                continue
-            if not (15 <= dt <= 60):
-                continue
-            try:
-                key = str(e["cuando"]) + "|" + str(e.get("titulo", ""))
-                est.setdefault("preavisos", {})[key] = hoy
-                marcado = True
-            except Exception:
-                continue
-        return marcado
-    except Exception:
-        return False
+
+
+
+
+
+
+
+
 
 
 
@@ -1346,11 +631,6 @@ def marcar_preaviso(est, evs, ahora, hoy=None):
 
 
 
-def prec_str(lista):
-    if len(lista) < MIN_SENALES:
-        return f"pocas ({len(lista)})" if lista else "s/d"
-    ok = sum(lista)
-    return f"{round(ok / len(lista) * 100)}% ({ok}/{len(lista)})"
 
 
 
@@ -1363,31 +643,6 @@ RUNBOOK_URL = "https://github.com/LuiferX/vigilante-btc/blob/main/README.md"
 DASH_URL = "https://luiferx.github.io/vigilante-btc/"
 
 
-def tca_linea(arrival, px, fee_bps=20.0):
-    """Costo en cristiano: de dónde viene el precio y cuánto te come operar. Puro."""
-    try:
-        _fee = float(fee_bps)
-        if not (0 < _fee < 100):
-            return "Ref s/d (sin precio previo)"
-    except Exception:
-        return "Ref s/d (sin precio previo)"
-    try:
-        if arrival is None or px is None:
-            return "Ref s/d (sin precio previo)"
-        arrival, px = float(arrival), float(px)
-        if arrival <= 0 or px <= 0:
-            return "Ref s/d (sin precio previo)"
-        mov = (px - arrival) / arrival * 100
-        return ("Ref %s → ahora %s (%+.2f%%) · operar te cuesta ~%.2f%% ida+vuelta"
-                % (fmt_miles(arrival), fmt_miles(px), mov, _fee / 100))
-    except Exception:
-        return "Ref s/d (sin precio previo)"
-
-
-def linea_runbook():
-    """Una línea con runbook + página + comando de diagnóstico. Puro."""
-    return ("Runbook: %s | Page: %s | diag: gh run view --repo LuiferX/vigilante-btc"
-            % (RUNBOOK_URL, DASH_URL))
 
 
 
@@ -1410,331 +665,12 @@ def linea_runbook():
 
 
 
-def build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras):
-    res = niv["resistencias"][0]
-    sup = niv["soportes"][0]
-    horas_res = round((res["precio"] - t["last"]) / h1["atr"], 1) if h1["atr"] > 0 else None
-    horas_sup = round((t["last"] - sup["precio"]) / h1["atr"], 1) if h1["atr"] > 0 else None
-    now = datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m %H:%M UTC")
-    icon = {"ALCISTA": "🟢", "BAJISTA": "🔴", "lateral": "🟡"}
-    if dirb["bias"] == "ALZA":
-        accion = f"busca cierre 1H SOBRE {fmt_miles(res['precio'])}"
-    elif dirb["bias"] == "BAJA":
-        accion = f"busca cierre 1H BAJO {fmt_miles(sup['precio'])}"
-    else:
-        accion = f"espera ruptura {fmt_miles(sup['precio'])}-{fmt_miles(res['precio'])}"
-    if tipo == "alerta":
-        # Parte CORTO: solo lo que se lee (motivo + veredicto + accion + niveles).
-        try:
-            C = []
-            _mot = str(motivo or "").strip()
-            if not _mot:
-                return ""
-            C.append("🚨 " + _mot)
-            _grade = extras.get('grade') or "?"
-            C.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {_grade} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
-            C.append(f"🎯 {accion}")
-            C.append(f"Piso {fmt_miles(sup['precio'])} · Techo {fmt_miles(res['precio'])}")
-            _fvg_txt = texto_fvg(extras.get("fvg"), t["last"], max_dist=0.6)
-            if _fvg_txt:
-                C.append(_fvg_txt)
-            if extras.get("fflag"):
-                C.append("⚠️ " + str(extras["fflag"]))
-            if extras.get("mov_ny") is not None:
-                try:
-                    C.append(f"NY {extras['mov_ny']:+.2f}% desde apertura")
-                except Exception:
-                    pass
-            try:
-                _sp = (senti or {}).get("spread")
-                if _sp is not None:
-                    C.append(f"Spread {_sp}bps → {regla_spread(_sp)}")
-            except Exception:
-                pass
-            vistos = {accion}
-            for p in (extras.get("plan") or [])[:2]:
-                try:
-                    _ps = str(p or "").strip()
-                    if not _ps or _ps in vistos:
-                        continue
-                    vistos.add(_ps)
-                    C.append("• " + _ps)
-                except Exception:
-                    pass
-            try:
-                _tca = tca_linea(extras.get("arrival"), t["last"])
-                if _tca and "s/d" not in _tca:
-                    C.append(_tca)
-            except Exception:
-                pass
-            return "\n".join(C)
-        except Exception:
-            try:
-                return "\n".join(C) if C else str(motivo)
-            except Exception:
-                return str(motivo)
-
-    icono_tipo = {"alerta": "🚨", "preny": "📊", "manana": "☀️", "madrugada": "🌙", "noche": "🌙"}.get(tipo, "🤖")
-    L = []
-    L.append(icono_tipo + " " + motivo)
-    L.append("💬 " + str(extras.get("intro") or "").strip())
-    L.append("━━━━━ 🧭 VEREDICTO ━━━━━")
-    L.append(f"{dirb['bias']} {dirb['confianza']}% · calidad {extras.get('grade', '?')} · {fmt_miles(t['last'])} ({t['chg']:+.2f}%)")
-    L.append(f"🎯 {accion}")
-    L.append("")
-    L.append(f"🤖 VIGILANTE BTC {VERSION} | {now} | {sesion_hora()} | datos {FUENTE['nombre']}")
-    L.append(f"📈 max {fmt_miles(t['hi'])} / min {fmt_miles(t['lo'])}")
-    L.append("")
-    L.append(f"🧭 MARCOS: {dirb['bias']} ({dirb['confianza']}%) · régimen {extras.get('regimen', '?')} · ADX 4H {h4.get('adx', '?')}")
-    if extras.get("motor"):
-        L.append("📐 " + linea_motor(extras["motor"]))
-    if extras.get("confl", 0) >= 2:
-        L.append(f"🧩 Confluencia: {extras['confl']} fuentes en el nivel más cercano")
-    L.append("  " + "  ".join(f"{x['tf']}{icon.get(x['tend'], '🟡')}(s{x['score']:+d})" for x in (h1, h4, d1, w1)))
-    L.append("")
-    L.append("📖 " + str(extras.get("narrativa") or "").strip())
-    L.append("")
-    s_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["soportes"])
-    r_txt = "  |  ".join(f"{fmt_miles(x['precio'])} ({x['origen']})" for x in niv["resistencias"])
-    L.append(f"🟢 SOPORTES: {s_txt}")
-    L.append(f"🔴 RESISTENCIAS: {r_txt}")
-    _fvg_txt = texto_fvg(extras.get("fvg"), t["last"])
-    if _fvg_txt:
-        L.append(_fvg_txt)
-    for m in (extras.get("memoria") or [])[:3]:
-        _m = str(m or "").strip()
-        if _m:
-            L.append("🧠 " + _m)
-    if extras.get("fflag"):
-        L.append("⚠️ Funding extremo: " + extras["fflag"])
-    L.append("")
-    if extras.get("mov_ny") is not None:
-        try:
-            L.append(f"🕯 NY: {float(extras['mov_ny']):+.2f}% desde la apertura")
-        except Exception:
-            pass
-    for n in (extras.get("nuevas") or [])[:2]:
-        if not isinstance(n, dict):
-            continue
-        _t = str(n.get("titulo") or "").strip()
-        if not _t:
-            continue
-        L.append(f"🆕 [{n.get('score', '?')}] {_t}")
-    _plan = [str(p or "").strip() for p in (extras.get("plan") or [])]
-    _plan = [p for p in _plan if p]
-    if _plan:
-        L.append("")
-        L.append("🎯 PLAN (qué esperar para entrar):")
-        for p in _plan:
-            L.append("   • " + p)
-    L.append("")
-    if dirb["bias"] == "ALZA":
-        L.append(f"⏱ Objetivo SOBRE {fmt_miles(res['precio'])} a ~{horas_res} h | ⏰ {prox} | 4H en {h4['cierreEnMin']} min")
-    elif dirb["bias"] == "BAJA":
-        L.append(f"⏱ Objetivo BAJO {fmt_miles(sup['precio'])} a ~{horas_sup} h | ⏰ {prox} | 4H en {h4['cierreEnMin']} min")
-    else:
-        L.append(f"⏱ Rango activo | ⏰ {prox} | 4H en {h4['cierreEnMin']} min")
-    coil = [x["tf"] for x in (h1, h4, d1, w1) if x["compresion"] < 0.5]
-    if coil:
-        L.append(f"🌀 Compresión: {', '.join(coil)} (mercado quieto)")
-    L.append(f"🌡 Volatilidad {h1['regLabel']} ({h1['regPct']}%)")
-    L.append("")
-    L.append("━━━━━ 📊 MERCADO (solo cambios) ━━━━━")
-    hubo = False
-    fg_icon = "😱" if fg["valor"] < 25 else ("😨" if fg["valor"] < 45 else ("😐" if fg["valor"] < 55 else ("🙂" if fg["valor"] < 75 else "🤑")))
-    if cambio(est, "fg", fg["valor"], 3):
-        L.append(f"{fg_icon} MIEDO/CODICIA: {fg['etiqueta']} {fg['valor']}/100")
-        hubo = True
-    sent = []
-    if senti["funding"] is not None:
-        sent.append(f"funding {senti['funding']:+.4f}%")
-    if senti["oi"] is not None:
-        sent.append(f"OI {fmt_miles(senti['oi'] * t['last'])}$")
-    if senti["taker"] is not None:
-        sent.append(f"taker L/S {senti['taker']}")
-    if sent:
-        cf = senti["funding"] is not None and cambio(est, "fund", senti["funding"], 0.005)
-        ct = senti["taker"] is not None and cambio(est, "taker", senti["taker"], 0.05)
-        if cf or ct:
-            L.append("⚡ FUTUROS: " + " | ".join(sent) + extras.get("senti_viejo", ""))
-            hubo = True
-    if extras.get("macro") and extras["macro"].get("mx"):
-        mx = extras["macro"]["mx"]
-        dxy = mx.get("dxy")
-        spx = mx.get("spx")
-        if dxy and spx:
-            cd = cambio(est, "dxy", dxy["chg"], 0.1)
-            cs = cambio(est, "spx", spx["chg"], 0.1)
-            if cd or cs:
-                L.append(f"💵 DÓLAR: {dxy['px']} ({dxy['chg']:+.2f}%) | BOLSA SPX: {spx['px']} ({spx['chg']:+.2f}%)" + extras.get("macro_viejo", ""))
-                L.append("🌍 " + extras["macro"]["lectura"])
-                hubo = True
-    sm = extras.get("smart")
-    if sm:
-        ci = cambio(est, "inst", sm["inst"], 5)
-        cr = cambio(est, "ret", sm["ret"], 5)
-        if ci or cr:
-            L.append(f"🏛️ INSTITUCIONES {sm['inst']}/100 | 🧍 MINORISTAS {sm['ret']}/100")
-            L.append("⚔️ " + sm["veredicto"])
-            for dd in sm.get("det", [])[:2]:
-                L.append("   • " + dd)
-            hubo = True
-    cb = extras.get("cb")
-    if cb and cb.get("prem") is not None:
-        vs = f"{cb['vol_share']}%" if cb.get("vol_share") is not None else "n/d"
-        ib = f"{cb['imb']:+.1f}%" if cb.get("imb") is not None else "n/d"
-        cp = cambio(est, "prem", cb["prem"], 0.02)
-        cb2 = cb.get("imb") is not None and cambio(est, "imb", cb["imb"], 5)
-        if cp or cb2:
-            L.append(f"🏦 COINBASE: premium {cb['prem']:+.3f}% | vol {vs} de Binance | libro {ib}")
-            L.append("   → " + cb_veredicto(cb))
-            hubo = True
-    bal = extras.get("bal")
-    if bal and (bal.get("nb", 0) + bal.get("ns", 0)) > 0 and cambio(est, "bal", bal["txt"], 0):
-        L.append(f"🐋 BALLENAS: {bal['ns']} sells {fmt_miles(bal['sells'])} BTC vs {bal['nb']} buys {fmt_miles(bal['buys'])} BTC → {bal['txt']}")
-        hubo = True
-    ima = extras.get("ima")
-    if ima and ima.get("top"):
-        tops = " | ".join(f"{fmt_miles(x['strike'])} ({fmt_miles(x['oi'])} BTC)" for x in ima["top"])
-        pc = f" P/C {ima['pc']}" if ima.get("pc") is not None else ""
-        clave_ima = tops + pc
-        if cambio(est, "ima", clave_ima, 0):
-            L.append(f"🧲 IMANES: {tops}{pc}")
-            if ima.get("up") and ima.get("down"):
-                L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])} / abajo {fmt_miles(ima['down'])}")
-            elif ima.get("up"):
-                L.append(f"   → imán cercano arriba {fmt_miles(ima['up'])}")
-            hubo = True
-    oro = extras.get("oro")
-    if oro and cambio(est, "orodiff", oro["diff"], 0.3):
-        L.append(f"🥇 ORO {oro['oro']:+.2f}% vs BTC {t['chg']:+.2f}%: {oro['lectura']}")
-        hubo = True
-    lsr = extras.get("lsr")
-    if lsr and cambio(est, "lsr", lsr["ratio"], 0.05):
-        L.append(f"📊 CUENTAS long/short {lsr['ratio']}: {lsr['lectura']}")
-        hubo = True
-    cv = extras.get("cvd_v")
-    if cv and cambio(est, "cvd", cv["lectura"], 0):
-        L.append(f"🌊 CVD {cv['cvd']:+.1f} BTC vs precio {cv['dpx']:+.2f}%: {cv['lectura']}")
-        hubo = True
-    lm = extras.get("liqmap")
-    if lm and cambio(est, "liqmap", str(lm.get("arriba")) + str(lm.get("abajo")), 0):
-        arrib = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("arriba", [])[:2])
-        abaj = " | ".join(f"{fmt_miles(x['precio'])} ({x['dist']:+.2f}%)" for x in lm.get("abajo", [])[:2])
-        if arrib or abaj:
-            L.append(f"🌊 LIQUIDEZ: arriba {arrib or '—'} / abajo {abaj or '—'}")
-            hubo = True
-        im = lm.get("iman") or {}
-        if im.get("lado"):
-            L.append(f"   → imán de stops: {im['lado'].upper()} ({im.get('pct', '?')}%)")
-        hubo = True
-    pc = extras.get("poc")
-    if isinstance(pc, dict) and cambio(est, "poc", pc.get("poc", 0), 50):
-        try:
-            cerca = abs(t["last"] - pc["poc"]) / t["last"] * 100
-            tag = "pegado al " if cerca <= 0.3 else ""
-            L.append(f"🎯 POC {tag}{fmt_miles(pc['poc'])} (área {fmt_miles(pc['val'])}–{fmt_miles(pc['vah'])})")
-            hubo = True
-        except Exception:
-            pass
-    dm = extras.get("dom")
-    if isinstance(dm, dict) and dm.get("btc") is not None:
-        prevd = None
-        try:
-            prevd = (est.get("deltas") or {}).get("dom_btc")
-        except Exception:
-            pass
-        if cambio(est, "dom_btc", dm["btc"], 0.3):
-            L.append(f"👑 DOMINANCIA BTC {dm['btc']}% (ETH {dm.get('eth', '?')}%) → {veredicto_dom(dm['btc'], prevd)}")
-            hubo = True
-    pr = extras.get("pres")
-    if pr and cambio(est, "pres", pr["valor"], 10):
-        L.append(f"📰 IMPACTO: {pr['txt']} → {acuerdo_tecnica(dirb['bias'], pr['valor'])}")
-        hubo = True
-    if not hubo:
-        L.append("(mercado sin cambios desde tu último parte)")
-    aut = extras.get("aut")
-    if aut:
-        L.append(f"🧠 AUTO: mejor {aut['mejor'][0]} ({aut['mejor'][1]}%) · peor {aut['peor'][0]} ({aut['peor'][1]}%) · n={aut['n']}")
-    L.append("━━━━━ 📚 CONTEXTO ━━━━━")
-    L.append("📰 NOTICIAS NUEVAS (no vistas):")
-    _vistas = extras.get("vistas") or []
-    _notis = notis or []
-    frescas = [n for n in _notis if isinstance(n, dict) and str(n.get("titulo") or "").strip() and n.get("titulo") not in _vistas][:3]
-    if frescas:
-        for n in frescas:
-            icono = '🔴' if n['score'] >= 9 else '🟡'
-            L.append(f"  {icono} [{n['score']}] {n['titulo']}")
-            L.append(f"     → {explicar_noticia(n.get('tags') or [])} · impacto {impacto_noticia(n.get('score') or 0)}")
-    else:
-        L.append("  (sin noticias nuevas desde tu último parte)")
-    L.append("")
-    L.append("🗓 PROXIMOS EVENTOS EE.UU.:")
-    if evs:
-        for e in evs[:3]:
-            cuando_s = e['cuando'].strftime('%a %d %H:%M UTC')
-            L.append(f"  📌 {e['titulo']} ({cuando_s}, {cuenta_regresiva(e['cuando'], ahora)})")
-            L.append(f"     → {explicar_evento(e['titulo'])} · impacto {impacto_evento(e['impact'])}")
-            sc = linea_escenario(e)
-            if sc:
-                L.append(f"     → {sc}")
-    else:
-        L.append("  (sin eventos fuertes esta semana)")
-    L.append("Rangos ±% = ref. histórica. No es asesoramiento financiero.")
-    try:
-        _tca = tca_linea(extras.get("arrival"), t["last"])
-        if _tca and "s/d" not in _tca:
-            L.append(_tca)
-    except Exception:
-        pass
-    try:
-        L.append(linea_runbook())
-    except Exception:
-        pass
-    try:
-        _out = []
-        for _ln in L:
-            if _ln == "" and _out and _out[-1] == "":
-                continue
-            _out.append(_ln)
-        return "\n".join(_out)
-    except Exception:
-        return "\n".join(L)
 
 
-def _u16(s):
-    """Longitud en unidades UTF-16 (lo que cuenta Telegram): emojis = 2."""
-    try:
-        return len(s.encode("utf-16-le")) // 2
-    except Exception:
-        return len(s or "")
 
 
-def trocear(texto, limite=3900):
-    """Parte un mensaje largo en trozos <= limite (en unidades UTF-16, que es como
-    cuenta Telegram) sin romper lineas. Antes medía caracteres: muchos emojis podian
-    superar 4096 unidades y Telegram devolvia 400 (alerta perdida)."""
-    try:
-        texto = str(texto or "")
-    except Exception:
-        texto = ""
-    if not texto:
-        return []
-    partes = []
-    for bloque in texto.split("\n"):
-        while _u16(bloque) > limite:
-            corte = bloque.rfind(" ", 0, limite)
-            if corte < limite // 2 or _u16(bloque[:corte]) > limite:
-                corte = limite
-                while corte > 1 and _u16(bloque[:corte]) > limite:
-                    corte -= 1
-            partes.append(bloque[:corte])
-            bloque = bloque[corte:].lstrip()
-        if not partes or _u16(partes[-1]) + _u16(bloque) + 1 > limite:
-            partes.append(bloque)
-        else:
-            partes[-1] += "\n" + bloque
-    return [p for p in partes if p]
+
+
 
 
 def send_telegram(text):
