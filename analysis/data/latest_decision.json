@@ -1,11 +1,11 @@
 {
-  "logged_at": "2026-10-24T21:31:50.275833+00:00",
+  "logged_at": "2026-10-24T21:34:53.261374+00:00",
   "event_time": "2026-10-24T21:25:00+00:00",
   "bar_close_time": "2026-10-24T21:30:00+00:00",
-  "data_age_min": 1.8,
+  "data_age_min": 4.9,
   "data_status": {
     "fresh": true,
-    "age_min": 1.8,
+    "age_min": 4.9,
     "max_age_min": 20,
     "message": "Datos al dia."
   },
