@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-25T03:16:22.131625+00:00",
+  "run_at": "2026-10-25T03:31:32.693736+00:00",
   "ok": true,
   "kline_ok": true,
   "data_dir": "data/btcusdt",
@@ -7,65 +7,57 @@
     "funding.jsonl": {
       "ok": true,
       "fetched": 100,
-      "added": 1,
+      "added": 0,
       "trimmed": 0,
-      "source": "binance_funding",
-      "last_key": 1792886400000
+      "source": "okx_funding",
+      "last_key": 1790035200000
     },
     "open_interest.jsonl": {
       "ok": true,
-      "fetched": 500,
-      "added": 4,
+      "fetched": 575,
+      "added": 2,
       "trimmed": 0,
-      "source": "binance_oi",
-      "last_key": 1792898100000
+      "source": "okx_oi",
+      "last_key": 1792726500000
     },
     "global_ls.jsonl": {
       "ok": true,
-      "fetched": 500,
-      "added": 2,
+      "fetched": 576,
+      "added": 4,
       "trimmed": 0,
-      "source": "binance_global_ls",
-      "last_key": 1792897800000
+      "source": "okx_global_ls",
+      "last_key": 1792726500000
     },
     "top_ls_account.jsonl": {
-      "ok": true,
-      "fetched": 500,
-      "added": 393,
-      "trimmed": 0,
-      "source": "binance_top_ls_account",
-      "last_key": 1792898100000
+      "ok": false,
+      "error": "HTTP Error 403: Forbidden"
     },
     "top_ls_position.jsonl": {
-      "ok": true,
-      "fetched": 500,
-      "added": 393,
-      "trimmed": 0,
-      "source": "binance_top_ls_position",
-      "last_key": 1792898100000
+      "ok": false,
+      "error": "HTTP Error 403: Forbidden"
     },
     "taker_ls.jsonl": {
       "ok": true,
-      "fetched": 500,
-      "added": 2,
+      "fetched": 72,
+      "added": 4,
       "trimmed": 0,
-      "source": "binance_taker_ls",
-      "last_key": 1792897500000
+      "source": "okx_taker_ls",
+      "last_key": 1792877400000
     },
     "klines_5m.jsonl": {
       "ok": true,
-      "fetched": 1499,
+      "fetched": 999,
       "added": 3,
       "trimmed": 0,
-      "source": "binance_klines_5m",
-      "last_key": 1792897800000
+      "source": "binance_vision_klines_5m",
+      "last_key": 1792898700000
     },
     "klines_1h.jsonl": {
       "ok": true,
       "fetched": 999,
       "added": 0,
       "trimmed": 0,
-      "source": "binance_klines_1h",
+      "source": "binance_vision_klines_1h",
       "last_key": 1792893600000
     },
     "klines_4h.jsonl": {
@@ -73,7 +65,7 @@
       "fetched": 499,
       "added": 0,
       "trimmed": 0,
-      "source": "binance_klines_4h",
+      "source": "binance_vision_klines_4h",
       "last_key": 1792872000000
     },
     "klines_1d.jsonl": {
@@ -81,7 +73,7 @@
       "fetched": 199,
       "added": 0,
       "trimmed": 0,
-      "source": "binance_klines_1d",
+      "source": "binance_vision_klines_1d",
       "last_key": 1792800000000
     }
   },
@@ -102,5 +94,5 @@
     "added": 0,
     "trimmed": 0
   },
-  "finished_at": "2026-10-25T03:16:26.859837+00:00"
+  "finished_at": "2026-10-25T03:31:39.420493+00:00"
 }
