@@ -1,41 +1,41 @@
 {
   "ok": true,
-  "samples": 854,
+  "samples": 855,
   "status": "ok",
-  "decisions_total": 540,
-  "decisions_evaluated": 524,
+  "decisions_total": 541,
+  "decisions_evaluated": 525,
   "coverage": 0.9704,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1207,
-  "base_rate": 0.8665,
+  "brier": 0.1206,
+  "base_rate": 0.8667,
   "mean_prob": 0.8196,
-  "brier_base": 0.1157,
-  "brier_skill": -0.0439,
-  "calibration_error": 0.0469,
+  "brier_base": 0.1156,
+  "brier_skill": -0.044,
+  "calibration_error": 0.0471,
   "overall": {
-    "n": 854,
-    "brier": 0.1207,
-    "base_rate": 0.8665,
+    "n": 855,
+    "brier": 0.1206,
+    "base_rate": 0.8667,
     "mean_prob": 0.8196,
-    "brier_base": 0.1157,
-    "brier_skill": -0.0439,
+    "brier_base": 0.1156,
+    "brier_skill": -0.044,
     "real_ci95": [
-      0.8421,
-      0.8877
+      0.8422,
+      0.8878
     ]
   },
   "high_score": {
-    "n": 629,
-    "brier": 0.1064,
-    "base_rate": 0.8776,
-    "mean_prob": 0.8522,
-    "brier_base": 0.1074,
-    "brier_skill": 0.0098,
+    "n": 630,
+    "brier": 0.1063,
+    "base_rate": 0.8778,
+    "mean_prob": 0.8521,
+    "brier_base": 0.1073,
+    "brier_skill": 0.0095,
     "real_ci95": [
-      0.8497,
-      0.9009
+      0.8499,
+      0.9011
     ],
     "lift_vs_base": 1.0128
   },
@@ -53,15 +53,15 @@
       ]
     },
     "resistencia": {
-      "n": 476,
+      "n": 477,
       "brier": 0.072,
-      "base_rate": 0.937,
+      "base_rate": 0.9371,
       "mean_prob": 0.8237,
-      "brier_base": 0.0591,
-      "brier_skill": -0.2197,
+      "brier_base": 0.0589,
+      "brier_skill": -0.2208,
       "real_ci95": [
-        0.9115,
-        0.9555
+        0.9116,
+        0.9556
       ]
     }
   },
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 629,
-      "pred": 0.8522,
-      "real": 0.8776,
+      "n": 630,
+      "pred": 0.8521,
+      "real": 0.8778,
       "real_ci95": [
-        0.8497,
-        0.9009
+        0.8499,
+        0.9011
       ]
     }
   ],
