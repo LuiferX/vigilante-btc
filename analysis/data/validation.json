@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-26T07:31:47.767786+00:00",
+  "checked_at": "2026-10-26T07:46:32.464927+00:00",
   "status": "degradado",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -15,13 +15,13 @@
     "eval": 791,
     "effective": 51,
     "resolved_levels": 791,
-    "levels_with_hold": 805,
-    "events": 496,
-    "resolved_events": 480,
+    "levels_with_hold": 807,
+    "events": 497,
+    "resolved_events": 481,
     "independent_events": 31,
-    "coverage": 0.9677,
-    "avg_levels_per_event": 1.65,
-    "span_hours": 126.2,
+    "coverage": 0.9678,
+    "avg_levels_per_event": 1.64,
+    "span_hours": 126.5,
     "effective_fallback": null
   },
   "metrics": {
@@ -112,7 +112,7 @@
         ]
       }
     },
-    "coverage": 0.9677
+    "coverage": 0.9678
   },
   "backtest": {
     "samples": 217,
@@ -188,20 +188,20 @@
         "n": 178
       }
     ],
-    "live_mean_prob": 0.8673,
+    "live_mean_prob": 0.8671,
     "backtest_mean_prob": 0.8385,
-    "mean_shift": 0.0288,
+    "mean_shift": 0.0286,
     "detail": "PSI compara la distribucion de probabilidades vivas contra el backtest OOS. No mide resultados; detecta cambio de regimen."
   },
   "data": {
     "klines": {
       "ok": true,
-      "bars": 3015,
-      "unique_bars": 3015,
+      "bars": 3018,
+      "unique_bars": 3018,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-26T07:25:00+00:00",
-      "age_min": 6.8,
+      "last": "2026-10-26T07:40:00+00:00",
+      "age_min": 6.54,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-26T07:31:42.713461+00:00",
+      "run_at": "2026-10-26T07:46:26.179443+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -244,7 +244,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "612460075db7a5e3",
-  "code_sha": "a7989ec8632fdc3bbf30c390f3efe7a4baaad66e",
+  "data_hash": "aaadfa9b81dbf842",
+  "code_sha": "e66044cd2f7fe6465e1d0c8a6b4be40fa56e96d8",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
