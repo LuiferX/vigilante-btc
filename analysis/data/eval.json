@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 831,
+  "samples": 833,
   "status": "ok",
-  "decisions_total": 525,
-  "decisions_evaluated": 509,
-  "coverage": 0.9695,
+  "decisions_total": 526,
+  "decisions_evaluated": 510,
+  "coverage": 0.9696,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1193,
-  "base_rate": 0.8688,
+  "brier": 0.1199,
+  "base_rate": 0.8679,
   "mean_prob": 0.8199,
-  "brier_base": 0.114,
-  "brier_skill": -0.0472,
-  "calibration_error": 0.049,
+  "brier_base": 0.1146,
+  "brier_skill": -0.046,
+  "calibration_error": 0.0481,
   "overall": {
-    "n": 831,
-    "brier": 0.1193,
-    "base_rate": 0.8688,
+    "n": 833,
+    "brier": 0.1199,
+    "base_rate": 0.8679,
     "mean_prob": 0.8199,
-    "brier_base": 0.114,
-    "brier_skill": -0.0472,
+    "brier_base": 0.1146,
+    "brier_skill": -0.046,
     "real_ci95": [
-      0.8442,
-      0.8901
+      0.8433,
+      0.8893
     ]
   },
   "high_score": {
-    "n": 606,
-    "brier": 0.1039,
-    "base_rate": 0.8812,
-    "mean_prob": 0.8537,
-    "brier_base": 0.1047,
-    "brier_skill": 0.0075,
+    "n": 608,
+    "brier": 0.1047,
+    "base_rate": 0.8799,
+    "mean_prob": 0.8536,
+    "brier_base": 0.1056,
+    "brier_skill": 0.0088,
     "real_ci95": [
-      0.853,
-      0.9046
+      0.8517,
+      0.9034
     ],
-    "lift_vs_base": 1.0143
+    "lift_vs_base": 1.0138
   },
   "by_side": {
     "soporte": {
-      "n": 365,
-      "brier": 0.1788,
-      "base_rate": 0.7836,
+      "n": 367,
+      "brier": 0.1797,
+      "base_rate": 0.782,
       "mean_prob": 0.8146,
-      "brier_base": 0.1696,
+      "brier_base": 0.1705,
       "brier_skill": -0.0541,
       "real_ci95": [
-        0.7385,
-        0.8227
+        0.737,
+        0.8212
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 606,
-      "pred": 0.8537,
-      "real": 0.8812,
+      "n": 608,
+      "pred": 0.8536,
+      "real": 0.8799,
       "real_ci95": [
-        0.853,
-        0.9046
+        0.8517,
+        0.9034
       ]
     }
   ],
