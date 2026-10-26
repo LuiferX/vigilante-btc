@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 800,
+  "samples": 801,
   "status": "ok",
-  "decisions_total": 508,
-  "decisions_evaluated": 492,
-  "coverage": 0.9685,
+  "decisions_total": 509,
+  "decisions_evaluated": 493,
+  "coverage": 0.9686,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.118,
-  "base_rate": 0.8712,
+  "brier": 0.1179,
+  "base_rate": 0.8714,
   "mean_prob": 0.8199,
-  "brier_base": 0.1122,
-  "brier_skill": -0.0517,
-  "calibration_error": 0.0514,
+  "brier_base": 0.1121,
+  "brier_skill": -0.0519,
+  "calibration_error": 0.0515,
   "overall": {
-    "n": 800,
-    "brier": 0.118,
-    "base_rate": 0.8712,
+    "n": 801,
+    "brier": 0.1179,
+    "base_rate": 0.8714,
     "mean_prob": 0.8199,
-    "brier_base": 0.1122,
-    "brier_skill": -0.0517,
+    "brier_base": 0.1121,
+    "brier_skill": -0.0519,
     "real_ci95": [
-      0.8463,
-      0.8927
+      0.8464,
+      0.8928
     ]
   },
   "high_score": {
-    "n": 575,
-    "brier": 0.1012,
-    "base_rate": 0.8852,
+    "n": 576,
+    "brier": 0.1011,
+    "base_rate": 0.8854,
     "mean_prob": 0.8555,
-    "brier_base": 0.1016,
-    "brier_skill": 0.0042,
+    "brier_base": 0.1015,
+    "brier_skill": 0.0039,
     "real_ci95": [
-      0.8566,
-      0.9088
+      0.8568,
+      0.9089
     ],
     "lift_vs_base": 1.0161
   },
   "by_side": {
     "soporte": {
-      "n": 343,
-      "brier": 0.179,
-      "base_rate": 0.7843,
+      "n": 344,
+      "brier": 0.1785,
+      "base_rate": 0.7849,
       "mean_prob": 0.8143,
-      "brier_base": 0.1692,
-      "brier_skill": -0.0578,
+      "brier_base": 0.1688,
+      "brier_skill": -0.0574,
       "real_ci95": [
-        0.7377,
-        0.8245
+        0.7384,
+        0.825
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 575,
+      "n": 576,
       "pred": 0.8555,
-      "real": 0.8852,
+      "real": 0.8854,
       "real_ci95": [
-        0.8566,
-        0.9088
+        0.8568,
+        0.9089
       ]
     }
   ],
