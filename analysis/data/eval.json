@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 839,
+  "samples": 841,
   "status": "ok",
-  "decisions_total": 529,
-  "decisions_evaluated": 513,
+  "decisions_total": 530,
+  "decisions_evaluated": 514,
   "coverage": 0.9698,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.12,
-  "base_rate": 0.8677,
+  "brier": 0.1206,
+  "base_rate": 0.8668,
   "mean_prob": 0.8198,
-  "brier_base": 0.1148,
-  "brier_skill": -0.0456,
-  "calibration_error": 0.0479,
+  "brier_base": 0.1154,
+  "brier_skill": -0.0445,
+  "calibration_error": 0.047,
   "overall": {
-    "n": 839,
-    "brier": 0.12,
-    "base_rate": 0.8677,
+    "n": 841,
+    "brier": 0.1206,
+    "base_rate": 0.8668,
     "mean_prob": 0.8198,
-    "brier_base": 0.1148,
-    "brier_skill": -0.0456,
+    "brier_base": 0.1154,
+    "brier_skill": -0.0445,
     "real_ci95": [
-      0.8431,
-      0.889
+      0.8422,
+      0.8881
     ]
   },
   "high_score": {
-    "n": 614,
-    "brier": 0.1051,
-    "base_rate": 0.8795,
-    "mean_prob": 0.8532,
-    "brier_base": 0.106,
-    "brier_skill": 0.0089,
+    "n": 616,
+    "brier": 0.1058,
+    "base_rate": 0.8782,
+    "mean_prob": 0.853,
+    "brier_base": 0.1069,
+    "brier_skill": 0.0102,
     "real_ci95": [
-      0.8513,
-      0.9029
+      0.8501,
+      0.9018
     ],
-    "lift_vs_base": 1.0136
+    "lift_vs_base": 1.0132
   },
   "by_side": {
     "soporte": {
-      "n": 371,
-      "brier": 0.1798,
-      "base_rate": 0.7817,
+      "n": 373,
+      "brier": 0.1807,
+      "base_rate": 0.7802,
       "mean_prob": 0.8145,
-      "brier_base": 0.1707,
+      "brier_base": 0.1715,
       "brier_skill": -0.0537,
       "real_ci95": [
-        0.7369,
-        0.8207
+        0.7354,
+        0.8192
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 614,
-      "pred": 0.8532,
-      "real": 0.8795,
+      "n": 616,
+      "pred": 0.853,
+      "real": 0.8782,
       "real_ci95": [
-        0.8513,
-        0.9029
+        0.8501,
+        0.9018
       ]
     }
   ],
