@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-26T17:51:34.979598+00:00",
+  "checked_at": "2026-10-26T18:06:24.597560+00:00",
   "status": "degradado",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -12,24 +12,24 @@
   "min_samples": 30,
   "target_samples": 100,
   "samples": {
-    "eval": 851,
+    "eval": 852,
     "effective": 54,
-    "resolved_levels": 851,
+    "resolved_levels": 852,
     "levels_with_hold": 863,
-    "events": 537,
-    "resolved_events": 521,
+    "events": 538,
+    "resolved_events": 522,
     "independent_events": 33,
-    "coverage": 0.9702,
+    "coverage": 0.9703,
     "avg_levels_per_event": 1.63,
-    "span_hours": 136.6,
+    "span_hours": 136.8,
     "effective_fallback": null
   },
   "metrics": {
-    "brier": 0.121,
-    "brier_skill": -0.0433,
-    "base_rate": 0.866,
+    "brier": 0.1209,
+    "brier_skill": -0.0435,
+    "base_rate": 0.8662,
     "mean_prob": 0.8197,
-    "calibration_error": 0.0464,
+    "calibration_error": 0.0465,
     "eval_status": "ok",
     "bins": [
       {
@@ -64,25 +64,25 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 626,
-        "pred": 0.8524,
-        "real": 0.877,
+        "n": 627,
+        "pred": 0.8523,
+        "real": 0.8772,
         "real_ci95": [
-          0.8489,
-          0.9005
+          0.8492,
+          0.9006
         ]
       }
     ],
     "high_score": {
-      "n": 626,
-      "brier": 0.1067,
-      "base_rate": 0.877,
-      "mean_prob": 0.8524,
-      "brier_base": 0.1079,
-      "brier_skill": 0.0108,
+      "n": 627,
+      "brier": 0.1066,
+      "base_rate": 0.8772,
+      "mean_prob": 0.8523,
+      "brier_base": 0.1077,
+      "brier_skill": 0.0105,
       "real_ci95": [
-        0.8489,
-        0.9005
+        0.8492,
+        0.9006
       ],
       "lift_vs_base": 1.0127
     },
@@ -100,19 +100,19 @@
         ]
       },
       "resistencia": {
-        "n": 473,
+        "n": 474,
         "brier": 0.0722,
-        "base_rate": 0.9366,
+        "base_rate": 0.9367,
         "mean_prob": 0.8238,
-        "brier_base": 0.0594,
-        "brier_skill": -0.2163,
+        "brier_base": 0.0593,
+        "brier_skill": -0.2174,
         "real_ci95": [
-          0.9109,
-          0.9552
+          0.9111,
+          0.9553
         ]
       }
     },
-    "coverage": 0.9702
+    "coverage": 0.9703
   },
   "backtest": {
     "samples": 225,
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 3139,
-      "unique_bars": 3139,
+      "bars": 3142,
+      "unique_bars": 3142,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-26T17:45:00+00:00",
-      "age_min": 6.58,
+      "last": "2026-10-26T18:00:00+00:00",
+      "age_min": 6.41,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-26T17:51:29.461000+00:00",
+      "run_at": "2026-10-26T18:06:18.640014+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -233,7 +233,7 @@
   },
   "warnings": [
     "Muestra efectiva 54 < 100; falta recorrido para validar.",
-    "Muestras nominales 851; efectivas 54 por solapamiento de 4h.",
+    "Muestras nominales 852; efectivas 54 por solapamiento de 4h.",
     "Brier skill negativo: el motor no supera la tasa base en esta muestra.",
     "Drift alto en la distribucion de probabilidades; revisar regimen."
   ],
@@ -243,7 +243,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "2d468c3c98df1768",
-  "code_sha": "5a66ca606d3a2b263bf5413643d9c1d8000fa724",
+  "data_hash": "bd8375654fdf6436",
+  "code_sha": "58af6c213c52fbdece51ff13696961b500c7efd1",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
