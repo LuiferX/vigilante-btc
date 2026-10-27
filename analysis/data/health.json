@@ -1,9 +1,9 @@
 {
-  "run_at": "2026-10-27T20:11:32.234598+00:00",
+  "run_at": "2026-10-27T20:26:29.479128+00:00",
   "ok": true,
   "fresh": true,
-  "event_time": "2026-10-27T20:05:00+00:00",
-  "bar_close_time": "2026-10-27T20:10:00+00:00",
+  "event_time": "2026-10-27T20:20:00+00:00",
+  "bar_close_time": "2026-10-27T20:25:00+00:00",
   "data_age_min": 1.5,
   "action": "observar",
   "confidence": "media",
