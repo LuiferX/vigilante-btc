@@ -40,8 +40,19 @@ jobs:
 
       - name: Preparar cache si no existe (descarga publica)
         run: |
+          # BUG ARREGLADO (2026-10-27): el control entrena 2023-01->2026-09 pero el
+          # cache se bajaba solo desde trained_until (backfill lo fija por diseno):
+          # en runner limpio no habia overlap y el WF fallaba. Ahora baja el
+          # historico completo (reanudable, ~10 min) antes de entrenar.
           if [ ! -f analysis/data/cache/klines_5m.jsonl ]; then
-            python analysis/backfill.py --descargar --cache analysis/data/cache --start 2026-10-01T00:00:00+00:00
+            python - <<'PY'
+          import datetime
+          import sys
+          sys.path.insert(0, "analysis")
+          from backfill import asegurar_datos
+          asegurar_datos("analysis/data/cache",
+                         datetime.datetime(2022, 1, 1, tzinfo=datetime.UTC))
+          PY
           fi
 
       - name: Guardar scoreboard de experimentos
