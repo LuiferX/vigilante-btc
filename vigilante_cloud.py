@@ -876,45 +876,14 @@ def main():
         if senti["funding"] is not None or senti["taker"] is not None:
             est["last_senti"] = {"funding": senti["funding"], "taker": senti["taker"],
                                  "t": ahora.isoformat()}
-        # --- RED NEURONAL (OPT-IN) ----------------------------------------------
-        # Solo actua si VIGILANTE_NN=1. Reconstruye la ventana viva con las MISMAS
-        # funciones del bot y reescribe dirb["bias"]/["confianza"] con la clase mas
-        # probable (ALZA/BAJA/LATERAL). Si falta el modelo, onnxruntime o falla algo,
-        # el bot sigue con su logica de siempre: no se rompe nada.
-        if os.environ.get("VIGILANTE_NN", "0") not in ("", "0", "false", "False"):
-            try:
-                import nn_infer
-                if not nn_infer.disponible():
-                    print(nn_infer.info())
-                else:
-                    _bias_bot, _conf_bot = dirb["bias"], dirb["confianza"]
-                    _basis = None
-                    try:
-                        _pi = fetch(f"{FAPI}/premiumIndex?symbol=BTCUSDT", tries=1)
-                        _mp = float(_pi.get("markPrice") or 0)
-                        _ix = float(_pi.get("indexPrice") or 0)
-                        if _ix > 0:
-                            _basis = (_mp - _ix) / _ix * 100.0
-                    except Exception:
-                        _basis = None
-                    _mod = sys.modules.get(__name__)
-                    if _mod is None or not hasattr(_mod, "analyze"):
-                        import types
-                        _mod = types.SimpleNamespace(analyze=analyze, niveles=niveles)
-                    _ventana = nn_infer.ventana_vivo(
-                        _mod, kl_h1, kl_h4, kl_d1, kl_w1, t["last"],
-                        {"funding": senti.get("funding"), "taker": senti.get("taker")},
-                        {"basis": _basis, "premium": (cb or {}).get("prem"), "niv": niv},
-                        ahora)
-                    if nn_infer.aplicar(dirb, _ventana):
-                        _p = dirb["nn"]["probs"]
-                        print(f"  red: {dirb['bias']} {dirb['confianza']}% "
-                              f"(bot decia {_bias_bot} {_conf_bot}%) "
-                              f"probs A/B/L={_p[0]:.2f}/{_p[1]:.2f}/{_p[2]:.2f}")
-                    else:
-                        print(nn_infer.info())
-            except Exception as _enn:
-                print(f"red neuronal omitida: {type(_enn).__name__}: {_enn}")
+        # --- RED NEURONAL: RETIRADA (auditoria 2026-10-27) ----------------------
+        # El bloque opt-in (VIGILANTE_NN=1) importaba `nn_infer`, modulo que NUNCA
+        # existio en el repo: cada run fallaba con ImportError y el bot segua por
+        # el except. Se retira en vez de dejar codigo que promete lo que no hay.
+        # Si una NN vuelve, entra con: (1) pipeline de entrenamiento versionada en
+        # el repo, (2) auditada sin fuga de futuro (etiquetas + ventana_vivo),
+        # (3) bajo shadow+gate como cualquier otro challenger (mismo liston que
+        # toques-wf-1: mismos folds, embargo y juez PBO). Ver EXPERIMENTOS.md.
         macro_viejo = ""
         if mx is None and est.get("last_macro"):
             try:
