@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1006,
+  "samples": 1007,
   "status": "ok",
-  "decisions_total": 650,
-  "decisions_evaluated": 633,
-  "coverage": 0.9738,
+  "decisions_total": 651,
+  "decisions_evaluated": 634,
+  "coverage": 0.9739,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1292,
-  "base_rate": 0.8519,
+  "brier": 0.1291,
+  "base_rate": 0.852,
   "mean_prob": 0.8165,
-  "brier_base": 0.1262,
-  "brier_skill": -0.0241,
-  "calibration_error": 0.0354,
+  "brier_base": 0.1261,
+  "brier_skill": -0.0242,
+  "calibration_error": 0.0355,
   "overall": {
-    "n": 1006,
-    "brier": 0.1292,
-    "base_rate": 0.8519,
+    "n": 1007,
+    "brier": 0.1291,
+    "base_rate": 0.852,
     "mean_prob": 0.8165,
-    "brier_base": 0.1262,
-    "brier_skill": -0.0241,
+    "brier_base": 0.1261,
+    "brier_skill": -0.0242,
     "real_ci95": [
-      0.8286,
-      0.8725
+      0.8288,
+      0.8726
     ]
   },
   "high_score": {
-    "n": 703,
-    "brier": 0.1123,
-    "base_rate": 0.8691,
+    "n": 704,
+    "brier": 0.1122,
+    "base_rate": 0.8693,
     "mean_prob": 0.8482,
-    "brier_base": 0.1137,
-    "brier_skill": 0.0123,
+    "brier_base": 0.1136,
+    "brier_skill": 0.0121,
     "real_ci95": [
-      0.8422,
-      0.8921
+      0.8424,
+      0.8922
     ],
-    "lift_vs_base": 1.0202
+    "lift_vs_base": 1.0203
   },
   "by_side": {
     "soporte": {
-      "n": 465,
-      "brier": 0.1732,
-      "base_rate": 0.7914,
+      "n": 466,
+      "brier": 0.1729,
+      "base_rate": 0.7918,
       "mean_prob": 0.8118,
-      "brier_base": 0.1651,
-      "brier_skill": -0.0489,
+      "brier_base": 0.1648,
+      "brier_skill": -0.0488,
       "real_ci95": [
-        0.7522,
-        0.8259
+        0.7527,
+        0.8262
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 703,
+      "n": 704,
       "pred": 0.8482,
-      "real": 0.8691,
+      "real": 0.8693,
       "real_ci95": [
-        0.8422,
-        0.8921
+        0.8424,
+        0.8922
       ]
     }
   ],
