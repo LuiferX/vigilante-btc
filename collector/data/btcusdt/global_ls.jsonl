@@ -2447,3 +2447,6 @@
 {"source": "okx_global_ls", "symbol": "BTCUSDT", "timestamp": 1793113500000, "longShortRatio": "2.200000", "longAccount": "0.687500", "shortAccount": "0.312500", "collected_at": "2026-10-27T15:06:30.368422+00:00"}
 {"source": "okx_global_ls", "symbol": "BTCUSDT", "timestamp": 1793113200000, "longShortRatio": "2.200000", "longAccount": "0.687500", "shortAccount": "0.312500", "collected_at": "2026-10-27T15:06:30.368441+00:00"}
 {"source": "okx_global_ls", "symbol": "BTCUSDT", "timestamp": 1793112900000, "longShortRatio": "2.190000", "longAccount": "0.686520", "shortAccount": "0.313480", "collected_at": "2026-10-27T15:06:30.368445+00:00"}
+{"source": "okx_global_ls", "symbol": "BTCUSDT", "timestamp": 1793114400000, "longShortRatio": "2.170000", "longAccount": "0.684543", "shortAccount": "0.315457", "collected_at": "2026-10-27T15:21:35.327507+00:00"}
+{"source": "okx_global_ls", "symbol": "BTCUSDT", "timestamp": 1793114100000, "longShortRatio": "2.170000", "longAccount": "0.684543", "shortAccount": "0.315457", "collected_at": "2026-10-27T15:21:35.327525+00:00"}
+{"source": "okx_global_ls", "symbol": "BTCUSDT", "timestamp": 1793113800000, "longShortRatio": "2.170000", "longAccount": "0.684543", "shortAccount": "0.315457", "collected_at": "2026-10-27T15:21:35.327528+00:00"}
