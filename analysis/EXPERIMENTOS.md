@@ -189,6 +189,35 @@ Skill por regimen (OOS agrupado): el congelado gana en COMPRESION
    buscada no estaba en estos candidatos; E2 (target graduado) queda pendiente
    como la unica palanca con informacion nueva por evento.
 
+## Auditoria de la red neuronal (2026-10-27)
+
+Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
+entrenar nada; la NN entra como challenger con el mismo liston; ningun LLM en
+el bucle de trading". Primer paso de la auditoria = encontrar que auditar.
+
+**Hallazgo (phantom):** el bloque "RED NEURONAL (OPT-IN)" de `main()` importaba
+`nn_infer`, modulo que **nunca existio en el repo** (ni local ni en los 127
+archivos de main). Cada ejecucion con `VIGILANTE_NN=1` fallaba con ImportError
+y segua por el `except`. No habia etiquetas que auditar, ni ventana_vivo, ni
+modelo onnx, ni onnxruntime en requirements: era codigo que prometia una
+capacidad inexistente.
+
+**Accion:** bloque retirado de `vigilante_cloud.py` (monolito 1603 -> 1570
+lineas) y reemplazado por la nota de auditoria. El fail-safe funciono (el bot
+nunca se rompio), pero la honestidad del codigo manda: si una NN vuelve, entra
+con (1) pipeline de entrenamiento versionada en el repo, (2) etiquetas y
+ventana_vivo auditadas sin fuga de futuro, (3) shadow+gate y el MISMO liston
+que toques-wf-1 (mismos folds, embargo, juez PBO).
+
+**Pendiente del asesor, con nuestro veredicto:**
+- "empieza por L1 + LightGBM": L1 ya es el modelo campeon; LightGBM puede
+  entrar como challenger de laboratorio (equivalente aprox: E4, ya probado,
+  +0.004 = ruido segun PBO).
+- "MLP 59->32->3 para direccion ALZA/BAJA/LATERAL": es el target SIN senal
+  documentada (direction ~ moneda con un instrumento); el edge del bot esta en
+  aguante de nivel. Si se hace, se mide en sombra primero.
+- "P1 (git, duplicados, LICENSE)": higiene del repo, cero riesgo, proximo.
+
 ### Resultados de la corrida 2 (2026-10-27): E2 triple-barrier + juez PBO
 
 | candidato | skill | peor fold | folds+ | gana al campeon | rank OOS medio |
