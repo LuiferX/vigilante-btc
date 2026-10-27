@@ -108,6 +108,43 @@ def test_y_estricto_es_mas_duro_que_y():
     assert rec["y_estricto"] == 0, "con 0.3% de penetracion el estricto debe fallar"
 
 
+def test_y_atr_barrera_escalada():
+    # holgura en % de nivel; atr=0.005 (fraccion) -> barrera k*0.5%
+    s = _muestra(datetime.datetime(2024, 5, 1, tzinfo=UTC), 1, atr=0.005)
+    s["holgura"] = -0.2           # penetro 0.2%
+    assert ex._y_atr(s, 0.25) == 0    # barrera 0.125% -> 0.2% la rompe
+    assert ex._y_atr(s, 0.5) == 1     # barrera 0.25% -> 0.2% NO la rompe
+    s["holgura"] = -0.6
+    assert ex._y_atr(s, 0.5) == 0     # 0.6% rompe 0.25%
+    assert ex._y_atr(s, 1.5) == 1     # barrera 0.75% -> 0.6% no la rompe
+
+
+def test_calibrar_k_apunta_a_la_tasa_del_train():
+    train = []
+    for i in range(300):
+        atr = 0.005
+        s = _muestra(datetime.datetime(2024, 1, 1, tzinfo=UTC) + datetime.timedelta(days=i), 1, atr=atr)
+        s["holgura"] = -0.6 if i % 5 == 0 else 0.0   # 20% penetra 1.2*ATR
+        train.append(s)
+    k = ex._calibrar_k(train, 0.8)   # tasa de aguante del binario = 0.8
+    hold = sum(1 for s in train if ex._y_atr(s, k)) / len(train)
+    assert abs(hold - 0.8) < 0.10, f"k={k} deja tasa {hold}"
+
+
+def test_pbo_detecta_overfitting():
+    n_folds = 11
+    # familia sintetica: uno gana en IS por azar, otro es estable
+    skills = {
+        "suerte": [0.05 if i % 2 == 0 else -0.02 for i in range(n_folds)],
+        "estable": [0.02] * n_folds,
+        "malo": [-0.01] * n_folds,
+    }
+    p = ex._pbo(skills, n_folds)
+    assert p["splits"] > 0
+    assert 0 <= p["tasa_fallo"] <= 1
+    assert set(p["rank_medio_oos"]) == {"suerte", "estable", "malo"}
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):
