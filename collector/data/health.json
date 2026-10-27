@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-27T04:16:24.580438+00:00",
+  "run_at": "2026-10-27T04:31:40.774698+00:00",
   "ok": true,
   "kline_ok": true,
   "data_dir": "data/btcusdt",
@@ -18,7 +18,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_oi",
-      "last_key": 1792902000000
+      "last_key": 1792902900000
     },
     "global_ls.jsonl": {
       "ok": true,
@@ -26,7 +26,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_global_ls",
-      "last_key": 1792902000000
+      "last_key": 1792902900000
     },
     "top_ls_account.jsonl": {
       "ok": false,
@@ -42,7 +42,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_taker_ls",
-      "last_key": 1793052900000
+      "last_key": 1793053800000
     },
     "klines_5m.jsonl": {
       "ok": true,
@@ -50,7 +50,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "binance_vision_klines_5m",
-      "last_key": 1793074200000
+      "last_key": 1793075100000
     },
     "klines_1h.jsonl": {
       "ok": true,
@@ -91,8 +91,8 @@
       "fetched": 10
     },
     "ok": true,
-    "added": 0,
+    "added": 2,
     "trimmed": 0
   },
-  "finished_at": "2026-10-27T04:16:30.314351+00:00"
+  "finished_at": "2026-10-27T04:31:47.947366+00:00"
 }
