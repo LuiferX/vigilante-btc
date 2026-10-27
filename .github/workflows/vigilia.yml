@@ -108,7 +108,26 @@ jobs:
           set -euo pipefail
           TITULO='[vigilia] latido atrasado'
           echo "ok=${OK:-} edad_min=${EDAD:-} "
-          gh issue list --state open --search "$TITULO in:title" --json number,title,updatedAt --limit 50 > /tmp/issues.json
+          # Reintento generico para llamadas gh (la API de GitHub a veces da 502/503)
+          gh_reint() {
+            local n=0
+            until "$@"; do
+              n=$((n+1)); [ "$n" -ge 3 ] && return 1
+              echo "reintento $n tras fallo transitorio: $*"; sleep 10
+            done
+          }
+          # ANTES: gh issue list --search "$TITULO in:title" -> el endpoint de SEARCH
+          # de GitHub es fragil (422 con corchetes, rate limits intermitentes): la
+          # vigilia fallaba cada ~5h SIN llegar a crear el issue. Ahora: listado
+          # plano (endpoint estable) + coincidencia exacta en Python + reintento.
+          intentos=0
+          until gh issue list --state open --limit 50 --json number,title,updatedAt > /tmp/issues.json 2>/tmp/gh_err.txt; do
+            intentos=$((intentos+1))
+            if [ "$intentos" -ge 3 ]; then
+              echo "gh issue list fallo 3 veces:"; cat /tmp/gh_err.txt; exit 1
+            fi
+            echo "reintento $intentos tras fallo transitorio de la API"; sleep 10
+          done
           python3 - <<'PY' > /tmp/hallazgo.txt
           import json
           titulo = "[vigilia] latido atrasado"
@@ -127,8 +146,8 @@ jobs:
           UPDATED_AT="$(cut -f2 /tmp/hallazgo.txt)"
           if [ "${OK:-}" = "true" ]; then
             if [ -n "$NUM" ]; then
-              gh issue comment "$NUM" --body "Recuperado: el latido vuelve a estar vigente (edad_min=${EDAD:-desconocida}). Cierro este aviso."
-              gh issue close "$NUM"
+              gh_reint gh issue comment "$NUM" --body "Recuperado: el latido vuelve a estar vigente (edad_min=${EDAD:-desconocida}). Cierro este aviso."
+              gh_reint gh issue close "$NUM"
             else
               echo "Latido ok y sin issue abierta: nada que hacer."
             fi
@@ -148,12 +167,12 @@ jobs:
           - Fichero vigilado: estado.json en rama estado
           EOF
             echo "- Acciones del repositorio: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> /tmp/cuerpo.md
-            gh issue create --title "$TITULO" --body-file /tmp/cuerpo.md
+            gh_reint gh issue create --title "$TITULO" --body-file /tmp/cuerpo.md
           else
             ANTIG_MIN="$(UPDATED_AT="$UPDATED_AT" python3 -c 'import os; from datetime import datetime, timezone; u=os.environ.get("UPDATED_AT","").strip().replace("Z","+00:00"); ts=datetime.fromisoformat(u); now=datetime.now(timezone.utc); print(int((now-ts).total_seconds()//60))')"
             echo "Issue abierta #$NUM actualizada hace ${ANTIG_MIN}min."
             if [ "$ANTIG_MIN" -gt 30 ]; then
-              gh issue comment "$NUM" --body "Sigue atrasado (edad_min=${EDAD:-desconocida}). Actualizacion de seguimiento (maximo un comentario cada 30min)."
+              gh_reint gh issue comment "$NUM" --body "Sigue atrasado (edad_min=${EDAD:-desconocida}). Actualizacion de seguimiento (maximo un comentario cada 30min)."
             else
               echo "Comentario reciente: no se comenta para evitar spam."
             fi
