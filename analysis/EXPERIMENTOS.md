@@ -125,9 +125,35 @@ elegido a posteriori. Sin datos nuevos hasta E5.
   hora x volatilidad y dia x regimen; anadirlas a mano (mismo modelo lineal)
   deberia capturarlas sin cambiar la clase de modelo. Metrica: idem E1.
 - **E5 · Datos nuevos (solo si E1-E4 se estancan).** CVD/flujo a 1m, basis de
-  funding, skew de opciones.LA literatura (OFI, RAML) dice que el edge
- documentado grande vive ahi; pero decae con el horizonte, asi que en 4h se
+  funding, skew de opciones. La literatura (OFI, RAML) dice que el edge
+  documentado grande vive ahi; pero decae con el horizonte, asi que en 4h se
   espera contexto de defensa de nivel, no senal independiente.
+
+### E2 (corrida 2) · triple-barrier + PBO como juez — pre-registro 2026-10-27
+
+Base bibliografica: triple-barrier method (Lopez de Prado) con **barreras
+calibradas a los datos, no fijas** (arXiv 2504.02249: ajustan barrera/ventana
+para balancear etiquetas; arXiv 2411.12753: triple-barrier + frac-diff mejora
+retorno ajustado por riesgo en BTC/ETH); validacion de resultados con PBO /
+deflated Sharpe (finlab-ml, sommersut/crypto-triple-barrier-lgbm).
+
+- **E2a · barrera escalada por ATR.** Hipotesis: la barrera fija de 0.5% es
+  arbitraria para un mercado cuya volatilidad cambia de regimen; recalibrarla
+  como k*ATR (k ajustado sobre train) deberia dar mas informacion por evento.
+  Cambio exacto: y_atr = 1 si el precio NO cierra k*ATR mas alla del nivel
+  (lado perdedor) dentro de las 48 velas. Metrica: skill del modelo sobre su
+  PROPIO target (base rate propia), mas frecuencia de eventos informativos
+  (timeouts excluidos del ruido).
+- **Juez PBO / degradacion de ranking.** Con la matriz fold x candidato,
+  enumerar TODAS las particiones C(11,5) de los folds en mitades IS/OOS
+  (CSCV): registrar cuan a menudo el mejor IS no es el mejor OOS. Un
+  candidato "gana" solo si su skill supera al campeon en IS **y** OOS de
+  forma consistente; si no, se publica el negativo.
+- **Aviso metodologico (pre-registrado a proposito):** comparar skill entre
+  targets distintos NO es directo; E2 se juzga por (a) su propia skill vs su
+  propia base, (b) la degradacion IS->OOS vs el campeon, (c) la tasa de
+  timeouts (eventos sin respuesta = ruido que el binario actual contaba como
+  acierto). Publicar solo si gana en las tres.
 
 Resultados -> `analysis/experimentos/scoreboard.jsonl` (una fila por
 experimento, con resultado observado y decision conservar/revertir, incluyendo
@@ -159,6 +185,39 @@ Skill por regimen (OOS agrupado): el congelado gana en COMPRESION
    que el backtest no reproduce, no de un defecto del modelo.
 2. **C0/E3/E4 ganan +0.004 absoluto** (0.0247 -> 0.0286): dentro del ruido
    para 11 folds; no justifica reemplazar un modelo congelado y validado.
-3. **Decision: CONSERVAR toques-wf-1 congelado.** Larecision de skill
+3. **Decision: CONSERVAR toques-wf-1 congelado.** La precision de skill
    buscada no estaba en estos candidatos; E2 (target graduado) queda pendiente
    como la unica palanca con informacion nueva por evento.
+
+### Resultados de la corrida 2 (2026-10-27): E2 triple-barrier + juez PBO
+
+| candidato | skill | peor fold | folds+ | gana al campeon | rank OOS medio |
+|---|---|---|---|---|---|
+| campeon (congelado) | +0.0247 | +0.0038 | 11/11 | — | 4.2 |
+| c0 re-entrenado | +0.0286 | +0.0124 | 11/11 | 6/11 | 2.03 |
+| e3 recalibracion | +0.0284 | +0.0108 | 11/11 | 6/11 | 2.29 |
+| e4 interacciones | +0.0285 | +0.0123 | 11/11 | 6/11 | 2.22 |
+| e1 regimen | +0.0243 | +0.0041 | 11/11 | 6/11 | 4.46 |
+| **E2 barrera k*ATR** | **+0.0164** | **-0.0098** | **9/11** | **3/11** | **5.8** |
+
+Juez PBO (CSCV completo, 462 particiones IS/OOS de los 11 folds): **en el 40% de
+las particiones el mejor IS no mantiene rango en OOS** = la familia entera
+tiene overfitting de backtest por encima de lo comodo.
+
+**Conclusiones (negativas publicadas, como manda la regla):**
+
+1. **E2 RECHAZADO**: la barrera escalada por ATR (k calibrado a 0.15*ATR por
+   igualacion de tasas) EMPEORA: +0.0164 vs +0.0247 del campeon, rank OOS
+   ultimo (5.8/6), gana solo 3/11 folds. La barrera fija de 0.5% NO era
+   arbitraria: funcionaba. Timeouts 6.1% (eventos sin respuesta clara).
+2. **PBO confirma el veredicto de la corrida 1**: el hueco de +0.004 entre
+   c0/e3/e4 y el campeon cae dentro de la zona de ruido que el propio juez
+   marca (40% de falls IS->OOS). Ninguno gana de forma CONSISTENTE (6/11 no
+   es consistencia; se exigiria >=9/11).
+3. **Senal debil pero real**: c0/e3/e4 rankean 2.0-2.3 de 6 en OOS de forma
+   sistematica. Es un candidato a vigilar, no a publicar: si en la corrida de
+   noviembre (con datos nuevos) el patron se repite Y el PSI/deriva deja de
+   sisear, ahi se conversa de toques-wf-2.
+4. **Decision: CONSERVAR toques-wf-1 congelado** (por segunda corrida
+   independiente). El congelamiento ya no es solo disciplina: es el resultado
+   de dos experimentos con juez.

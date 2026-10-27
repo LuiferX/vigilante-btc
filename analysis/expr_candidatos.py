@@ -207,6 +207,73 @@ def _regimen_de(s: dict, cortes: Sequence[float]) -> int:
     return 2
 
 
+def _y_atr(s: dict, k: float) -> int:
+    """Target E2: aguanta si NUNca cierra mas de k*ATR mas alla del nivel."""
+    u = s.get("holgura")
+    atr = s["feats"][IDX_ATR] * 100.0
+    if u is None or atr <= 0:
+        return 1
+    return 1 if u >= -k * atr else 0
+
+
+def _calibrar_k(train: list[dict], objetivo: float) -> float:
+    """Elige k*ATR de forma que la tasa de ruptura del train sea `objetivo`."""
+    base = [1.0 if _y_atr(s, 0.0) else 0.0 for s in train]  # ruptura = no aguanta
+    tasa_obj = 1.0 - (sum(base) / max(len(base), 1))
+    mejor_k, mejor_d = 1.0, 9.9
+    for i in range(3, 40):
+        k = i * 0.05
+        hold = sum(1 for s in train if _y_atr(s, k))
+        tasa = 1.0 - hold / max(len(train), 1)
+        d = abs(tasa - tasa_obj)
+        if d < mejor_d:
+            mejor_d, mejor_k = d, k
+    return round(mejor_k, 3)
+
+
+def _timeouts(train: list[dict]) -> float:
+    """Fraccion de eventos sin respuesta clara: |holgura| < 0.25*ATR."""
+    n = 0
+    for s in train:
+        atr = s["feats"][IDX_ATR] * 100.0
+        if atr > 0 and abs(s.get("holgura") or 0) < 0.25 * atr:
+            n += 1
+    return n / max(len(train), 1)
+
+
+def _pbo(skills_x_fold: dict[str, list], n_folds: int) -> dict:
+    """CSCV completo sobre los folds: cada cuanto el mejor IS falla en OOS."""
+    from itertools import combinations
+    nombres = [n for n, v in skills_x_fold.items() if len(v) == n_folds]
+    if not nombres or n_folds < 4:
+        return {"splits": 0}
+    mitad = n_folds // 2
+    is_best_falla = 0
+    total = 0
+    ranks: dict[str, list[int]] = {n: [] for n in nombres}
+    for sub in combinations(range(n_folds), mitad):
+        oos = [i for i in range(n_folds) if i not in set(sub)]
+        is_m = {n: sum(v[i] for i in sub) / len(sub) for n, v in
+                ((n, skills_x_fold[n]) for n in nombres)}
+        oos_m = {n: sum(v[i] for i in oos) / len(oos) for n, v in
+                 ((n, skills_x_fold[n]) for n in nombres)}
+        orden = sorted(nombres, key=lambda n: oos_m[n], reverse=True)
+        rk = {n: orden.index(n) + 1 for n in nombres}
+        best_is = max(is_m, key=lambda n: is_m[n])
+        for n in nombres:
+            ranks[n].append(rk[n])
+        total += 1
+        if rk[best_is] > (len(nombres) + 1) / 2:
+            is_best_falla += 1
+    return {
+        "splits": total,
+        "is_best_falla_en_oos": is_best_falla,
+        "tasa_fallo": round(is_best_falla / total, 4) if total else None,
+        "rank_medio_oos": {n: round(sum(v) / len(v), 2)
+                           for n, v in ranks.items()},
+    }
+
+
 def evaluar(muestras: list[dict], desde: str, hasta: str,
             test_dias: int = 90, train_dias: int = 365,
             embargo_horas: int = 24) -> dict:
@@ -217,8 +284,10 @@ def evaluar(muestras: list[dict], desde: str, hasta: str,
         raise SystemExit("sin folds: revisa rango")
 
     cand: dict[str, list[dict]] = {"baseline": [], "c0": [], "e1": [],
-                                    "e3": [], "e4": []}
+                                    "e3": [], "e4": [], "e2": []}
     e1_sinsenal: list[float] = []
+    e2_k: list[float] = []
+    e2_timeout: list[float] = []
     detalle: dict[str, list] = {k: [] for k in cand}
     pool: dict[str, tuple[list, list]] = {}
 
@@ -266,6 +335,16 @@ def evaluar(muestras: list[dict], desde: str, hasta: str,
         m4 = _entrenar_ext(train)
         cand["e4"].append(_m(test, [_predecir_ext(m4, s) for s in test]))
 
+        # E2a: barrera escalada por ATR (k calibrado sobre train, mismo modelo)
+        t_hold = sum(float(s["y"]) for s in train) / len(train)
+        k = _calibrar_k(train, t_hold)
+        train_atr = [dict(s, y=_y_atr(s, k)) for s in train]
+        test_atr = [dict(s, y=_y_atr(s, k)) for s in test]
+        m2 = eh.entrenar(train_atr, C=0.03)
+        cand["e2"].append(_m(test_atr, [eh.predecir(m2, s["feats"]) for s in test]))
+        e2_k.append(k)
+        e2_timeout.append(_timeouts(test_atr))
+
         # pool para cortes por regimen/lado (todos los folds juntos, OOS)
         for nombre, probs in (("baseline", [s["prob_modelo"] for s in test]),
                               ("e1", p_e1), ("e3", [eh.predecir(m3, s["feats"]) for s in test]),
@@ -281,8 +360,12 @@ def evaluar(muestras: list[dict], desde: str, hasta: str,
             "volatilidad": eh.cortes(ms, ps, "volatilidad"),
             "lado": eh.cortes(ms, ps, "lado"),
         }
+    pbo = _pbo({n: [e.get("brier_skill") or 0.0 for e in evs]
+                for n, evs in cand.items() if len(evs) == len(cand["baseline"])},
+               len(cand["baseline"]))
     return {"candidatos": cand, "e1_sinsenal": e1_sinsenal,
-            "folds": len(cand["baseline"]), "cortes": cortes_rg}
+            "folds": len(cand["baseline"]), "cortes": cortes_rg,
+            "pbo": pbo, "e2_k": e2_k, "e2_timeout": e2_timeout}
 
 
 def _entrenar_ext(train: list[dict]) -> dict:
@@ -363,14 +446,30 @@ def main() -> int:
     print("\n=== skill por regimen de volatilidad (OOS agrupado) ===")
     regs = sorted({r for v in res["cortes"].values()
                    for r in (v.get("volatilidad") or {})})
-    for nombre in ("baseline", "c0", "e1", "e3", "e4"):
+    for nombre in ("baseline", "c0", "e1", "e3", "e4", "e2"):
         cv = res["cortes"].get(nombre, {}).get("volatilidad", {})
         if not cv:
             continue
         vals = [f"{r}={cv[r]['brier_skill']:+.4f}" for r in regs if r in cv]
-        ns = [f"{r}={cv[r]['n']}" for r in regs if r in cv]
         print(f"{nombre:9s} | " + "  ".join(vals))
-        print(f"{'':9s} | n: " + ", ".join(ns))
+
+    # juez: victorias contra el campeon (signo por fold) + PBO/CSCV
+    base_sk = [e.get("brier_skill") or 0.0 for e in res["candidatos"]["baseline"]]
+    print("\n=== victorias contra el campeon (folds) y juez PBO ===")
+    for nombre in ("c0", "e1", "e3", "e4", "e2"):
+        sk = [e.get("brier_skill") or 0.0 for e in res["candidatos"][nombre]]
+        wins = sum(1 for a, b in zip(sk, base_sk, strict=True) if a > b)
+        print(f"{nombre:9s} | gana {wins}/{len(sk)} folds al campeon")
+    p = res.get("pbo") or {}
+    if p.get("splits"):
+        print(f"\nPBO: en {p['tasa_fallo']*100:.0f}% de las {p['splits']} particiones "
+              f"IS/OOS el mejor IS NO mantiene rango en OOS")
+        print("rank medio OOS:", p["rank_medio_oos"])
+    if res.get("e2_k"):
+        k = sum(res["e2_k"]) / len(res["e2_k"])
+        to = sum(res["e2_timeout"]) / len(res["e2_timeout"])
+        print(f"E2a: k medio {k:.2f}*ATR | timeouts (sin respuesta clara) "
+              f"{to*100:.1f}% de los eventos")
 
     if a.scoreboard:
         os.makedirs(os.path.dirname(SCOREBOARD), exist_ok=True)
@@ -383,6 +482,9 @@ def main() -> int:
             "skill_baseline_congelado": base,
             "resultados": {k: v for k, v in tabla.items()},
             "e1_sinsenal_pct": round(sum(res["e1_sinsenal"]) / len(res["e1_sinsenal"]) * 100, 1),
+            "pbo": res.get("pbo"),
+            "e2_k_medio": round(sum(res["e2_k"]) / len(res["e2_k"]), 3) if res.get("e2_k") else None,
+            "e2_timeout_pct": round(sum(res["e2_timeout"]) / len(res["e2_timeout"]) * 100, 1) if res.get("e2_timeout") else None,
             "skill_por_regimen": {k: v.get("volatilidad") for k, v in res["cortes"].items()},
             "decision": "pendiente (corrida completa con el cache sin huecos)",
         }
