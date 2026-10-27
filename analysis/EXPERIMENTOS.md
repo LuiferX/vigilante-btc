@@ -90,3 +90,75 @@ modelo (`vigilante/toques.py`, `analysis/hold_model.py`, `modelo_toques.json`).
 - NO es para siempre: los criterios de arriba se pre-registran hoy.
 - Si el regimen cambia y el modelo se degrada, el gate + PSI lo silencian:
   el costo de un modelo congelado y obsoleto es "callarse", nunca "mentir".
+
+## Candidatos al próximo modelo (pre-registro 2026-10-26)
+
+Contexto que motiva estos experimentos (observado, no supuesto): ventana viva
+del 24-25/10 con el modelo colapsado a un solo bin de probabilidad (0.80-1.01),
+skill viva negativa (-4.6% a -6.8%, n=45-54) y calibracion 0.0596 > 0.05,
+mientras el OOS congelado seguia positivo (+2.6% a +2.8%, n=225). El modelo
+tiene UNA feature sensible al mercado (volatilidad 24h) y por eso, en
+compresion de volatilidad, colapsa a la tasa base.
+
+Protocolo común a TODOS: mismo replay sin mirada al futuro, mismos 11 folds
+temporales, mismo embargo de 24 h, mismas features de evento; se compara
+contra `toques-wf-1` (coeficientes actuales) en los MISMOS folds. Un
+candidato solo es candidato si gana en el MISMO protocolo, no en un corte
+elegido a posteriori. Sin datos nuevos hasta E5.
+
+- **E1 · Modelo con estado de regimen.** Hipotesis: condicionar por regimen de
+  volatilidad (cuantiles de ATR, 3 estados) evita el colapso a la tasa base y
+  recupera senal en calma. Cambio exacto: coeficientes por regimen en vez de
+  coeficientes globales; estado "sin senal" explicito cuando todos los regimenes
+  coinciden con la tasa base. Metrica esperada: Brier >= actual en fold calmo;
+  skill_medio WF > 0.0168 (actual) sin empeorar ningun fold mas de 0.005.
+- **E2 · Target graduado.** Hipotesis: el target binario hold_4h_0.5pct esta
+  dominado por la tasa base (85%); predecir recorrido (distancia de ruptura,
+  regresion cuantil) o MFE/MAE asimetrico tiene mas informacion por evento.
+  Metrica esperada: skill > 0.0168 en el mismo protocolo, con ECE <= 0.05.
+- **E3 · Recalibracion rodante.** Hipotesis: el Platt-lite estatico envejece
+  con el regimen (nuestra calibracion viva 0.0596). Recalibrar intercepto por
+  ventana rodante deberia sostener ECE <= 0.05 incluso con deriva.
+  Metrica esperada: ECE viva <= 0.05 sostenido; si la skill no mejora, se
+  conserva igual por la honestidad de las probabilidades.
+- **E4 · Logistica con interacciones.** Hipotesis: L1 poda las interacciones
+  hora x volatilidad y dia x regimen; anadirlas a mano (mismo modelo lineal)
+  deberia capturarlas sin cambiar la clase de modelo. Metrica: idem E1.
+- **E5 · Datos nuevos (solo si E1-E4 se estancan).** CVD/flujo a 1m, basis de
+  funding, skew de opciones.LA literatura (OFI, RAML) dice que el edge
+ documentado grande vive ahi; pero decae con el horizonte, asi que en 4h se
+  espera contexto de defensa de nivel, no senal independiente.
+
+Resultados -> `analysis/experimentos/scoreboard.jsonl` (una fila por
+experimento, con resultado observado y decision conservar/revertir, incluyendo
+los negativos). Ningun candidato se publica hasta cumplir los 4 criterios de
+des-congelamiento de arriba.
+
+### Resultados de la corrida 1 (2026-10-26, pre-registro cumplido)
+
+Protocolo: replay extendido sin mirada al futuro (selftest verificado contra
+`entrenar_hold.replay`: etiquetas/features/probs identicas), 11.049 muestras
+2023-01->2026-09, 11 folds WF (test 90d, train 365d, embargo 24h).
+
+| candidato | skill medio | peor fold | folds+ | ECE |
+|---|---|---|---|---|
+| baseline (toques-wf-1 congelado) | +0.0247 | +0.0038 | 11/11 | 0.028 |
+| C0 re-entrenado (control) | +0.0286 | +0.0124 | 11/11 | 0.026 |
+| E1 regimen de volatilidad | +0.0243 | +0.0041 | 11/11 | 0.025 |
+| E3 recalibracion rodante | +0.0284 | +0.0108 | 11/11 | 0.028 |
+| E4 interacciones | +0.0285 | +0.0123 | 11/11 | 0.025 |
+
+Skill por regimen (OOS agrupado): el congelado gana en COMPRESION
+(+0.0416 vs +0.0314 de E1), que era justo el modo de fallo que motivaba E1.
+
+**Conclusiones (negativas publicadas, como manda la regla):**
+
+1. **E1 RECHAZADO**: condicionar por regimen no mejora; el colapso de
+   octubre NO existia en el historico 2023-2026 (skill en compresion era la
+   mas alta). La degradacion viva de octubre viene de un cambio de regimen
+   que el backtest no reproduce, no de un defecto del modelo.
+2. **C0/E3/E4 ganan +0.004 absoluto** (0.0247 -> 0.0286): dentro del ruido
+   para 11 folds; no justifica reemplazar un modelo congelado y validado.
+3. **Decision: CONSERVAR toques-wf-1 congelado.** Larecision de skill
+   buscada no estaba en estos candidatos; E2 (target graduado) queda pendiente
+   como la unica palanca con informacion nueva por evento.

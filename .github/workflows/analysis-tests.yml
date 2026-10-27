@@ -45,3 +45,5 @@ jobs:
           python test_validation.py
           python test_dashboard.py
           python test_workflows.py
+          python test_entrenar_hold.py
+          python test_expr_candidatos.py
