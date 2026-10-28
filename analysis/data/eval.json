@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1047,
+  "samples": 1049,
   "status": "ok",
-  "decisions_total": 671,
-  "decisions_evaluated": 655,
+  "decisions_total": 672,
+  "decisions_evaluated": 656,
   "coverage": 0.9762,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1333,
-  "base_rate": 0.8453,
+  "brier": 0.1331,
+  "base_rate": 0.8456,
   "mean_prob": 0.8166,
-  "brier_base": 0.1308,
-  "brier_skill": -0.019,
-  "calibration_error": 0.0287,
+  "brier_base": 0.1306,
+  "brier_skill": -0.0191,
+  "calibration_error": 0.029,
   "overall": {
-    "n": 1047,
-    "brier": 0.1333,
-    "base_rate": 0.8453,
+    "n": 1049,
+    "brier": 0.1331,
+    "base_rate": 0.8456,
     "mean_prob": 0.8166,
-    "brier_base": 0.1308,
-    "brier_skill": -0.019,
+    "brier_base": 0.1306,
+    "brier_skill": -0.0191,
     "real_ci95": [
-      0.8221,
-      0.8659
+      0.8224,
+      0.8662
     ]
   },
   "high_score": {
-    "n": 744,
-    "brier": 0.119,
-    "base_rate": 0.8589,
-    "mean_prob": 0.8466,
-    "brier_base": 0.1212,
-    "brier_skill": 0.0184,
+    "n": 746,
+    "brier": 0.1187,
+    "base_rate": 0.8592,
+    "mean_prob": 0.8465,
+    "brier_base": 0.1209,
+    "brier_skill": 0.0182,
     "real_ci95": [
-      0.832,
-      0.882
+      0.8324,
+      0.8824
     ],
     "lift_vs_base": 1.0161
   },
   "by_side": {
     "soporte": {
-      "n": 493,
-      "brier": 0.1652,
-      "base_rate": 0.8032,
+      "n": 495,
+      "brier": 0.1646,
+      "base_rate": 0.804,
       "mean_prob": 0.8123,
-      "brier_base": 0.158,
-      "brier_skill": -0.0452,
+      "brier_base": 0.1576,
+      "brier_skill": -0.0449,
       "real_ci95": [
-        0.7659,
-        0.8359
+        0.7668,
+        0.8366
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 744,
-      "pred": 0.8466,
-      "real": 0.8589,
+      "n": 746,
+      "pred": 0.8465,
+      "real": 0.8592,
       "real_ci95": [
-        0.832,
-        0.882
+        0.8324,
+        0.8824
       ]
     }
   ],
