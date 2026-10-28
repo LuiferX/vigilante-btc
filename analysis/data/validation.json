@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-28T03:46:32.471538+00:00",
+  "checked_at": "2026-10-28T04:02:01.000185+00:00",
   "status": "muestra_media",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -12,24 +12,24 @@
   "min_samples": 30,
   "target_samples": 100,
   "samples": {
-    "eval": 1055,
+    "eval": 1057,
     "effective": 67,
-    "resolved_levels": 1055,
-    "levels_with_hold": 1090,
-    "events": 674,
-    "resolved_events": 658,
+    "resolved_levels": 1057,
+    "levels_with_hold": 1092,
+    "events": 675,
+    "resolved_events": 659,
     "independent_events": 42,
     "coverage": 0.9763,
     "avg_levels_per_event": 1.6,
-    "span_hours": 170.5,
+    "span_hours": 170.8,
     "effective_fallback": null
   },
   "metrics": {
-    "brier": 0.1325,
-    "brier_skill": -0.0193,
-    "base_rate": 0.8464,
-    "mean_prob": 0.8166,
-    "calibration_error": 0.0298,
+    "brier": 0.1323,
+    "brier_skill": -0.0194,
+    "base_rate": 0.8467,
+    "mean_prob": 0.8167,
+    "calibration_error": 0.0301,
     "eval_status": "ok",
     "bins": [
       {
@@ -64,39 +64,39 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 752,
-        "pred": 0.8464,
-        "real": 0.8604,
+        "n": 754,
+        "pred": 0.8463,
+        "real": 0.8607,
         "real_ci95": [
-          0.8338,
-          0.8833
+          0.8342,
+          0.8836
         ]
       }
     ],
     "high_score": {
-      "n": 752,
-      "brier": 0.118,
-      "base_rate": 0.8604,
-      "mean_prob": 0.8464,
-      "brier_base": 0.1201,
-      "brier_skill": 0.0175,
+      "n": 754,
+      "brier": 0.1178,
+      "base_rate": 0.8607,
+      "mean_prob": 0.8463,
+      "brier_base": 0.1199,
+      "brier_skill": 0.0172,
       "real_ci95": [
-        0.8338,
-        0.8833
+        0.8342,
+        0.8836
       ],
       "lift_vs_base": 1.0165
     },
     "by_side": {
       "soporte": {
-        "n": 501,
-        "brier": 0.163,
-        "base_rate": 0.8064,
-        "mean_prob": 0.8125,
-        "brier_base": 0.1561,
-        "brier_skill": -0.0442,
+        "n": 503,
+        "brier": 0.1625,
+        "base_rate": 0.8072,
+        "mean_prob": 0.8126,
+        "brier_base": 0.1557,
+        "brier_skill": -0.044,
         "real_ci95": [
-          0.7695,
-          0.8386
+          0.7704,
+          0.8393
         ]
       },
       "resistencia": {
@@ -149,7 +149,7 @@
   },
   "drift": {
     "status": "ok",
-    "psi": 0.0535,
+    "psi": 0.0517,
     "watch_threshold": 0.1,
     "alert_threshold": 0.25,
     "live_bins": [
@@ -167,7 +167,7 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 221
+        "n": 223
       }
     ],
     "backtest_bins": [
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 3546,
-      "unique_bars": 3546,
+      "bars": 3549,
+      "unique_bars": 3549,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-28T03:40:00+00:00",
-      "age_min": 6.54,
+      "last": "2026-10-28T03:55:00+00:00",
+      "age_min": 7.02,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-28T03:46:26.173270+00:00",
+      "run_at": "2026-10-28T04:01:54.119250+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -233,7 +233,7 @@
   },
   "warnings": [
     "Muestra efectiva 67 < 100; falta recorrido para validar.",
-    "Muestras nominales 1055; efectivas 67 por solapamiento de 4h.",
+    "Muestras nominales 1057; efectivas 67 por solapamiento de 4h.",
     "Brier skill negativo: el motor no supera la tasa base en esta muestra."
   ],
   "limits": [
@@ -242,7 +242,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "f977fc6cd9c7d32d",
-  "code_sha": "d67f570e43485e9de6fd5263cf7f4a754e3c7317",
+  "data_hash": "3a711651fddccff4",
+  "code_sha": "d60ff8f44a763c5e62fde2b9a35e3a9eb3ab2ed6",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
