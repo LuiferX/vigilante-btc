@@ -1075,6 +1075,15 @@ def main():
                     cerr.append({"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
                                  "fee": o.get("fee", 0),
                                  "r": round(pnl / o["riesgo"], 2) if o["riesgo"] else 0,
+                                 # auditoria (2026-10-28): el LIQ de octubre fue
+                                 # inexplicable porque el cierre no guardaba la
+                                 # posicion. Con estos campos, cualquier cierre se
+                                 # puede reconstruir: que riesgo se previo, donde
+                                 # estaba el stop, a que precio se liquido.
+                                 "entrada": o.get("entrada"), "tam": o.get("tam"),
+                                 "stop": o.get("stop"), "tp": o.get("tp"),
+                                 "liq": o.get("liq"), "lev": o.get("lev"),
+                                 "riesgo": o.get("riesgo"),
                                  "t": ahora.isoformat()})
                     est["paper_cerradas"] = cerr[-100:]
                     pdh = est.get("paper_dia") or {}

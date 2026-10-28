@@ -365,7 +365,7 @@ def build_parte(
     except Exception:
         pass
     try:
-        _out = []
+        _out: list[str] = []
         for _ln in L:
             if _ln == "" and _out and _out[-1] == "":
                 continue

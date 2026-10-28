@@ -12,8 +12,10 @@ import os
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 BASE = Path(__file__).resolve().parent
 DATA = BASE / "data" / "btcusdt"
@@ -28,7 +30,8 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def http_get_json(url: str, timeout: int = 30):
+def http_get_json(url: str, timeout: int = 30) -> Any:
+    """JSON publico de un endpoint. `Any` a proposito: la forma depende del origen."""
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
@@ -282,7 +285,9 @@ def fetch_taker_okx() -> list[dict]:
     return out
 
 
-def with_fallback(label: str, primary, fallback) -> list[dict]:
+def with_fallback(
+    label: str, primary: Callable[[], list[dict]], fallback: Callable[[], list[dict]]
+) -> list[dict]:
     try:
         return primary()
     except Exception as e:
@@ -377,7 +382,7 @@ def fetch_klines_kraken(interval: str, limit: int = 720) -> list[dict]:
     if raw.get("error"):
         raise RuntimeError(str(raw["error"]))
     result = raw.get("result") or {}
-    rows = next((v for k, v in result.items() if k != "last"), [])
+    rows: list = next((v for k, v in result.items() if k != "last"), [])
     out = []
     for k in rows[-min(limit, 720):]:
         out.append({
@@ -468,7 +473,10 @@ def main() -> int:
         ("klines_4h.jsonl", lambda: fetch_klines("4h", 500), "openTime"),
         ("klines_1d.jsonl", lambda: fetch_klines("1d", 200), "openTime"),
     ]
-    health = {
+    # dict[str, Any]: el payload de salud mezcla bool/str/contadores y sub-dicts
+    # por trabajo; sin la anotacion mypy lo cierra como dict[str, object] y luego
+    # rechaza cada asignacion indexada (health["jobs"][fname] = ...).
+    health: dict[str, Any] = {
         "run_at": started,
         "ok": False,
         "kline_ok": False,

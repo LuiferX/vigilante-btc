@@ -5,6 +5,7 @@ niveles/zonas, regimen, direccion con confianza, fear&greed, evaluacion de zonas
 """
 
 import datetime
+from typing import Any
 
 from vigilante.indicadores import (
     clamp,
@@ -123,15 +124,18 @@ def evalua_zona(est, res, sop, high, low, close):
     mecha sin cierre = hold (aguanta); cierre mas alla = rompe (penaliza).
     Vuelve a tocar tras alejarse = episodio nuevo."""
     try:
-        mem = est.get("mem_zonas")
+        mem: dict[str, Any] = est.get("mem_zonas")
         if not isinstance(mem, dict):
             mem = {}
-        vig = est.get("vig_zona")
+        vig: dict[str, Any] = est.get("vig_zona")
         if not isinstance(vig, dict):
             vig = {}
         for lado, nueva, es_res in (("res", res, True), ("sop", sop, False)):
             try:
-                ant = float((vig.get(lado) or {}).get("nivel"))
+                prev = vig.get(lado)
+                # prev puede no existir (primera pasada) o venir corrupto del
+                # estado.json: en ambos casos ant=None y la zona se inicializa.
+                ant = float(prev["nivel"]) if isinstance(prev, dict) else None
             except Exception:
                 ant = None
             if ant is None:
@@ -176,7 +180,8 @@ def evalua_zona(est, res, sop, high, low, close):
 
 
 def niveles(h1, h4, d1, w1, pd, pw, precio):
-    sups, ress = [], []
+    sups: list[dict] = []
+    ress: list[dict] = []
     cands = [
         ("min14 1H", h1["winL"]),
         ("max14 1H", h1["winH"]),

@@ -234,6 +234,14 @@ def abrir_papel(est, dirb, niv, precio, ahora):
     try:
         if (tam * entrada) / PAPER_LEV > 10 * (dist_stop * tam):
             return None  # cap LIQ real: el LIQ de hoy pago 25.7x el riesgo; maximo 10x
+        # NOTA DE AUDITORIA (2026-10-28): el LIQ de octubre (stop a 0.08% del
+        # precio, 25.7x el riesgo) lo rechazaria ESTE guard. Se evaluo una
+        # invariante mas dura (3x) pero la posicion canonica del repo carga
+        # 2.075x y los tests de sizing usan 8.3x: apretarla romperia el sizing
+        # sin un modo de fallo observado que lo justifique. Lo que faltaba no
+        # era otro guard: era AUDITAR. El cierre ahora registra entrada/tam/
+        # stop/liq/riesgo (ver vigilante_cloud.main) para que ningun LIQ vuelva
+        # a ser inexplicable.
     except Exception:
         return None
     pos = {

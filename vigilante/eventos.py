@@ -118,7 +118,7 @@ def imanes(last):
         )
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.load(r)
-        oi = {}
+        oi: dict[float, dict[str, float]] = {}
         for ins in data.get("result", []):
             parts = (ins.get("instrument_name") or "").split("-")
             if len(parts) != 4:
@@ -152,7 +152,8 @@ def scoreboard(eval_log, min_n=1, solo_plan=False):
     """Acierto REAL por tipo de alerta, medido en vivo (eval_log).
     Devuelve filas (tipo, n, aciertos, pct), mejor primero. Sin promesas.
     `solo_plan=True` excluye el histórico viejo, que medía sesgo y no plan."""
-    acc = {}
+    # acc[tipo] = (evaluadas, aciertos)
+    acc: dict[str, tuple[int, int]] = {}
     for e in eval_log or []:
         if not isinstance(e, dict):
             continue

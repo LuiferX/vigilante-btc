@@ -17,6 +17,7 @@ import datetime
 import json
 import time
 import urllib.request
+from typing import Any
 
 FAPI = "https://fapi.binance.com/fapi/v1"
 
@@ -30,7 +31,8 @@ VISION = "https://data-api.binance.vision/api/v3"
 FUENTE = {"nombre": "futuros"}
 
 
-MERCADO = {"base": None}
+# base: la URL elegida para toda la pasada (None = aun sin elegir).
+MERCADO: dict[str, str | None] = {"base": None}
 
 
 def _elegir_fuente():
@@ -47,8 +49,8 @@ def _elegir_fuente():
     return MERCADO["base"]
 
 
-def fetch(url, timeout=20, tries=3):
-    last = None
+def fetch(url, timeout=20, tries=3) -> Any:
+    last: Exception | None = None
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "vigilante-cloud/3.0"})
@@ -58,7 +60,11 @@ def fetch(url, timeout=20, tries=3):
             last = e
             if i < tries - 1:
                 time.sleep(2 * (i + 1))
-    raise last
+    if last is not None:
+        raise last
+    # Solo se llega aqui con tries<=0 (ningun llamador lo hace): antes hacia
+    # `raise None` -> TypeError oscuro. Ahora el motivo es explicito.
+    raise RuntimeError(f"fetch sin intentos: {url}")
 
 
 def klines(interval, limit):
@@ -113,8 +119,9 @@ def ticker24():
     }
 
 
-def sentiment():
-    out = {"funding": None, "oi": None, "taker": None, "spread": None}
+def sentiment() -> dict[str, float | None]:
+    # None = metrica no disponible; cada fetch llena su clave o la deja en None.
+    out: dict[str, float | None] = {"funding": None, "oi": None, "taker": None, "spread": None}
     try:
         f = fetch(f"{FAPI}/premiumIndex?symbol=BTCUSDT", tries=1)
         out["funding"] = round(float(f["lastFundingRate"]) * 100, 4)

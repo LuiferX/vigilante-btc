@@ -29,7 +29,7 @@ def auto_stats(eval_log):
     """Auto-aprendizaje: en que sesion rinden mejor las senales (min 10 evaluadas)."""
     if len(eval_log) < 10:
         return None
-    buckets = {}
+    buckets: dict[str, list] = {}
     for e in eval_log:
         try:
             hh = datetime.datetime.fromisoformat(e["t"]).hour
@@ -56,7 +56,7 @@ def calibrar(est):
     log = est.get("eval_log", [])
     if len(log) < 10:
         return fac
-    buckets = {}
+    buckets: dict[str, list] = {}
     for e in log[-60:]:
         try:
             hh = datetime.datetime.fromisoformat(e["t"]).hour
@@ -136,7 +136,8 @@ def tabla_calibracion(eval_log):
         brier = sum(
             ((float(e.get("conf", 50)) / 100) - float(e.get("r", 0))) ** 2 for e in log
         ) / len(log)
-        cubs = {}
+        # cubs[cubeta] = [evaluadas, aciertos]
+        cubs: dict[str, list[float]] = {}
         for e in log:
             c = float(e.get("conf", 50))
             k = "40s" if c < 50 else ("50s" if c < 60 else "60+")

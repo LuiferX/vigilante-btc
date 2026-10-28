@@ -9,6 +9,7 @@ vigilante_cloud.py re-exporta estos nombres: la API publica no cambia.
 """
 
 import math
+from typing import Any
 
 from vigilante.estado import enfriar
 from vigilante.indicadores import fmt_miles
@@ -29,7 +30,7 @@ def pivotes_micro(kl, k=5, tol=0.0015):
                 crudos.append(kl[i]["h"])
             if kl[i]["l"] <= min(x["l"] for x in ventana):
                 crudos.append(kl[i]["l"])
-        out = []
+        out: list[dict] = []
         for p in sorted(crudos):
             hit = next((o for o in out if abs(o["precio"] - p) / p <= tol), None)
             if hit is None:
@@ -61,7 +62,7 @@ def toques_en_nivel(kl, nivel, tol=0.0015, salida=0.003, sep=12):
         return 0
 
 
-MODELO_TOQUES = {
+MODELO_TOQUES: dict[str, Any] = {
     "version": "toques-wf-1",
     "target": "hold_4h_0.5pct",
     "trained_until": "2026-09-30 22:55:00+00:00",
