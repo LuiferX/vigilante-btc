@@ -145,6 +145,125 @@ def test_pbo_detecta_overfitting():
     assert set(p["rank_medio_oos"]) == {"suerte", "estable", "malo"}
 
 
+def test_features_meta_extiende_y_codifica_metadatos():
+    s = _muestra(datetime.datetime(2024, 5, 1, tzinfo=UTC), 1, prob=0.9)
+    s["calidad"] = 7.5
+    s["toques"] = 6
+    s["confluencia"] = 3
+    s["sweep"] = True
+    s["quiebre"] = True
+    s["lado"] = "resistencia"
+    s["sesion"] = "Londres"
+    f = ex._features_meta(s)
+    assert len(f) == len(eh.FEATURES) + 11, "9 base + 11 metadatos"
+    base = f[:len(eh.FEATURES)]
+    assert base == s["feats"], "las 9 base van primero y sin tocar"
+    meta = f[len(eh.FEATURES):]
+    assert meta[0] == 0.9, "la prob del primario es la primera meta"
+    assert meta[1:4] == [7.5, 6.0, 3.0], "calidad/toques/confluencia like numerics"
+    assert meta[4] == 1.0 and meta[5] == 1.0, "sweep y quiebre como dummies"
+    assert meta[6] == 0.0, "lado resistencia -> dummy soporte en 0"
+    assert meta[7:11] == [0.0, 1.0, 0.0, 0.0], "one-hot de sesion: solo Londres"
+    # sesion desconocida -> todas las dummies a 0 (no inventa categoria)
+    s2 = _muestra(datetime.datetime(2024, 5, 1, tzinfo=UTC), 1)
+    s2["sesion"] = None
+    assert ex._features_meta(s2)[len(eh.FEATURES) + 7:] == [0.0, 0.0, 0.0, 0.0]
+
+
+def test_y_meta_mide_el_acierto_del_primario():
+    t = datetime.datetime(2024, 5, 1, tzinfo=UTC)
+    assert ex._y_meta(_muestra(t, 1, prob=0.9)) == 1    # dice aguanta y aguanta
+    assert ex._y_meta(_muestra(t, 0, prob=0.9)) == 0    # dice aguanta y rompe
+    assert ex._y_meta(_muestra(t, 0, prob=0.2)) == 1    # dice rompe y rompe
+    assert ex._y_meta(_muestra(t, 1, prob=0.2)) == 0    # dice rompe y aguanta
+    # frontera exacta: 0.5 cuenta como "el primario dice aguanta"
+    assert ex._y_meta(_muestra(t, 1, prob=0.5)) == 1
+    assert ex._y_meta(_muestra(t, 0, prob=0.5)) == 0
+
+
+def test_confia_es_umbral_estricto():
+    assert ex._confia(0.5) is False, "en 0.5 exacto NO confia (umbral estricto)"
+    assert ex._confia(0.500001) is True
+    assert ex._confia(0.99) is True
+    assert ex._confia(0.0) is False
+
+
+def test_entrenar_meta_reusa_eh_entrenar():
+    train = [_muestra(datetime.datetime(2024, 1, 1, tzinfo=UTC)
+                      + datetime.timedelta(days=i),
+                      1 if i % 5 else 0,
+                      prob=0.9 if i % 5 else 0.55)
+             for i in range(200)]
+    m = ex._entrenar_meta(train)
+    assert len(m["coef"]) == len(ex._features_meta(train[0])), "coef por feature del secundario"
+    assert m["features_idx"] == list(range(len(ex._features_meta(train[0]))))
+    for s in train[:10]:
+        p = ex._predecir_meta(m, s)
+        assert 0.0 <= p <= 1.0, f"probabilidad fuera de rango: {p}"
+
+
+def test_evaluar_meta_combina_secundario_y_filtro():
+    """El secundario debe aprender a desconfiar justo donde el primario falla."""
+    train, test = [], []
+    for i in range(240):
+        # grupo A: p alta y acierta; grupo B: p media y FALLA (y=0 con p>=0.5)
+        bueno = i % 4 != 0
+        t = datetime.datetime(2024, 1, 1, tzinfo=UTC) + datetime.timedelta(days=i)
+        (train if i < 180 else test).append(
+            _muestra(t, 1 if bueno else 0, prob=0.92 if bueno else 0.62,
+                     atr288=0.001 if bueno else 0.006))
+    r = ex._evaluar_meta(train, test)
+    d = r["detalle"]
+    assert d["n_test"] == len(test)
+    assert d["n_confia"] == len(r["trusted"]), "confiadas = muestras con p_meta > 0.5"
+    assert d["cobertura"] == round(d["n_confia"] / d["n_test"], 4)
+    # tasa base del secundario = tasa de acierto real del primario en el test
+    aciertos = sum(ex._y_meta(s) for s in test)
+    assert d["secundario"]["base_rate"] == round(aciertos / len(test), 4)
+    # el combinado se calcula SOLO sobre las confiadas, con la prob del primario
+    assert d["combinado"]["n"] == d["n_confia"]
+    # el secundario jerarquiza: mas confianza media en el grupo que acierta
+    probs = [ex._predecir_meta(ex._entrenar_meta(train), s) for s in test]
+    buen = [p for p, s in zip(probs, test, strict=True) if s["prob_modelo"] > 0.8]
+    mal = [p for p, s in zip(probs, test, strict=True) if s["prob_modelo"] < 0.7]
+    assert buen and mal, "el sintetico debe tener ambos grupos"
+    assert sum(buen) / len(buen) > sum(mal) / len(mal), "el secundario no separa acierto/fallo"
+
+
+def test_decision_meta_aplica_el_liston_pre_registrado():
+    folds = 11
+    res = {
+        "candidatos": {
+            "baseline": [{"brier_skill": 0.02} for _ in range(folds)],
+            "meta": [{"brier_skill": 0.03} for _ in range(folds)],
+        },
+        "pbo": {"rank_medio_oos": {"meta": 1.5}},
+        "meta_detalle": [
+            {"n_test": 100, "n_confia": 80, "cobertura": 0.8,
+             "secundario": {"brier_skill": 0.01}, "combinado": {"brier_skill": 0.03}}
+            for _ in range(folds)
+        ],
+    }
+    tabla = {"baseline": {"skill_medio": 0.02}, "meta": {"skill_medio": 0.03}}
+    gana = ex._decision_meta(res, tabla)
+    assert gana["gano"] is True, "cumple las 5 condiciones del liston"
+    assert all(gana["checks"].values())
+
+    # ahora una cada vez: cobertura < 50% debe tumbar el veredicto
+    res["meta_detalle"] = [dict(d, cobertura=0.3, n_confia=30) for d in res["meta_detalle"]]
+    mal = ex._decision_meta(res, tabla)
+    assert mal["gano"] is False
+    assert mal["checks"]["cobertura_>=50%"] is False
+
+    # skill combinado por debajo del campeon + 0.005 tambien
+    res["meta_detalle"] = [dict(d, cobertura=0.8, n_confia=80) for d in res["meta_detalle"]]
+    res["candidatos"]["meta"] = [{"brier_skill": 0.021} for _ in range(folds)]
+    tabla["meta"]["skill_medio"] = 0.021
+    flojo = ex._decision_meta(res, tabla)
+    assert flojo["gano"] is False
+    assert flojo["checks"]["combinado_supera_campeon_+0.005"] is False
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):

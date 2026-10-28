@@ -14,7 +14,9 @@ FASE 2 (barata, reproducible): evalua candidatos sobre las muestras en cache:
    baseline (congelado), C0 (re-entrenado = control de protocolo),
    E1 (regimen de volatilidad + estado sin senal),
    E3 (recalibracion rodante del intercepto),
-   E4 (interacciones hora/dia x volatilidad sobre la misma clase de modelo).
+   E4 (interacciones hora/dia x volatilidad sobre la misma clase de modelo),
+   E2 (barrera escalada por ATR),
+   T2 (meta-labeling: secundario que aprende CUANDO creerle al primario).
 
 Uso:
   python expr_candidatos.py --datadir analysis/data/cache --replay
@@ -284,10 +286,11 @@ def evaluar(muestras: list[dict], desde: str, hasta: str,
         raise SystemExit("sin folds: revisa rango")
 
     cand: dict[str, list[dict]] = {"baseline": [], "c0": [], "e1": [],
-                                    "e3": [], "e4": [], "e2": []}
+                                    "e3": [], "e4": [], "e2": [], "meta": []}
     e1_sinsenal: list[float] = []
     e2_k: list[float] = []
     e2_timeout: list[float] = []
+    meta_detalle: list[dict] = []
     detalle: dict[str, list] = {k: [] for k in cand}
     pool: dict[str, tuple[list, list]] = {}
 
@@ -345,13 +348,21 @@ def evaluar(muestras: list[dict], desde: str, hasta: str,
         e2_k.append(k)
         e2_timeout.append(_timeouts(test_atr))
 
-        # pool para cortes por regimen/lado (todos los folds juntos, OOS)
-        for nombre, probs in (("baseline", [s["prob_modelo"] for s in test]),
-                              ("e1", p_e1), ("e3", [eh.predecir(m3, s["feats"]) for s in test]),
-                              ("e4", [_predecir_ext(m4, s) for s in test])):
+        # T2: meta-labeling (secundario sobre acierto del primario)
+        r_meta = _evaluar_meta(train, test)
+        cand["meta"].append(r_meta["combinado"])
+        meta_detalle.append(r_meta["detalle"])
+
+        # pool para cortes por regimen/lado (todos los folds juntos, OOS).
+        # T2 se corta sobre los eventos en que el secundario confia.
+        for nombre, ms, ps in (("baseline", test, [s["prob_modelo"] for s in test]),
+                               ("e1", test, p_e1),
+                               ("e3", test, [eh.predecir(m3, s["feats"]) for s in test]),
+                               ("e4", test, [_predecir_ext(m4, s) for s in test]),
+                               ("meta", r_meta["trusted"], r_meta["probs"])):
             pool.setdefault(nombre, ([], []))
-            pool[nombre][0].extend(test)
-            pool[nombre][1].extend(probs)
+            pool[nombre][0].extend(ms)
+            pool[nombre][1].extend(ps)
 
         detalle["baseline"].append({"fold": n, "n": len(test)})
     cortes_rg = {}
@@ -365,7 +376,8 @@ def evaluar(muestras: list[dict], desde: str, hasta: str,
                len(cand["baseline"]))
     return {"candidatos": cand, "e1_sinsenal": e1_sinsenal,
             "folds": len(cand["baseline"]), "cortes": cortes_rg,
-            "pbo": pbo, "e2_k": e2_k, "e2_timeout": e2_timeout}
+            "pbo": pbo, "e2_k": e2_k, "e2_timeout": e2_timeout,
+            "meta_detalle": meta_detalle}
 
 
 def _entrenar_ext(train: list[dict]) -> dict:
@@ -384,6 +396,78 @@ def _predecir_ext(modelo: dict, s: dict) -> float:
     return eh.predecir(modelo, _interacc(s))
 
 
+# --------------------------------------------------------------------------- #
+# T2: meta-labeling - secundario que predice el ACIERTO del primario
+# --------------------------------------------------------------------------- #
+def _y_meta(s: dict) -> int:
+    """1 si la decision del primario (p >= 0.5) coincide con la etiqueta real."""
+    acierta = (float(s.get("prob_modelo") or 0.0) >= 0.5) == (float(s["y"]) >= 0.5)
+    return 1 if acierta else 0
+
+
+def _features_meta(s: dict) -> list[float]:
+    """9 features base + prob del primario + metadatos del evento."""
+    f = [float(x) for x in s["feats"]]
+    ses = str(s.get("sesion") or "")
+    return f + [
+        float(s.get("prob_modelo") or 0.0),
+        float(s.get("calidad") or 0.0),
+        float(s.get("toques") or 0),
+        float(s.get("confluencia") or 0),
+        1.0 if s.get("sweep") else 0.0,
+        1.0 if s.get("quiebre") else 0.0,
+        1.0 if s.get("lado") == "soporte" else 0.0,
+        1.0 if ses == "Asia" else 0.0,
+        1.0 if ses == "Londres" else 0.0,
+        1.0 if ses == "NY" else 0.0,
+        1.0 if ses == "noche" else 0.0,
+    ]
+
+
+def _confia(p_meta: float) -> bool:
+    """El secundario confia en el primario cuando su propia p supera 0.5."""
+    return p_meta > 0.5
+
+
+def _entrenar_meta(train: Sequence[dict], C: float = 0.03) -> dict:
+    """Logistica L1 (reusa eh.entrenar) sobre y = acierto del primario."""
+    if not train:
+        raise ValueError("train vacio")
+    ext = [dict(s, y=float(_y_meta(s)), feats=_features_meta(s)) for s in train]
+    return eh.entrenar(ext, C=C, features_idx=list(range(len(ext[0]["feats"]))))
+
+
+def _predecir_meta(modelo: dict, s: dict) -> float:
+    return eh.predecir(modelo, _features_meta(s))
+
+
+def _evaluar_meta(train: Sequence[dict], test: Sequence[dict]) -> dict:
+    """Entrena el secundario con train <= corte y mide el efecto en el fold.
+
+    Devuelve las metricas COMBINADAS (el primario sobre los eventos en que el
+    secundario confia), el detalle del secundario (su skill vs siempre-1) y las
+    muestras confiadas con sus probabilidades (para los cortes por regimen).
+    """
+    modelo = _entrenar_meta(train)
+    sec_probs = [_predecir_meta(modelo, s) for s in test]
+    trusted = [s for s, p in zip(test, sec_probs, strict=True) if _confia(p)]
+    probs_t = [float(s["prob_modelo"]) for s in trusted]
+    metas = [dict(s, y=float(_y_meta(s))) for s in test]
+    secundario = eh.metricas(metas, sec_probs)
+    combinado = eh.metricas(trusted, probs_t)
+    detalle = {
+        "n_test": len(test),
+        "n_confia": len(trusted),
+        "cobertura": round(len(trusted) / max(len(test), 1), 4),
+        "secundario": {k: secundario.get(k) for k in
+                       ("n", "brier", "base_rate", "brier_skill", "ece")},
+        "combinado": {k: combinado.get(k) for k in
+                      ("n", "brier", "base_rate", "brier_skill", "ece")},
+    }
+    return {"combinado": combinado, "detalle": detalle,
+            "trusted": trusted, "probs": probs_t}
+
+
 def _consolidar(evals: list[dict]) -> dict:
     if not evals:
         return {"folds": 0}
@@ -399,6 +483,51 @@ def _consolidar(evals: list[dict]) -> dict:
         "folds_positivos": f"{pos}/{len(skills)}",
         "racha": eh._racha_positiva(skills),
         "ece_medio": round(sum(eces) / len(eces), 4) if eces else None,
+    }
+
+
+def _decision_meta(res: dict, tabla: dict) -> dict:
+    """Liston PRE-REGISTRADO de T2 (EXPERIMENTOS.md, corrida 3).
+
+    El secundario solo es candidato si cumple TODOS:
+      1. su skill (vs siempre-1) es > 0 en >= 80% de los folds;
+      2. el skill combinado (primario sobre eventos confiados) supera al
+         campeon por >= +0.005 absoluto;
+      3. cobertura >= 50% (un filtro que descarta mas de la mitad de los
+         eventos no es operable);
+      4. gana al campeon en >= 80% de los folds;
+      5. rank medio OOS del juez PBO <= 2 dentro de la familia.
+    """
+    det = res.get("meta_detalle") or []
+    if not det:
+        return {"gano": False, "checks": {}, "motivo": "sin folds evaluados"}
+    folds = len(det)
+    base = tabla["baseline"]["skill_medio"] or 0.0
+    m = tabla["meta"]["skill_medio"]
+    sk_m = [e.get("brier_skill") or 0.0 for e in res["candidatos"]["meta"]]
+    sk_b = [e.get("brier_skill") or 0.0 for e in res["candidatos"]["baseline"]]
+    wins = sum(1 for a, b in zip(sk_m, sk_b, strict=True) if a > b)
+    pos = sum(1 for d in det if (d["secundario"].get("brier_skill") or 0.0) > 0)
+    cob = sum(d["cobertura"] for d in det) / folds
+    rank = (res.get("pbo") or {}).get("rank_medio_oos", {}).get("meta")
+    checks = {
+        "secundario_skill_>0_en_>=80%_folds": pos / folds >= 0.8,
+        "combinado_supera_campeon_+0.005": (m or 0.0) > base + 0.005,
+        "cobertura_>=50%": cob >= 0.5,
+        "gana_al_campeon_en_>=80%_folds": wins / folds >= 0.8,
+        "rank_medio_oos_pbo_<=2": rank is not None and rank <= 2.0,
+    }
+    return {
+        "gano": all(checks.values()),
+        "checks": checks,
+        "skill_campeon": base,
+        "skill_combinado": m,
+        "skill_secundario": round(sum(d["secundario"].get("brier_skill") or 0.0
+                                      for d in det) / folds, 4),
+        "folds_secundario_positivo": f"{pos}/{folds}",
+        "cobertura_media": round(cob, 4),
+        "gana_folds_al_campeon": f"{wins}/{folds}",
+        "rank_medio_oos": rank,
     }
 
 
@@ -446,7 +575,7 @@ def main() -> int:
     print("\n=== skill por regimen de volatilidad (OOS agrupado) ===")
     regs = sorted({r for v in res["cortes"].values()
                    for r in (v.get("volatilidad") or {})})
-    for nombre in ("baseline", "c0", "e1", "e3", "e4", "e2"):
+    for nombre in ("baseline", "c0", "e1", "e3", "e4", "e2", "meta"):
         cv = res["cortes"].get(nombre, {}).get("volatilidad", {})
         if not cv:
             continue
@@ -456,7 +585,7 @@ def main() -> int:
     # juez: victorias contra el campeon (signo por fold) + PBO/CSCV
     base_sk = [e.get("brier_skill") or 0.0 for e in res["candidatos"]["baseline"]]
     print("\n=== victorias contra el campeon (folds) y juez PBO ===")
-    for nombre in ("c0", "e1", "e3", "e4", "e2"):
+    for nombre in ("c0", "e1", "e3", "e4", "e2", "meta"):
         sk = [e.get("brier_skill") or 0.0 for e in res["candidatos"][nombre]]
         wins = sum(1 for a, b in zip(sk, base_sk, strict=True) if a > b)
         print(f"{nombre:9s} | gana {wins}/{len(sk)} folds al campeon")
@@ -471,12 +600,31 @@ def main() -> int:
         print(f"E2a: k medio {k:.2f}*ATR | timeouts (sin respuesta clara) "
               f"{to*100:.1f}% de los eventos")
 
+    # T2: detalle por fold del secundario (cuando creerle al primario)
+    agg = _decision_meta(res, tabla)
+    if res.get("meta_detalle"):
+        print("\n=== T2 meta-labeling: cuando creerle al primario ===")
+        for i, d in enumerate(res["meta_detalle"], 1):
+            sec, comb = d["secundario"], d["combinado"]
+            print(f"fold {i:2d}: test {d['n_test']:4d} | confia {d['n_confia']:4d} "
+                  f"({d['cobertura'] * 100:5.1f}%) | secundario skill "
+                  f"{sec.get('brier_skill')} vs siempre-1 (base {sec.get('base_rate')}) "
+                  f"| combinado {comb.get('brier_skill')} (n={comb.get('n')})")
+        print(f"media: cobertura {agg['cobertura_media'] * 100:.1f}% | skill secundario "
+              f"{agg['skill_secundario']} ({agg['folds_secundario_positivo']} folds > 0) "
+              f"| combinado {agg['skill_combinado']} vs campeon {agg['skill_campeon']} "
+              f"| gana {agg['gana_folds_al_campeon']} folds | rank OOS {agg['rank_medio_oos']}")
+        ok = ", ".join(k for k, v in agg["checks"].items() if v)
+        mal = ", ".join(k for k, v in agg["checks"].items() if not v)
+        print(f"liston pre-registrado T2: {'SUPERADO' if agg['gano'] else 'NO superado'}"
+              f" | OK: {ok}" + (f" | FALLA: {mal}" if mal else ""))
+
     if a.scoreboard:
         os.makedirs(os.path.dirname(SCOREBOARD), exist_ok=True)
         base = tabla["baseline"]["skill_medio"]
         fila = {
             "fecha": datetime.datetime.now(UTC).isoformat(),
-            "experimento": "candidatos E1/E3/E4 vs toques-wf-1",
+            "experimento": "candidatos E1/E3/E4/E2/T2 vs toques-wf-1",
             "protocolo": f"replay ext + {res['folds']} folds WF (test 90d, train 365d, embargo 24h)",
             "muestras": len(muestras),
             "skill_baseline_congelado": base,
@@ -486,10 +634,40 @@ def main() -> int:
             "e2_k_medio": round(sum(res["e2_k"]) / len(res["e2_k"]), 3) if res.get("e2_k") else None,
             "e2_timeout_pct": round(sum(res["e2_timeout"]) / len(res["e2_timeout"]) * 100, 1) if res.get("e2_timeout") else None,
             "skill_por_regimen": {k: v.get("volatilidad") for k, v in res["cortes"].items()},
-            "decision": "pendiente (corrida completa con el cache sin huecos)",
+            "meta_skill_combinado": agg.get("skill_combinado"),
+            "meta_skill_secundario": agg.get("skill_secundario"),
+            "meta_cobertura_media": agg.get("cobertura_media"),
+            "decision": "ver fila dedicada 'corrida 3: T2 meta-labeling' de esta misma corrida",
         }
         with open(SCOREBOARD, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(fila, ensure_ascii=False) + "\n")
+        # fila dedicada de la corrida 3 (T2) con el liston pre-registrado aplicado
+        if agg["gano"]:
+            dec3 = ("T2 supera el liston pre-registrado; NO se publica: faltan los 4 "
+                    "criterios de des-congelamiento de EXPERIMENTOS.md")
+        else:
+            fallos = ", ".join(k for k, v in agg["checks"].items() if not v)
+            dec3 = f"NEGATIVO publicado: T2 falla {fallos}; conservar toques-wf-1 congelado"
+        fila3 = {
+            "fecha": datetime.datetime.now(UTC).isoformat(),
+            "experimento": "corrida 3: T2 meta-labeling (secundario sobre acierto del primario)",
+            "protocolo": (f"mismo replay/folds/embargo; {len(muestras)} muestras; "
+                          "secundario L1 C=0.03 sobre 9 features base + prob del "
+                          "primario + calidad/toques/confluencia/sweep/quiebre/lado/sesion"),
+            "skill_campeon": agg["skill_campeon"],
+            "skill_combinado_meta": agg["skill_combinado"],
+            "skill_secundario_vs_siempre_1": agg["skill_secundario"],
+            "folds_secundario_positivo": agg["folds_secundario_positivo"],
+            "cobertura_media": agg["cobertura_media"],
+            "gana_folds_al_campeon": agg["gana_folds_al_campeon"],
+            "rank_medio_oos": agg["rank_medio_oos"],
+            "pbo": res.get("pbo"),
+            "liston_pre_registrado": agg["checks"],
+            "meta_detalle_folds": res.get("meta_detalle"),
+            "decision": dec3,
+        }
+        with open(SCOREBOARD, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(fila3, ensure_ascii=False) + "\n")
         print(f"\nOK -> {SCOREBOARD}")
     return 0
 
