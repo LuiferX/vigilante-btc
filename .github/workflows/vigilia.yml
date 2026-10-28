@@ -102,6 +102,10 @@ jobs:
       - name: Avisar con issue unica
         env:
           GH_TOKEN: ${{ github.token }}
+          # BUG REAL (2026-10-27): este job no tiene actions/checkout, asi que `gh`
+          # no tenia repo git del que colgarse y fallaba SIEMPRE (0 verdes de 25
+          # runs; el repo no tiene un solo issue creado). GH_REPO lo hace explicito.
+          GH_REPO: ${{ github.repository }}
           OK: ${{ needs.vigilia.outputs.ok }}
           EDAD: ${{ needs.vigilia.outputs.edad_min }}
         run: |
