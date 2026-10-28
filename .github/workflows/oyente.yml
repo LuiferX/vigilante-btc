@@ -13,6 +13,8 @@ permissions:
 # El oyente ya NO maneja comandos ni escribe estado.json (eso lo hace el
 # analista en cada pasada y ya respondia los comandos), asi que no hay carrera
 # de escritura sobre la rama 'estado'.
+# El oyente ademas publica analysis/data/paper_summary.json (resumen honesto del
+# paper trading invisible, solo lectura) en la rama 'dashboard' para monitor.html.
 concurrency:
   group: oyente
   cancel-in-progress: false
@@ -30,6 +32,14 @@ jobs:
           git fetch origin estado 2>/dev/null || true
           git checkout origin/estado -- estado.json historial.jsonl 2>/dev/null || echo "sin estado previo"
 
+      - name: Resumen de paper trading (solo lectura, sin ordenes)
+        run: |
+          python analysis/paper_report.py \
+            --estado estado.json \
+            --timeout 10 \
+            --out-json analysis/data/paper_summary.json \
+          || echo "paper_report fallo (no bloquea el dashboard)"
+
       - name: Refrescar dashboard (solo lectura del estado)
         run: |
           python dashboard.py || echo "dashboard fallo"
@@ -37,6 +47,7 @@ jobs:
           cp docs/motor.html /tmp/dash_motor.html 2>/dev/null || echo "sin motor"
           cp docs/monitor.html /tmp/dash_monitor.html 2>/dev/null || echo "sin monitor"
           cp analysis/data/validation.json /tmp/dash_validation.json 2>/dev/null || true
+          cp analysis/data/paper_summary.json /tmp/dash_paper.json 2>/dev/null || true
           cp modelo_toques.json /tmp/dash_modelo.json 2>/dev/null || true
           cp assets/melodia.mp4 /tmp/dash_melodia.mp4 2>/dev/null || true
 
@@ -56,6 +67,9 @@ jobs:
           else
             git show origin/dashboard:monitor.html >/dev/null 2>&1 && changed=1
           fi
+          if [ -f /tmp/dash_paper.json ]; then
+            git show origin/dashboard:paper_summary.json 2>/dev/null | cmp -s /tmp/dash_paper.json - || changed=1
+          fi
           if [ "$changed" -eq 0 ]; then echo "dashboard sin cambios"; exit 0; fi
           git checkout --orphan dash_tmp
           git rm -rf . > /dev/null 2>&1 || true
@@ -67,8 +81,9 @@ jobs:
           if [ -f /tmp/dash_monitor.html ]; then
             cp /tmp/dash_monitor.html ./monitor.html
             cp /tmp/dash_validation.json ./validation.json 2>/dev/null || true
+            cp /tmp/dash_paper.json ./paper_summary.json 2>/dev/null || true
             cp /tmp/dash_modelo.json ./modelo_toques.json 2>/dev/null || true
-            git add monitor.html validation.json modelo_toques.json 2>/dev/null || true
+            git add monitor.html validation.json paper_summary.json modelo_toques.json 2>/dev/null || true
           fi
           git commit -m "dashboard $(date -u +%Y-%m-%dT%H:%MZ)" || echo "sin cambios"
           ok=0; for i in 1 2 3; do git push --force origin dash_tmp:dashboard && { ok=1; break; } || sleep 10; done; [ $ok -eq 1 ]
