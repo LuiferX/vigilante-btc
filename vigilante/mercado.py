@@ -154,7 +154,8 @@ def punto_control(kl, n=168):
 def _atr_serie(kl, n=14):
     """ATR simple por vela (sin pandas). None en las primeras n."""
     atr = [None] * len(kl)
-    trs = []
+    # None = vela sin ATR todavia (las primeras n); ver el `all(...)` de abajo.
+    trs: list[float | None] = []
     for i in range(1, len(kl)):
         try:
             h, l, pc = float(kl[i]["h"]), float(kl[i]["l"]), float(kl[i - 1]["c"])
@@ -163,7 +164,8 @@ def _atr_serie(kl, n=14):
             continue
         trs.append(max(h - l, abs(h - pc), abs(l - pc)))
         if i >= n and all(x is not None for x in trs[i - n : i]):
-            atr[i] = sum(trs[i - n : i]) / n
+            # el all() de arriba ya garantiza que no hay None en la ventana
+            atr[i] = sum(x for x in trs[i - n : i] if x is not None) / n
     return atr
 
 
@@ -241,7 +243,7 @@ def fvgs_cercanos(kl, precio, min_atr=0.25, max_bars=400, max_zonas=3):
             z["dist_pct"] = -round((precio - z["hi"]) / precio * 100, 2)
             z["dentro"] = False
     zonas.sort(key=lambda z: abs(z["dist_pct"]))
-    out = []
+    out: list[dict] = []
     for z in zonas:
         if len(out) >= max_zonas:
             break
@@ -348,7 +350,7 @@ def coinbase_premium(last):
 def coinbase_analisis(last, vol_bin):
     """Coinbase (puerta institucional USA): premium vs Binance, peso de su
     volumen y desbalance del libro (muros). Todo gratis, sin llaves."""
-    out = {"prem": None, "vol_share": None, "imb": None}
+    out: dict[str, float | None] = {"prem": None, "vol_share": None, "imb": None}
     try:
         tk = json.load(
             urllib.request.urlopen(
@@ -629,10 +631,15 @@ def mensaje_pila(zonas, last, sops, ress, h1=None, a4=None, hora=None):
             if isinstance(h1, dict) and isinstance(a4, dict) and hora is not None:
                 rsi = h1.get("rsi", 50)
                 er = h1.get("er")
+                # `er` (Efficiency Ratio de Kaufman) es None cuando el 1H no tiene
+                # 30+ velas: se supone 0.2 (chop suave). El fallback debe aplicarse
+                # en LAS DOS comparaciones: con `er < 0.4` pelado, er=None hacia
+                # TypeError y el except de abajo tiraba el bloque entero.
+                er_v = er if er is not None else 0.2
                 f = {
                     "rsi": 0 if rsi < 40 else (1 if rsi < 60 else 2),
                     "adx": 1 if (a4.get("adx", 0) or 0) >= 20 else 0,
-                    "er": 0 if (er if er is not None else 0.2) < 0.15 else (1 if er < 0.4 else 2),
+                    "er": 0 if er_v < 0.15 else (1 if er_v < 0.4 else 2),
                     "ses": sesion_bucket(hora),
                     "h1t": h1.get("tend", "?"),
                     "zt": (
@@ -692,7 +699,7 @@ def zonas_pilas(pw, d1, w1, last, ima):
             cands.append((ima["up"], "imán"))
         if ima.get("down"):
             cands.append((ima["down"], "imán"))
-    zonas = []
+    zonas: list[dict] = []
     for v, o in cands:
         if not v:
             continue

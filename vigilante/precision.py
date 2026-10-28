@@ -10,11 +10,36 @@ con probabilidad medida y autocensura por deriva) y su medicion.
 import datetime
 import json
 import os
+from typing import Any
 
 from vigilante.indicadores import fmt_miles, es_alerta_direccional
 from vigilante.red import klines
 
 GATE_FILE = os.environ.get("VIGILANTE_VALIDATION", "analysis/data/validation.json")
+
+
+def _sub(d: Any, clave: str) -> dict[str, Any]:
+    """Sub-diccionario tolerante: {} si falta la clave o no es objeto.
+
+    validation.json / latest_decision.json vienen de disco (json): su forma no
+    esta garantizada. Antes esto se escribia inline
+    (`d.get(k) if isinstance(d.get(k), dict) else {}`), que mypy no sabe
+    estrechar y por eso marcaba `.get()` sobre un posible None.
+    """
+    v = d.get(clave)
+    return v if isinstance(v, dict) else {}
+
+
+def _num(v: Any) -> float | None:
+    """float tolerante: None si el valor falta o no es numerico.
+
+    Equivale al `try: float(...) except: None` original (mismo resultado), pero
+    deja explicito que el None es un caso esperado y no un accidente.
+    """
+    try:
+        return float(v)
+    except Exception:
+        return None
 
 
 def _gate_desde_validacion(data):
@@ -32,24 +57,18 @@ def _gate_desde_validacion(data):
     """
     if not isinstance(data, dict):
         return {"ok": False, "reason": "sin validation.json"}
-    samples = data.get("samples") if isinstance(data.get("samples"), dict) else {}
-    metrics = data.get("metrics") if isinstance(data.get("metrics"), dict) else {}
-    drift = data.get("drift") if isinstance(data.get("drift"), dict) else {}
+    samples = _sub(data, "samples")
+    metrics = _sub(data, "metrics")
+    drift = _sub(data, "drift")
     status = str(data.get("status") or "sin_datos")
-    gate = data.get("gate") if isinstance(data.get("gate"), dict) else {}
-    oos = data.get("oos") if isinstance(data.get("oos"), dict) else {}
+    gate = _sub(data, "gate")
+    oos = _sub(data, "oos")
     try:
         effective = int(samples.get("effective") or 0)
     except Exception:
         effective = 0
-    try:
-        skill = float(metrics.get("brier_skill"))
-    except Exception:
-        skill = None
-    try:
-        ece = float(metrics.get("calibration_error"))
-    except Exception:
-        ece = None
+    skill = _num(metrics.get("brier_skill"))
+    ece = _num(metrics.get("calibration_error"))
     drift_status = str(drift.get("status") or "sin_datos")
     partes = [status]
     if effective:
@@ -78,14 +97,8 @@ def _gate_desde_validacion(data):
             o_eff = int(oos.get("effective") or 0)
         except Exception:
             o_eff = 0
-        try:
-            o_skill = float(oos.get("brier_skill"))
-        except Exception:
-            o_skill = None
-        try:
-            o_ece = float(oos.get("ece"))
-        except Exception:
-            o_ece = None
+        o_skill = _num(oos.get("brier_skill"))
+        o_ece = _num(oos.get("ece"))
         if (
             o_eff >= 100
             and o_skill is not None
@@ -134,8 +147,8 @@ def cargar_motor_nuevo(path=None, max_age_min=90):
         pass
     if edad is not None and edad > max_age_min:
         return None
-    dec = d.get("decision") if isinstance(d.get("decision"), dict) else {}
-    state = d.get("state") if isinstance(d.get("state"), dict) else {}
+    dec = _sub(d, "decision")
+    state = _sub(d, "state")
     return {
         "action": str(dec.get("action") or "?"),
         "confidence": dec.get("confidence"),
@@ -254,7 +267,7 @@ def nivel_precision(motor, precio, min_prob=None, min_cal=None, min_toques=None,
     edad = motor.get("_edad_min")
     if edad is not None and edad > max_edad:
         return None
-    dec = motor.get("decision") if isinstance(motor.get("decision"), dict) else {}
+    dec = _sub(motor, "decision")
     if str(dec.get("action") or "") == "datos_desactualizados":
         return None
     mejor = None

@@ -11,6 +11,7 @@ estos nombres: la API publica no cambia.
 import datetime
 import json
 import os
+from typing import Any
 
 ESTADO_FILE = "estado.json"
 
@@ -70,8 +71,11 @@ def enfriar(est, clave, horas, ahora=None):
     return True
 
 
-def cargar_estado():
-    est = {
+def cargar_estado() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    # dict[str, Any]: el estado mezcla str/int/list y se completa desde disco con
+    # json (las claves pueden traer cualquier forma). Sin la anotacion mypy lo
+    # cierra como dict[str, object] y rechaza int(est.get("offset")).
+    est: dict[str, Any] = {
         "ultimo_bias": "?",
         "ultima_conf": 0,
         "ultimo_precio": 0,
@@ -96,7 +100,7 @@ def cargar_estado():
         est["offset"] = int(est.get("offset") or 0)
     except Exception:
         est["offset"] = 0
-    hist = []
+    hist: list[dict[str, Any]] = []
     try:
         with open(HIST_FILE, encoding="utf-8") as fh:
             for line in fh:

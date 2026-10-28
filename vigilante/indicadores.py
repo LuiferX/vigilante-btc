@@ -178,7 +178,8 @@ def swings_idx(candles, k=2):
 def find_swing_points(h, l, n=3):
     """Swing points estrictos (n velas a cada lado), estilo FractalTrader."""
     try:
-        hs, ls = [], []
+        hs: list[tuple[int, float]] = []
+        ls: list[tuple[int, float]] = []
         nn = len(h)
         if nn < 2 * n + 1:
             return hs, ls
@@ -202,7 +203,8 @@ def find_equal_levels(swings, tolerance=0.001):
         return []
     try:
         ordenados = sorted(swings, key=lambda x: x[1])
-        clusters = []
+        # cada cluster: [lista de (idx, precio), precio medio]
+        clusters: list[list] = []
         for idx, price in ordenados:
             if clusters and abs(price - clusters[-1][1]) / clusters[-1][1] <= tolerance:
                 clusters[-1][0].append((idx, price))
