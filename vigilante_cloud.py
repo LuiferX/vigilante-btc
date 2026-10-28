@@ -141,6 +141,7 @@ from vigilante.paper import (  # noqa: E402,F401
     ref_rango,
     journal_check,
     gestion_sl,
+    _fee,
     PAPER_BANCO,
     PAPER_LEV,
     PAPER_RIESGO,
@@ -1072,6 +1073,7 @@ def main():
                     est["banco"] = round(banco, 2)
                     cerr = est.get("paper_cerradas", [])
                     cerr.append({"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
+                                 "fee": o.get("fee", 0),
                                  "r": round(pnl / o["riesgo"], 2) if o["riesgo"] else 0,
                                  "t": ahora.isoformat()})
                     est["paper_cerradas"] = cerr[-100:]

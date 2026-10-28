@@ -26,6 +26,21 @@ PAPER_LEV = int(
 
 PAPER_RIESGO = 0.01  # 1% por idea (0.5% en racha de 3+ perdidas)
 
+# Comision REALISTA de ida y vuelta (taker perps ~0.05% x2). El papel la cobra
+# para que su curva de equity sea comparable con dinero real: sin esto, el
+# Sharpe y el PnL del papel estan inflados y no dicen nada del dinero
+# (2026-10-28, ver analysis/cost_model.py).
+PAPER_FEE_RT_PCT = float(os.environ.get("PAPER_FEE_RT_PCT", "0.10"))
+
+
+def _fee(ent: float, tam: float) -> float:
+    """Comision de ida y vuelta sobre el notional (entrada*tamano)."""
+    try:
+        return round(max(float(ent), 0.0) * max(float(tam), 0.0)
+                     * PAPER_FEE_RT_PCT / 100.0, 2)
+    except Exception:
+        return 0.0
+
 
 def racha_perdidas(est):
     """Perdidas seguidas en papel (para la penalizacion anti-tilt)."""
@@ -135,9 +150,9 @@ def abrir_papel(est, dirb, niv, precio, ahora):
                         _tam = float(_o.get("tam"))
                         _ri = float(_o.get("riesgo") or 0)
                         if _o.get("dir") == "SHORT":
-                            _pnl = round((_ent - _px_rb) * _tam, 2)
+                            _pnl = round((_ent - _px_rb) * _tam, 2) - _fee(_ent, _tam)
                         else:
-                            _pnl = round((_px_rb - _ent) * _tam, 2)
+                            _pnl = round((_px_rb - _ent) * _tam, 2) - _fee(_ent, _tam)
                         _cerr.append(
                             {
                                 "dir": _o.get("dir", "?"),
@@ -230,6 +245,7 @@ def abrir_papel(est, dirb, niv, precio, ahora):
         "riesgo": round(dist_stop * tam, 2),
         "lev": PAPER_LEV,
         "liq": liq,
+        "fee": _fee(entrada, tam),
         "t": ahora.isoformat(),
     }
     if len(est.get("paper_abiertas", []) or []) >= MAX_PAPER_ABIERTAS:
@@ -254,20 +270,21 @@ def cierre_papel(o, ref_h, ref_l, last):
         liq = float(
             o.get("liq") or (ent * (1 - 1.0 / lev) if o["dir"] == "LONG" else ent * (1 + 1.0 / lev))
         )
+        f = _fee(ent, tam)  # comision de ida y vuelta: el PnL honesto la paga
         if o["dir"] == "LONG":
             if (ref_l is not None and ref_l <= liq) or last <= liq:
-                return liq, "LIQ", round(-(tam * ent) / lev, 2)
+                return liq, "LIQ", round(-(tam * ent) / lev, 2) - f
             if (ref_l is not None and ref_l <= o["stop"]) or last <= o["stop"]:
-                return float(o["stop"]), "SL", round((float(o["stop"]) - ent) * tam, 2)
+                return float(o["stop"]), "SL", round((float(o["stop"]) - ent) * tam, 2) - f
             if (ref_h is not None and ref_h >= o["tp"]) or last >= o["tp"]:
-                return float(o["tp"]), "TP", round((float(o["tp"]) - ent) * tam, 2)
+                return float(o["tp"]), "TP", round((float(o["tp"]) - ent) * tam, 2) - f
         else:
             if (ref_h is not None and ref_h >= liq) or last >= liq:
-                return liq, "LIQ", round(-(tam * ent) / lev, 2)
+                return liq, "LIQ", round(-(tam * ent) / lev, 2) - f
             if (ref_h is not None and ref_h >= o["stop"]) or last >= o["stop"]:
-                return float(o["stop"]), "SL", round((ent - float(o["stop"])) * tam, 2)
+                return float(o["stop"]), "SL", round((ent - float(o["stop"])) * tam, 2) - f
             if (ref_l is not None and ref_l <= o["tp"]) or last <= o["tp"]:
-                return float(o["tp"]), "TP", round((ent - float(o["tp"])) * tam, 2)
+                return float(o["tp"]), "TP", round((ent - float(o["tp"])) * tam, 2) - f
         return None
     except Exception:
         return None
