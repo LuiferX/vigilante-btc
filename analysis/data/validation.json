@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-28T14:16:43.715617+00:00",
+  "checked_at": "2026-10-28T14:29:34.308889+00:00",
   "status": "degradado",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -16,12 +16,12 @@
     "effective": 72,
     "resolved_levels": 1142,
     "levels_with_hold": 1154,
-    "events": 716,
+    "events": 717,
     "resolved_events": 700,
     "independent_events": 44,
-    "coverage": 0.9777,
+    "coverage": 0.9763,
     "avg_levels_per_event": 1.63,
-    "span_hours": 181.0,
+    "span_hours": 181.2,
     "effective_fallback": null
   },
   "metrics": {
@@ -112,7 +112,7 @@
         ]
       }
     },
-    "coverage": 0.9777
+    "coverage": 0.9763
   },
   "backtest": {
     "samples": 245,
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 3672,
-      "unique_bars": 3672,
+      "bars": 3674,
+      "unique_bars": 3674,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-28T14:10:00+00:00",
-      "age_min": 6.73,
+      "last": "2026-10-28T14:20:00+00:00",
+      "age_min": 9.57,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-28T14:16:36.266675+00:00",
+      "run_at": "2026-10-28T14:29:24.946021+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -243,7 +243,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "f286405cc9da93d9",
-  "code_sha": "921cb886eab6ea44a29d697c7e0771402255ed0b",
+  "data_hash": "4908bd00faa9ae7f",
+  "code_sha": "6e6ce48bbc8495e82a17ee965ab933602fceaa77",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
