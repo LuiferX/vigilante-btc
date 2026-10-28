@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-28T01:46:33.198465+00:00",
+  "checked_at": "2026-10-28T01:51:33.535917+00:00",
   "status": "muestra_media",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -15,13 +15,13 @@
     "eval": 1037,
     "effective": 65,
     "resolved_levels": 1037,
-    "levels_with_hold": 1074,
-    "events": 666,
+    "levels_with_hold": 1076,
+    "events": 667,
     "resolved_events": 650,
     "independent_events": 41,
-    "coverage": 0.976,
+    "coverage": 0.9745,
     "avg_levels_per_event": 1.6,
-    "span_hours": 168.5,
+    "span_hours": 168.6,
     "effective_fallback": null
   },
   "metrics": {
@@ -112,7 +112,7 @@
         ]
       }
     },
-    "coverage": 0.976
+    "coverage": 0.9745
   },
   "backtest": {
     "samples": 235,
@@ -149,7 +149,7 @@
   },
   "drift": {
     "status": "ok",
-    "psi": 0.0676,
+    "psi": 0.0654,
     "watch_threshold": 0.1,
     "alert_threshold": 0.25,
     "live_bins": [
@@ -167,7 +167,7 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 207
+        "n": 209
       }
     ],
     "backtest_bins": [
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 3522,
-      "unique_bars": 3522,
+      "bars": 3523,
+      "unique_bars": 3523,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-28T01:40:00+00:00",
-      "age_min": 6.55,
+      "last": "2026-10-28T01:45:00+00:00",
+      "age_min": 6.56,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-28T01:46:28.454937+00:00",
+      "run_at": "2026-10-28T01:51:25.054885+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -242,7 +242,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "151c53d362f05ebe",
-  "code_sha": "3a6a9aca1ec2349729e08f977ddca340a064c3d1",
+  "data_hash": "a768ddedd1f4af7c",
+  "code_sha": "f3f4a0047e3160d1483802db324dfe791783e473",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
