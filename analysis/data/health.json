@@ -1,21 +1,21 @@
 {
-  "run_at": "2026-10-28T11:46:31.686110+00:00",
+  "run_at": "2026-10-28T12:02:08.825000+00:00",
   "ok": true,
   "fresh": true,
-  "event_time": "2026-10-28T11:40:00+00:00",
-  "bar_close_time": "2026-10-28T11:45:00+00:00",
-  "data_age_min": 1.5,
+  "event_time": "2026-10-28T11:55:00+00:00",
+  "bar_close_time": "2026-10-28T12:00:00+00:00",
+  "data_age_min": 2.1,
   "action": "observar",
   "confidence": "baja",
   "quality": {
-    "engine": 9.2,
-    "setup": 8.3,
-    "composite": 8.8,
+    "engine": 7.0,
+    "setup": 6.7,
+    "composite": 6.8,
     "target": 8.5,
-    "gap": 0.0,
-    "grade": "A",
+    "gap": 1.7,
+    "grade": "C",
     "note": "Promedio de completitud del motor y calidad de la mejor zona. No es probabilidad de ganar. El objetivo 8,5 es una meta de calidad de contexto, no una garantia."
   },
-  "levels_with_hold": 2,
+  "levels_with_hold": 0,
   "logged": true
 }
