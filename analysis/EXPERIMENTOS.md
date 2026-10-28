@@ -250,3 +250,114 @@ tiene overfitting de backtest por encima de lo comodo.
 4. **Decision: CONSERVAR toques-wf-1 congelado** (por segunda corrida
    independiente). El congelamiento ya no es solo disciplina: es el resultado
    de dos experimentos con juez.
+
+## Corrida 3 (meta-labeling) — pre-registro 2026-10-27
+
+Base bibliografica: meta-labeling (Lopez de Prado): un modelo SECUNDARIO no
+predice el precio, predice **si el primario va a acertar en este evento**, y
+la senal se emite solo cuando el secundario confia. Es la forma estandar de
+combinar un modelo base debil con un filtro de confianza sin reentrenar el
+base.
+
+- **T2 · Secundario sobre el acierto del primario.** Hipotesis: el primario
+  (toques-wf-1 congelado) tiene eventos donde su probabilidad es informativa y
+  eventos donde es ruido; un secundario entrenado SOLO con datos anteriores al
+  fold (mismo embargo) puede distinguirlos y subir el skill efectivo.
+  Cambio exacto: target del secundario `y_meta = 1 si (prob_modelo >= 0.5)
+  coincide con y`; features = las 9 base + `prob_modelo` + metadatos del evento
+  (calidad, toques, confluencia, sweep, quiebre, lado, sesion one-hot);
+  logistica L1 con el MISMO C=0.03 y el mismo `eh.entrenar`. Efecto medido:
+  skill del primario restringido a los eventos donde el secundario confia
+  (p > 0,5).
+- **Metricas:** (a) skill del secundario vs siempre-1 (tasa base del acierto
+  del primario); (b) skill COMBINADO (primario sobre eventos confiados) vs el
+  skill del campeon en los mismos folds; (c) cobertura (fraccion de eventos
+  donde confia).
+- **Juez:** misma familia ampliada bajo el `_pbo` CSCV completo (C(11,5) = 462
+  particiones IS/OOS).
+- **Liston de exito PRE-REGISTRADO** (el secundario es candidato solo si cumple
+  TODOS): (1) skill del secundario > 0 en >= 80% de los folds; (2) skill
+  combinado > skill del campeon + 0.005 absoluto; (3) cobertura >= 50% (un
+  filtro que descarta mas de la mitad de los eventos no es operable);
+  (4) gana al campeon en >= 80% de los folds; (5) rank medio OOS del juez PBO
+  <= 2 dentro de la familia. Si falla cualquiera: **negativo publicado**.
+- **Aviso metodologico (pre-registrado a proposito):** comparar el skill
+  combinado (sobre un subconjunto de eventos) contra el skill del campeon
+  (sobre todos) NO es la misma poblacion; por eso el liston exige cobertura
+  >= 50% y victorias por fold, y el PBO rankea a todos sobre la misma matriz.
+  Publicar solo si gana en las tres.
+
+Resultados -> `analysis/experimentos/scoreboard.jsonl`.
+
+### Resultados de la corrida 3 (2026-10-27): T2 meta-labeling
+
+Protocolo: mismo replay/folds/embargo; 11.049 muestras; secundario L1 C=0,03
+sobre 20 features (9 base + `prob_modelo` + calidad/toques/confluencia/sweep/
+quiebre/lado/sesion one-hot); train <= corte, test en el fold.
+
+| candidato | skill medio | peor fold | folds+ | gana al campeon | rank OOS |
+|---|---|---|---|---|---|
+| campeon (congelado) | +0.0247 | +0.0038 | 11/11 | — | 4.26 |
+| c0 re-entrenado | +0.0286 | +0.0124 | 11/11 | 6/11 | 2.05 |
+| e3 recalibracion | +0.0284 | +0.0108 | 11/11 | 6/11 | 2.34 |
+| e4 interacciones | +0.0285 | +0.0123 | 11/11 | 6/11 | 2.24 |
+| e1 regimen | +0.0243 | +0.0041 | 11/11 | 6/11 | 4.84 |
+| e2 barrera k*ATR | +0.0164 | -0.0098 | 9/11 | 3/11 | 6.67 |
+| **T2 combinado (filtro de confianza)** | **+0.0232** | **+0.0038** | **11/11** | **2/11** | **5.6** |
+
+Secundario (skill propio vs siempre-1): **+0,0399**, 11/11 folds > 0, peor
+fold +0,0244, ECE medio 0,0248. Cobertura 99,7%: el secundario confia en
+practicamente TODOS los eventos, asi que el filtro apenas descarta nada y el
+combinado se degenera en "el campeon tal cual" (0,0232 vs 0,0247: los 2 folds
+que gana no compensan).
+
+**Conclusiones (negativos publicados, como manda la regla):**
+
+1. **T2 RECHAZADO como filtro**: cobertura 99,7% (no hay eventos "sin senal"
+   que filtrar) y el combinado pierde contra el campeon (0,0232 vs 0,0247,
+   2/11 folds, rank OOS 5,6/7). El primario practicamente NUNCA predice
+   ruptura (solo 5 de 11.049 eventos con `prob_modelo` < 0,5), asi que
+   `y_meta` (acierto del primario) es casi igual a `y` (aguante): el
+   meta-labeling clasico NO tiene donde apoyar el filtro con este primario.
+   La literatura asume un primario que dice ALZA/BAJA; el nuestro es un
+   clasificador de una sola clase y por eso el secundario colapsa a confiar
+   siempre.
+2. **PBO (cambio de escala, se documenta para no comparar peras con manzanas):**
+   con el candidato T2 la familia pasa a 7 miembros y el juez CSCV completo
+   marca 24% de falls IS->OOS. NO es comparable con el 40% de la corrida 2
+   (la definicion de falla cambio: con 7 candidatos falla quien cae al puesto
+   5 o peor). Los rangos OOS si son comparables: el filtro T2 rankea 5,6/7,
+   es de los peores de la familia.
+3. **Hallazgo emergente (NO pre-registrado, se publica como pendiente):** el
+   SECUNDARIO como modelo (no como filtro) gana al campeon en 9/11 folds
+   (+0,0399 vs +0,0247, peor fold +0,0244, ECE 0,0248). Es decir: los
+   METADATOS del evento (calidad, toques, confluencia, sweep, quiebre, lado,
+   sesion) anaden senal real sobre las 9 features numericas — la logistica L1
+   solo ve 3 de esas 9 (hora, dia, ATR24h). Como se midio DESPUES de ver el
+   dato (no estaba pre-registrado), se registra ahora como **E6** y se exige
+   corrida propia con su liston antes de reclamar nada.
+4. **Decision: CONSERVAR toques-wf-1 congelado** (tercera corrida
+   independiente). T2 como tal no aporta; E6 queda pre-registrado para la
+   corrida 4.
+
+### E6 · Metadatos de evento (pre-registro 2026-10-27, corrida 4)
+
+Descubierto dentro de la corrida 3 (T2), por eso se mide en corrida propia:
+el liston se registra AHORA, antes de tocar el codigo de E6.
+
+- **Hipotesis**: los metadatos del evento (calidad del nivel, toques_6h,
+  confluencia HTF, sweep reciente, quiebre confirmado, lado, sesion) llevan
+  senal de aguante que las 9 features numericas del modelo congelado no
+  capturan (el L1 solo conserva `hourc`, `dow`, `x_atr288`).
+- **Cambio exacto**: misma logistica L1 (C=0,03, `eh.entrenar`), features =
+  9 base + los metadatos codificados (numericos como numericos,
+  booleanos/lado/sesion como dummies one-hot), entrenada por fold con
+  train <= corte y embargo 24 h.
+- **Metrica esperada**: skill_medio WF > 0.0168 (el de `toques-wf-1`) con
+  consistencia: victorias >= 9/11 folds, peor fold > 0, ECE <= 0,05, y rank
+  OOS del juez PBO <= 2 dentro de la familia.
+- **Aviso**: el +0,0399 observado dentro de T2 es POST-HOC (se vio despues de
+  medir); solo cuenta si una corrida propia lo reproduce con el liston de
+  arriba. Si no, se publica el negativo igual.
+- **Nada se publica** sin cumplir los 4 criterios de des-congelamiento de
+  arriba; el campeon sigue congelado.
