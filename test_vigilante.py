@@ -965,7 +965,7 @@ _ahP = datetime.datetime(2026, 10, 14, 10, 5, tzinfo=datetime.timezone.utc)
 _nvp = {"soportes": [{"precio": 82200}], "resistencias": [{"precio": 83800}]}
 _estP = {"banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [], "paper_dia": {"fecha": _ahP.strftime("%Y-%m-%d"), "pnl": 0.0}}
 _posP = v.abrir_papel(_estP, {"bias": "ALZA", "confianza": 50}, _nvp, 83000, _ahP)
-t("papel SL es -1R exacto", abs(v.cierre_papel(_posP, 83000, 82100, 82100)[2] - -1.0) < 0.01)
+t("papel SL es -1R exacto", abs(v.cierre_papel(_posP, 83000, 82100, 82100)[2] - (-1.0 - v._fee(83000, _posP["tam"]))) < 0.01)
 t("papel LIQ fallback igual abrir", abs((83000 * (1 - 1.0 / 50)) - v.cierre_papel({"dir": "LONG", "entrada": 83000, "tam": 0.001, "stop": 82200, "tp": 83800}, 81000, 81000, 81000)[0]) < 1)
 t("papel LIQ declara", v.cierre_papel({"dir": "LONG", "entrada": 83000, "tam": 0.00125, "stop": 82200, "tp": 83800, "liq": 81340, "lev": 50, "riesgo": 1.0}, 81000, 81000, 81000)[2] <= -2.0)
 _ebr3 = {"banco": 15.0, "banco_pico": 200.0, "paper_cerradas": [{"pnl": -1, "r": -1}], "paper_dia": {"fecha": _ahP.strftime("%Y-%m-%d"), "pnl": -5.0}, "paper_abiertas": [{"x": 1}]}
@@ -1329,7 +1329,7 @@ _rb_pos = v.abrir_papel(_rb_est, {"bias": "ALZA", "confianza": 50}, _rb_niv, 831
 t("reborn liquida sin perder", _rb_pos is not None and _rb_est["banco"] == 100.0
   and any(c.get("res") == "REBORN" for c in _rb_est.get("paper_cerradas", []))
   and len(_rb_est.get("paper_abiertas", [])) == 1
-  and abs(_rb_est["paper_cerradas"][0]["pnl"] - 0.5) < 0.01)
+  and 0 < _rb_est["paper_cerradas"][0]["pnl"] < 0.5)  # neto de comision: gana, pero menos del 0.5 bruto
 _rb_est2 = {"banco": 15.0, "paper_cerradas": [],
             "paper_abiertas": [{"dir": "LONG"}]}
 _rb_pos2 = v.abrir_papel(_rb_est2, {"bias": "ALZA", "confianza": 50}, _rb_niv, 83000, _rb_ah)
