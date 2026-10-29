@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1200,
+  "samples": 1201,
   "status": "ok",
-  "decisions_total": 762,
-  "decisions_evaluated": 746,
+  "decisions_total": 763,
+  "decisions_evaluated": 747,
   "coverage": 0.979,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.133,
-  "base_rate": 0.845,
+  "brier": 0.1334,
+  "base_rate": 0.8443,
   "mean_prob": 0.8151,
-  "brier_base": 0.131,
-  "brier_skill": -0.0152,
-  "calibration_error": 0.0315,
+  "brier_base": 0.1315,
+  "brier_skill": -0.0149,
+  "calibration_error": 0.0309,
   "overall": {
-    "n": 1200,
-    "brier": 0.133,
-    "base_rate": 0.845,
+    "n": 1201,
+    "brier": 0.1334,
+    "base_rate": 0.8443,
     "mean_prob": 0.8151,
-    "brier_base": 0.131,
-    "brier_skill": -0.0152,
+    "brier_base": 0.1315,
+    "brier_skill": -0.0149,
     "real_ci95": [
-      0.8234,
-      0.8644
+      0.8227,
+      0.8637
     ]
   },
   "high_score": {
-    "n": 845,
-    "brier": 0.1155,
-    "base_rate": 0.8651,
-    "mean_prob": 0.8425,
-    "brier_base": 0.1167,
-    "brier_skill": 0.0106,
+    "n": 846,
+    "brier": 0.1161,
+    "base_rate": 0.8641,
+    "mean_prob": 0.8424,
+    "brier_base": 0.1175,
+    "brier_skill": 0.0114,
     "real_ci95": [
-      0.8404,
-      0.8865
+      0.8393,
+      0.8855
     ],
-    "lift_vs_base": 1.0238
+    "lift_vs_base": 1.0235
   },
   "by_side": {
     "soporte": {
-      "n": 621,
-      "brier": 0.1464,
-      "base_rate": 0.8309,
+      "n": 622,
+      "brier": 0.1472,
+      "base_rate": 0.8296,
       "mean_prob": 0.8106,
-      "brier_base": 0.1405,
-      "brier_skill": -0.0418,
+      "brier_base": 0.1414,
+      "brier_skill": -0.0412,
       "real_ci95": [
-        0.7994,
-        0.8583
+        0.798,
+        0.8571
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 845,
-      "pred": 0.8425,
-      "real": 0.8651,
+      "n": 846,
+      "pred": 0.8424,
+      "real": 0.8641,
       "real_ci95": [
-        0.8404,
-        0.8865
+        0.8393,
+        0.8855
       ]
     }
   ],
