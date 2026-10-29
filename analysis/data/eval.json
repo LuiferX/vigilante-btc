@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1257,
+  "samples": 1258,
   "status": "ok",
-  "decisions_total": 793,
-  "decisions_evaluated": 777,
+  "decisions_total": 794,
+  "decisions_evaluated": 778,
   "coverage": 0.9798,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1355,
-  "base_rate": 0.8409,
+  "brier": 0.1354,
+  "base_rate": 0.841,
   "mean_prob": 0.8157,
-  "brier_base": 0.1338,
+  "brier_base": 0.1337,
   "brier_skill": -0.0129,
-  "calibration_error": 0.0267,
+  "calibration_error": 0.027,
   "overall": {
-    "n": 1257,
-    "brier": 0.1355,
-    "base_rate": 0.8409,
+    "n": 1258,
+    "brier": 0.1354,
+    "base_rate": 0.841,
     "mean_prob": 0.8157,
-    "brier_base": 0.1338,
+    "brier_base": 0.1337,
     "brier_skill": -0.0129,
     "real_ci95": [
-      0.8196,
-      0.8601
+      0.8198,
+      0.8602
     ]
   },
   "high_score": {
-    "n": 902,
-    "brier": 0.1201,
-    "base_rate": 0.8581,
-    "mean_prob": 0.8416,
-    "brier_base": 0.1218,
-    "brier_skill": 0.0135,
+    "n": 903,
+    "brier": 0.12,
+    "base_rate": 0.8583,
+    "mean_prob": 0.8415,
+    "brier_base": 0.1217,
+    "brier_skill": 0.0134,
     "real_ci95": [
-      0.8338,
-      0.8793
+      0.834,
+      0.8795
     ],
-    "lift_vs_base": 1.0205
+    "lift_vs_base": 1.0206
   },
   "by_side": {
     "soporte": {
-      "n": 641,
-      "brier": 0.157,
-      "base_rate": 0.8144,
+      "n": 642,
+      "brier": 0.1568,
+      "base_rate": 0.8146,
       "mean_prob": 0.811,
-      "brier_base": 0.1512,
+      "brier_base": 0.151,
       "brier_skill": -0.0382,
       "real_ci95": [
-        0.7824,
-        0.8425
+        0.7827,
+        0.8428
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 902,
-      "pred": 0.8416,
-      "real": 0.8581,
+      "n": 903,
+      "pred": 0.8415,
+      "real": 0.8583,
       "real_ci95": [
-        0.8338,
-        0.8793
+        0.834,
+        0.8795
       ]
     }
   ],
