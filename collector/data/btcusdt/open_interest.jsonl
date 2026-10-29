@@ -2915,3 +2915,6 @@
 {"source": "okx_oi", "symbol": "BTCUSDT", "sumOpenInterest": "3526716707.7013", "sumOpenInterestValue": "3526716707.7013", "oi_unit": "usd", "timestamp": 1793252700000, "collected_at": "2026-10-29T06:01:52.595569+00:00"}
 {"source": "okx_oi", "symbol": "BTCUSDT", "sumOpenInterest": "3514947750.4295", "sumOpenInterestValue": "3514947750.4295", "oi_unit": "usd", "timestamp": 1793254200000, "collected_at": "2026-10-29T06:16:28.011442+00:00"}
 {"source": "okx_oi", "symbol": "BTCUSDT", "sumOpenInterest": "3517664880.2445", "sumOpenInterestValue": "3517664880.2445", "oi_unit": "usd", "timestamp": 1793253900000, "collected_at": "2026-10-29T06:16:28.011459+00:00"}
+{"source": "okx_oi", "symbol": "BTCUSDT", "sumOpenInterest": "3506798266.6379", "sumOpenInterestValue": "3506798266.6379", "oi_unit": "usd", "timestamp": 1793255100000, "collected_at": "2026-10-29T06:31:46.740778+00:00"}
+{"source": "okx_oi", "symbol": "BTCUSDT", "sumOpenInterest": "3504665856.7857", "sumOpenInterestValue": "3504665856.7857", "oi_unit": "usd", "timestamp": 1793254800000, "collected_at": "2026-10-29T06:31:46.740793+00:00"}
+{"source": "okx_oi", "symbol": "BTCUSDT", "sumOpenInterest": "3509779894.0808", "sumOpenInterestValue": "3509779894.0808", "oi_unit": "usd", "timestamp": 1793254500000, "collected_at": "2026-10-29T06:31:46.740796+00:00"}
