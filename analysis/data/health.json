@@ -1,10 +1,10 @@
 {
-  "run_at": "2026-10-29T14:46:36.259352+00:00",
+  "run_at": "2026-10-29T15:02:09.150416+00:00",
   "ok": true,
   "fresh": true,
-  "event_time": "2026-10-29T14:40:00+00:00",
-  "bar_close_time": "2026-10-29T14:45:00+00:00",
-  "data_age_min": 1.6,
+  "event_time": "2026-10-29T14:55:00+00:00",
+  "bar_close_time": "2026-10-29T15:00:00+00:00",
+  "data_age_min": 2.2,
   "action": "observar",
   "confidence": "baja",
   "quality": {
@@ -16,6 +16,6 @@
     "grade": "A",
     "note": "Promedio de completitud del motor y calidad de la mejor zona. No es probabilidad de ganar. El objetivo 8,5 es una meta de calidad de contexto, no una garantia."
   },
-  "levels_with_hold": 3,
+  "levels_with_hold": 2,
   "logged": true
 }
