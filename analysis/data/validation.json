@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-30T00:46:31.384857+00:00",
+  "checked_at": "2026-10-30T00:53:57.071925+00:00",
   "status": "muestra_media",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -16,12 +16,12 @@
     "effective": 84,
     "resolved_levels": 1326,
     "levels_with_hold": 1340,
-    "events": 854,
+    "events": 855,
     "resolved_events": 838,
     "independent_events": 53,
-    "coverage": 0.9813,
+    "coverage": 0.9801,
     "avg_levels_per_event": 1.58,
-    "span_hours": 215.5,
+    "span_hours": 215.6,
     "effective_fallback": null
   },
   "metrics": {
@@ -112,7 +112,7 @@
         ]
       }
     },
-    "coverage": 0.9813
+    "coverage": 0.9801
   },
   "backtest": {
     "samples": 254,
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 4086,
-      "unique_bars": 4086,
+      "bars": 4087,
+      "unique_bars": 4087,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-30T00:40:00+00:00",
-      "age_min": 6.52,
+      "last": "2026-10-30T00:45:00+00:00",
+      "age_min": 8.95,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-30T00:46:25.911672+00:00",
+      "run_at": "2026-10-30T00:53:50.193524+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -242,7 +242,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "a7e8083ddf20f808",
-  "code_sha": "07fa62fe0cdbbbf1098ae22592fa4f69c51ae5db",
+  "data_hash": "fb71e6d634eb0d58",
+  "code_sha": "146ac401d41e183ae965bf9ac98873d417c4bca1",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
