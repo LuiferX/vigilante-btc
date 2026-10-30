@@ -5,13 +5,16 @@ target-version = "py311"
 extend-exclude = [".venv-nn", "analysis/data", "collector/data", "entrenamiento",
                   "laboratorio", "modelo_*_demo", "docs"]
 
-# Gate del repo: pyflakes (F) = bugs reales (imports muertos, nombres sin
-# definir, variables asignadas y no usadas). El monolito heredado tiene deuda
-# de estilo; las reglas estrictas (E/W/I/B/UP) se exigen solo al codigo nuevo
-# desde el workflow lint.yml, para no bloquear el repo con reformateos masivos.
+# Gate del repo (subido el 2026-10-30, auditoria): antes solo F (pyflakes).
+# Ahora E+F+W+I: 25 imports desordenados se arreglaron con autofix y el resto
+# de la herencia queda CONGELADA por fichero con su cuenta, para que el ruido
+# viejo no tape el deuda nueva.
 [tool.ruff.lint]
-select = ["F"]
-ignore = ["F841"]  # variables asignadas y no usadas: deuda heredada, no bug
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # largo de linea: lo gobierna black (line-length 100)
+    "F841",  # variables asignadas y no usadas: deuda heredada, no bug
+]
 
 [tool.ruff.lint.per-file-ignores]
 "test_*.py" = ["F401"]
@@ -19,6 +22,27 @@ ignore = ["F841"]  # variables asignadas y no usadas: deuda heredada, no bug
 # el codigo extraido del monolito usa 'l' como variable local (low): cosmetico,
 # renombrarlo masivamente aumenta el riesgo sin ganancia funcional.
 "vigilante/indicadores.py" = ["E741"]
+# --- deuda congelada (auditoria 2026-10-30): 53 hallazgos E/W/I heredados ---
+# TODO(count=53): limpiar por fichero en orden de riesgo. E741 ('l') es
+# cosmetico; E402 es el sys.path.insert antes de los imports del split;
+# E731/F841/E702 son lambdas y variables sueltas.
+"test_vigilante.py" = ["E402", "E702", "E731", "E741", "F841"]
+"dashboard.py" = ["E731", "E741"]
+"backtest.py" = ["E731", "F841"]
+"entrenar.py" = ["E741"]
+"vigilante_cloud.py" = ["E731"]
+"vigilante/comandos.py" = ["E402", "F841"]
+"vigilante/render.py" = ["E402"]
+"vigilante/eventos.py" = ["E402"]
+"vigilante/mercado.py" = ["E741"]
+"vigilante/paper.py" = ["E741"]
+"vigilante/toques.py" = ["E741"]
+"vigilante/medicion.py" = ["F841"]
+"analysis/hold_model.py" = ["E741"]
+"analysis/decision_engine.py" = ["E741"]
+"analysis/test_hold_model.py" = ["E741"]
+"analysis/test_validation.py" = ["E741"]
+"collector/test_collector.py" = ["E741"]
 
 [tool.black]
 line-length = 100
