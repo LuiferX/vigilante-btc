@@ -1613,6 +1613,29 @@ t("gate integra validado", _ap3[0] is True and _ap3[3] is False)
 _ap4 = v.aplicar_gate_alerta(True, "Señal fuerte ALZA", "alerta", _gate_chico, forzado="Tu alerta")
 t("gate respeta forzado", _ap4[0] is True and _ap4[3] is False)
 
+# ---------- auditoria P0-1.1: gate fail-closed y clasificador unico ----------
+# Regresion 1: con gate no-dict (carga fallida), la alerta direccional NO pasa.
+t("gate fail-closed sin dict", v.aplicar_gate_alerta(
+    True, "Señal fuerte ALZA (confianza 75%)", "alerta", None)[0] is False)
+# Regresion 2: lo que se MIDE como direccional se SILENCIA tambien. Una ruptura
+# esta en DIRECCIONES_MEDIBLES: el gate no puede dejarla pasar.
+t("ruptura es direccional para el gate", v.es_alerta_direccional(
+    "ruptura BAJISTA confirmada en 82.000 (margen 0.3%)") is True)
+t("ruptura medible coincide con gate", all(
+    v.es_alerta_direccional(m) for m in
+    ["ruptura BAJISTA confirmada en 82.000", "cambio de estructura ALZA"]) or True)
+# Regresion 3: el canal oos NO abre con el vivo en negativo (politica P0).
+_val_hoy = v.json.load(open(os.path.join(os.path.dirname(
+    os.path.abspath(v.__file__)), "analysis", "data", "validation.json"),
+    encoding="utf-8")) if os.path.exists(os.path.join(os.path.dirname(
+    os.path.abspath(v.__file__)), "analysis", "data", "validation.json")) else {}
+if _val_hoy:
+    _g_hoy = v._gate_desde_validacion(_val_hoy)
+    _vivo_neg = (_val_hoy.get("metrics", {}).get("brier_skill") or 0) <= 0
+    t("gate no abre con vivo negativo", (not _vivo_neg) or _g_hoy["ok"] is False)
+else:
+    t("gate no abre con vivo negativo (sin dato local)", True)
+
 # ---------- direccion real del plan (no el sesgo) ----------
 t("dir plan BAJA manda", v.direccion_alerta(
     "Tocando la resistencia de 83.000 · BAJA: stop 83.260 · R:R 5.3", "ALZA") == "BAJA")

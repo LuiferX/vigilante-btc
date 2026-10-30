@@ -93,6 +93,17 @@ def _gate_desde_validacion(data):
     # 2) canal OOS: validation.json ya lo calcula (oos_valido + sin veto vivo)
     canal = str(gate.get("canal") or "")
     if canal == "oos":
+        # P0-1.1 (auditoria 2026-10-29): el canal OOS era un puente sobre el
+        # canal vivo. Con el vivo en skill negativa o deriva en alerta, el
+        # puente se cae: no se puede mandar una senal direccional cuando la
+        # ventana viva -aunque corta- dice lo contrario. Requiere muestras
+        # vivas suficientes para que el veredicto no sea ruido (>= 30).
+        vivo_efectivo = effective >= 30
+        vivo_contradice = (
+            vivo_efectivo and ((skill is not None and skill <= 0)
+                               or (ece is not None and ece > 0.08)
+                               or drift_status == "alert")
+        )
         try:
             o_eff = int(oos.get("effective") or 0)
         except Exception:
@@ -106,9 +117,12 @@ def _gate_desde_validacion(data):
             and o_ece is not None
             and o_ece <= 0.08
             and status not in ("roto", "degradado")
+            and not vivo_contradice
         ):
             partes.append(f"OOS {o_eff} muestras · skill {o_skill:+.4f} · ECE {o_ece:.3f}")
             return {"ok": True, "reason": " · ".join(partes)}
+        if vivo_contradice:
+            partes.append("veto vivo (skill<=0 / ECE>0.08 / drift alert) bloquea OOS")
     return {"ok": False, "reason": " · ".join(partes)}
 
 
@@ -471,7 +485,13 @@ def aplicar_gate_alerta(enviar, motivo, tipo, gate, forzado=None, gestion=None):
         return enviar, motivo, tipo, False
     if forzado or gestion:
         return enviar, motivo, tipo, False
-    if not isinstance(gate, dict) or gate.get("ok"):
+    if not isinstance(gate, dict):
+        # P0-1.1 (auditoria 2026-10-29): antes, un gate no-dict (carga fallida)
+        # dejaba PASAR la alerta direccional. Fail-closed: sin gate valido, se
+        # silencia. Es el modo opuesto al de un bot que promete no mentir.
+        return (False, "silenciada por validacion: gate invalido (fail-closed)",
+                "nada", True)
+    if gate.get("ok"):
         return enviar, motivo, tipo, False
     if not es_alerta_direccional(motivo):
         return enviar, motivo, tipo, False

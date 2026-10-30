@@ -29,6 +29,19 @@ def es_alerta_direccional(motivo):
         "r:r",
         "stop ",
         "sl ",
+        # P0-1.1 (auditoria 2026-10-29): estas familias SI se miden como
+        # direccionales (DIRECCIONES_MEDIBLES) pero el gate no las silenciaba:
+        # ruptura/estructura se contaban sin silenciarse y mecha se silenciaba
+        # sin medirse. Ahora medir y silenciar usan el mismo criterio. Los
+        # textos de contexto ("no es entrada", "chop", "contra el sesgo") siguen
+        # excluyendose por el guard de arriba.
+        "ruptura ",
+        "ruptura bajista",
+        "ruptura alcista",
+        "quiebre",
+        "cambio de estructura",
+        "bajó mínimos",
+        "sobre máximos",
     )
     return any(x in m for x in marcas)
 
