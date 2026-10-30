@@ -748,7 +748,12 @@ def decide(
 
     price = float(price if price is not None else kl[-1]["c"])
     event_time = kl[-1]["t"]
-    now = now or event_time
+    # P0-1.5 (auditoria 2026-10-29): antes `now = now or event_time`, asi que
+    # un llamador vivo sin `now` medias la frescura contra la propia vela:
+    # data_age_min salia ~0 y el dato viejo parecia fresco. Ahora el default es
+    # la hora REAL; los replays/backtests ya pasan `now` explícito (su trabajo
+    # es pinchar el tiempo) y los tests tambien deben fijarlo.
+    now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     if event_time.tzinfo is None:
