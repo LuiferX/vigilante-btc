@@ -57,7 +57,9 @@ La skill OOS sigue siendo +2,6% (n=245+), la viva sigue **negativa** (−0,9%, n
 | **Dos dueñas en `dashboard`** | ⛔ REFUTADO | solo `oyente.yml` escribe esa rama (`contents: write # solo para publicar la rama dashboard`); `oos-refresh` hace `force-with-lease` sobre `main`, no sobre `dashboard` |
 | **Carreras de escritura git** (Oyente/OOS-refresh) | 🔎 DOCUMENTADO con dirección | patrón común: `force-push` a ramas compartidas. Dirección: agrupar concurrencia y publicar evidencia como artefacto. No implementado (toca protocolo de dos workflows) |
 | **Alerta si un crítico falla 2 veces** | 📋 PROPUESTO | en RUNBOOK §5; no implementado |
-| **Poda de JSONL / append sin leer todo / escritura atómica** | 📋 PENDIENTE | P1-2.4, no llegó en esta tanda |
+| **Poda de JSONL / append sin leer todo / escritura atómica** | ✅ HECHO (`04e3cf7127`) | `append_jsonl` ya no lee el fichero completo (índice incremental `.idx` con fallback correcto si el fichero cambió por fuera; el test cazó un bug propio: el índice stringificaba claves y el dedup compara tipos). Escritura **atómica** (tmp+fsync+`os.replace`) en `latest_decision.json`/`health.json`. Colector: 13 casos. |
+| **Concurrencia de la rama `dashboard`** | ✅ RESUELTO | `oyente.yml` ya tiene `concurrency: group: oyente` y es la única escritora (verificado): no hay segunda dueña que agrupar. |
+| **Alerta si un crítico falla 2 veces** | 📋 PROPUESTO | queda para la siguiente tanda |
 
 **Veredicto P1:** el agujero que dejaba pasar código roto a producción está
 cerrado (CI real sobre el árbol que importa). Lo que queda de P1 es protocolo de
