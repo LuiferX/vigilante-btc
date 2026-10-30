@@ -92,12 +92,26 @@ def cortar_htf(
     tiempos_htf: dict[str, list[datetime.datetime]],
     cutoff: datetime.datetime,
 ) -> dict[str, list[dict]]:
-    """HTF sin futuro y acotado a las ultimas HTF_COLA barras (O(log n + HTF_COLA))."""
+    """HTF sin futuro y acotado a las ultimas HTF_COLA barras (O(log n + HTF_COLA)).
+
+    P0-1.2 (auditoria 2026-10-29): antes incluia la vela HTF EN CURSO - la de
+    openTime <= cutoff, que en el archivo trae su OHLC COMPLETO (datos
+    posteriores al corte): look-ahead de borde en las features HTF del replay.
+    bisect_left solo excluye la igualdad exacta. El corte correcto es por
+    duracion: una vela de temporalidad `iv` cuenta si openTime + dur <= cutoff.
+    Equivalente: bisect_right sobre `cutoff - dur`. Test: corte 10:30 con velas
+    de 1h -> solo la de 09:00 (la de 10:00 aun esta abierta).
+    """
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=UTC)
+    dur_iv = {"1h": 3600, "4h": 14400, "1d": 86400}
     out: dict[str, list[dict]] = {}
     for iv, barras in htf.items():
         if not barras:
             continue
-        idx = bisect.bisect_right(tiempos_htf[iv], cutoff)
+        dur = dur_iv.get(iv)
+        limite = cutoff - datetime.timedelta(seconds=dur) if dur else cutoff
+        idx = bisect.bisect_right(tiempos_htf[iv], limite)
         if idx <= 0:
             continue
         out[iv] = barras[max(0, idx - HTF_COLA) : idx]

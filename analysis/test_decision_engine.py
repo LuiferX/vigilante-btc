@@ -128,6 +128,44 @@ class DecisionEngineTest(unittest.TestCase):
         self.assertNotIn("vender", text)
         self.assertIn("no hacer nada", out["decision"]["do_nothing"].lower())
 
+    def test_aggregate_alineado_a_reloj(self):
+        """P0-1.2: buckets anclados a borde de reloj, no al primer bar."""
+        import entrenar_hold as eh
+        base = datetime(2025, 1, 1, 3, 10, tzinfo=timezone.utc)
+        kl = [{"t": base + timedelta(minutes=5 * i), "o": 1, "h": 2,
+               "l": 0.5, "c": 1 + i * 0.001, "v": 1} for i in range(130)]
+        a12 = de.aggregate(kl, 12)
+        a48 = de.aggregate(kl, 48)
+        self.assertTrue(a12, "sin buckets")
+        self.assertEqual(a12[0]["t"].strftime("%H:%M"), "03:00")
+        self.assertTrue(all(b["t"].minute == 0 for b in a12))
+        # con 4h el primer bucket es el borde 00:00 (la rejilla de 4h son
+        # 00/04/08...: los datos de 03:10 caen dentro del bucket 00:00)
+        self.assertEqual(a48[0]["t"].strftime("%H:%M"), "00:00")
+        self.assertTrue(all(b["t"].hour % 4 == 0 and b["t"].minute == 0
+                            for b in a48))
+        # el OHLC del primer bucket sigue siendo el de sus velas
+        self.assertEqual(a12[0]["c"], kl[9]["c"])
+
+    def test_cortar_htf_sin_vela_en_curso(self):
+        """P0-1.2: la vela HTF que empieza en/antes del corte NO se incluye."""
+        import entrenar_hold as eh
+        htf = {"1h": [
+            {"t": datetime(2025, 1, 1, 9, 0, tzinfo=timezone.utc),
+             "o": 1, "h": 2, "l": 0.5, "c": 1, "v": 1},
+            {"t": datetime(2025, 1, 1, 10, 0, tzinfo=timezone.utc),
+             "o": 1, "h": 2, "l": 0.5, "c": 1, "v": 1}]}
+        t_h = [b["t"] for b in htf["1h"]]
+        corte = datetime(2025, 1, 1, 10, 30, tzinfo=timezone.utc)
+        out = eh.cortar_htf(htf, {"1h": t_h}, corte)
+        self.assertEqual([b["t"].strftime("%H:%M") for b in out["1h"]],
+                         ["09:00"])
+        # corte exacto en el open de la vela: tambien se excluye (sin ticks)
+        corte2 = datetime(2025, 1, 1, 10, 0, tzinfo=timezone.utc)
+        out2 = eh.cortar_htf(htf, {"1h": t_h}, corte2)
+        self.assertEqual([b["t"].strftime("%H:%M") for b in out2["1h"]],
+                         ["09:00"])
+
     def test_decide_from_jsonl(self):
         # Solo verifica que el atajo exista y falle limpio con un archivo vacio.
         import tempfile

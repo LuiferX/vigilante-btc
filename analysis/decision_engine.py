@@ -144,21 +144,50 @@ def fetch_vigilante_levels(url: str = VIGILANTE_ESTADO_URL, timeout: float = 20.
 # ---------------------------------------------------------------------------
 
 def aggregate(kl: list[dict], bars: int) -> list[dict]:
-    """Agrupa velas de 5m en barras de `bars` velas (12=1h, 48=4h)."""
-    out = []
-    for i in range(0, len(kl) - bars + 1, bars):
-        chunk = kl[i : i + bars]
-        out.append(
-            {
-                "t": chunk[0]["t"],
-                "o": chunk[0]["o"],
-                "h": max(x["h"] for x in chunk),
-                "l": min(x["l"] for x in chunk),
-                "c": chunk[-1]["c"],
-                "v": sum(x["v"] for x in chunk),
-            }
-        )
+    """Agrupa velas de 5m en barras de `bars` velas (12=1h, 48=4h).
+
+    P0-1.2 (auditoria 2026-10-29): los buckets se anclan a BORDES DE RELOJ
+    (multiplos de bars*5min), no al primer bar del archivo. Antas, unos datos
+    que empezaban a las 03:10 daban barras de 03:10/04:10... que no coinciden
+    con las velas 1h/4h reales: el sesgo HTF de fallback leia el reloj con
+    10 minutos de error. Test: datos desde 03:10 -> buckets desde 03:00.
+    """
+    if not kl or bars <= 0:
+        return []
+    seg = bars * 300  # segundos por barra agregada
+    out: list[dict] = []
+    actual: list[dict] = []
+    ancla: Optional[float] = None
+    for v in kl:
+        t = v["t"]
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+        piso = math.floor(t.timestamp() / seg) * seg
+        if ancla is None:
+            ancla = piso
+        if piso != ancla and actual:
+            out.append(_barra(actual, ancla))
+            actual = []
+            ancla = piso
+        actual.append(v)
+    if actual:
+        out.append(_barra(actual, ancla))
     return out
+
+
+def _barra(chunk: list[dict], ancla: Optional[float]) -> dict:
+    """OHLCV de un bucket; `t` = borde de reloj del bucket (no el primer bar)."""
+    t0 = chunk[0]["t"]
+    if t0.tzinfo is None:
+        t0 = t0.replace(tzinfo=timezone.utc)
+    return {
+        "t": datetime.fromtimestamp(ancla, tz=timezone.utc) if ancla is not None else t0,
+        "o": chunk[0]["o"],
+        "h": max(x["h"] for x in chunk),
+        "l": min(x["l"] for x in chunk),
+        "c": chunk[-1]["c"],
+        "v": sum(x["v"] for x in chunk),
+    }
 
 
 def _trend_from_bars(bars: list[dict], fast: int, slow: int) -> Optional[str]:
