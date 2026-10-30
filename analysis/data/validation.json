@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-30T07:31:47.402220+00:00",
+  "checked_at": "2026-10-30T07:46:27.892732+00:00",
   "status": "degradado",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -16,12 +16,12 @@
     "effective": 85,
     "resolved_levels": 1340,
     "levels_with_hold": 1340,
-    "events": 881,
-    "resolved_events": 865,
+    "events": 882,
+    "resolved_events": 866,
     "independent_events": 55,
-    "coverage": 0.9818,
+    "coverage": 0.9819,
     "avg_levels_per_event": 1.55,
-    "span_hours": 222.2,
+    "span_hours": 222.5,
     "effective_fallback": null
   },
   "metrics": {
@@ -112,7 +112,7 @@
         ]
       }
     },
-    "coverage": 0.9818
+    "coverage": 0.9819
   },
   "backtest": {
     "samples": 254,
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 4167,
-      "unique_bars": 4167,
+      "bars": 4170,
+      "unique_bars": 4170,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-30T07:25:00+00:00",
-      "age_min": 6.79,
+      "last": "2026-10-30T07:40:00+00:00",
+      "age_min": 6.46,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-30T07:31:41.595186+00:00",
+      "run_at": "2026-10-30T07:46:21.446628+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -243,7 +243,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "e7c05a76dc35d1f4",
-  "code_sha": "e2ef8a2fc1edf72ffd7ab0b38951829be182a012",
+  "data_hash": "4c92b02491c773a5",
+  "code_sha": "ed39dccbf63a3df842dc89f57ada2fb39312ce6d",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
