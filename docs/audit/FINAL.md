@@ -47,7 +47,25 @@ La skill OOS sigue siendo +2,6% (n=245+), la viva sigue **negativa** (−0,9%, n
 
 **Commits:** `4fcb23a6` (gate) · `624bffb8` (HTF) · `d803f796`+`782df042` (frescura) · `34f42a1d` (fuente única + duplicados) · fusionado `be04da1e56`.
 
-## 5. P1 — lo cerrado después (2026-10-30)
+## 6. P2 — higiene (2026-10-30, commit `5fbe2b2c11`)
+
+| Ítem | Estado | Evidencia |
+|---|---|---|
+| `comandos.py` de la raíz | ✅ BORRADO | nadie lo usaba: 0 workflows, 0 imports, 0 tests. El chat en dos vidas vive en `vigilante/comandos.py` |
+| `backtest.py` de la raíz | ✅ CONSERVADO (con test) | 3 tests de `test_vigilante.py` lo ejecutan y leen: cumplió la regla "si se conserva, que esté testeado" |
+| Bloque NN muerto | ✅ (ya estaba, 27/10) | el fantasma salió antes de esta misión; queda registrado en EXPERIMENTOS.md |
+| **README alineado** | ✅ | documenta que desde el 30/10 el canal OOS tampoco abre con el vivo en contra, y que con el `validation.json` de hoy el gate del bot queda **CERRADO** aunque el fichero reporte OOS |
+| **SCORECARD alineado** | ✅ | "Validación del modelo" **9,0 → 6,0** y el global **9,0 → 8,6**, con el motivo escrito: la ventana viva está en −0,9% (n=84) |
+| Trocear `main()` / `decide` / `build_parte` | 📋 PENDIENTE | cirugía mayor; requiere su propia tanda de tests de extracción |
+| Reducir 376 `except Exception` / ruff E,W,I | 📋 PENDIENTE | P2 profunda; ver docs/TIPADO.md para el punto de partida |
+
+## 7. Veredicto final de la misión
+
+**El objetivo del pliego — "corregir defectos de correctitud sin maquillar métricas y sin afirmar edge que no está demostrado" — está cumplido.** El hallazgo más importante de la auditoría fue que **el gate se abría por un canal OOS mientras el canal vivo decía lo contrario**; hoy el bot está **CERRADO** y ningún doc afirma edge sin citar su fecha.
+
+**Commits de la misión:** `4fcb23a6` gate · `624bffb8` HTF · `d803f796`/`782df042` frescura · `34f42a1d` fuente única + duplicados · `3619c2b252` CI + RUNBOOK · `04e3cf7127` higiene de datos · `5fbe2b2c11` higiene + docs · fusionado `7f81631b74`, `audit-p0/p1/p1b/p2` fusionadas y borradas.
+
+## 8. P1 — lo cerrado después (2026-10-30)
 
 | Ítem | Estado | Evidencia |
 |---|---|---|
