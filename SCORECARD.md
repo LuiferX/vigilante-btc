@@ -2,7 +2,7 @@
 
 Esta es una **auditoria interna con rubrica**, no una certificacion externa. Mide calidad de ingenieria, medicion y operacion. No mide ganancia ni promete edge predictivo.
 
-Objetivo: **8,5/10**. Resultado de esta iteracion: **9,0/10** (ponderado 8,975). Iteracion previa: 8,9.
+Objetivo: **8,5/10**. Resultado de esta iteracion: **8,6/10** (bajado: la validación del modelo no se sostiene con skill vivo negativo; ver tabla. Ponderado 8,975). Iteracion previa: 8,9.
 
 ## Rubrica
 
@@ -17,7 +17,7 @@ Objetivo: **8,5/10**. Resultado de esta iteracion: **9,0/10** (ponderado 8,975).
 | Dashboard y UX | 10% | 8,7 | 8,7 | `/motor.html` intacto y enlazado; sin tocarlo |
 | Documentacion y runbook | 5% | 9,0 | 9,0 | `analysis/RECALIBRACION.md` (intentos Positivos y negativos), `analysis/backfill.py`, corte OOS de octubre en `analysis/README.md` |
 | Reproducibilidad y code quality | 5% | 8,6 | 8,6 | stdlib, sin red en tests, model card, rutas por `paths.py` |
-| Validacion del modelo | 5% | 7,5 | 9,0 | 189 muestras OOS medidas con disciplina de mitades; skill **marginal e inestable** (+0,0019 mes, +0,031 / −0,031 mitades, −0,014 al sumar un dia). Sin edge demostrado; 2 experimentos negativos publicados (rebote del nivel, recalibracion Platt) |
+| Validacion del modelo | 5% | 7,5 | 6,0 | OOS +2,6% (n=254) pero el **vivo está en -0,9% (n=84)** y el gate del bot quedó CERRADO el 30/10. El 9,0 no se sostiene con la ventana viva negativa.n disciplina de mitades; skill **marginal e inestable** (+0,0019 mes, +0,031 / −0,031 mitades, −0,014 al sumar un dia). Sin edge demostrado; 2 experimentos negativos publicados (rebote del nivel, recalibracion Platt) |
 | Señal/ruido de alertas | — | — | — | medido: 18,8 -> **5,9 alertas/dia** con la config actual (puerta + umbrales 1,5% + zonas 24h + sin footprint + movimiento unificado), sobre 9 dias reales |
 | Modelo re entrado en el repo | — | — | — | `analysis/entrenar_hold.py` (stdlib, walk-forward con embargo): 7.757 muestras OOS, skill **+0,0168**; holdout octubre **+0,0364**; publicado `toques-wf-1` |
 
