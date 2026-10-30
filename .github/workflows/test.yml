@@ -3,7 +3,12 @@ name: Tests
 on:
   push:
     branches: [main]
-    paths: ['vigilante_cloud.py', 'test_vigilante.py', 'dashboard.py', 'comandos.py', 'backtest.py', '.github/workflows/**']
+    # P1-2.1 (auditoria 2026-10-30): antes solo 5 archivos raiz disparaban los
+    # tests: un roto en vigilante/** o analysis/** pasaba a main sin verde.
+    paths: ['vigilante_cloud.py', 'test_vigilante.py', 'dashboard.py',
+            'comandos.py', 'backtest.py', '.github/workflows/**',
+            'vigilante/**', 'analysis/**', 'modelo_toques.json',
+            'collector/**', 'tools/**']
   workflow_dispatch:
 
 permissions:
@@ -16,7 +21,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
@@ -31,3 +36,11 @@ jobs:
 
       - name: Suite de calidad (sin red)
         run: python test_vigilante.py
+
+      # P1-2.1: las suites de analysis/ tambien corren con cada push que las toca
+      - name: Suites de analysis (sin red)
+        run: |
+          for f in analysis/test_*.py; do
+            echo "--- $f"
+            python "$f" || exit 1
+          done
