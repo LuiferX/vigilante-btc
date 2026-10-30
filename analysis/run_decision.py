@@ -129,8 +129,14 @@ def run(
         out["detail"] = "event_time ya registrado"
 
     latest_path = os.path.join(base_dir, "latest_decision.json")
-    with open(latest_path, "w", encoding="utf-8") as fh:
+    # P1-2.4 (auditoria 2026-10-30): escritura ATOMICA. Antes, un corte a mitad
+    # de json.dump dejaba el fichero truncado y el dashboard/bot lo leian roto.
+    _tmp = latest_path + ".tmp"
+    with open(_tmp, "w", encoding="utf-8") as fh:
         json.dump(rec, fh, ensure_ascii=False, indent=2, default=str)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(_tmp, latest_path)
 
     health_path = os.path.join(base_dir, "health.json")
     health = {
@@ -146,8 +152,13 @@ def run(
         "levels_with_hold": sum(1 for z in out.get("levels", []) if z.get("hold")),
         "logged": logged,
     }
-    with open(health_path, "w", encoding="utf-8") as fh:
+    # P1-2.4: misma escritura atomica que latest_decision.json
+    _tmph = health_path + ".tmp"
+    with open(_tmph, "w", encoding="utf-8") as fh:
         json.dump(health, fh, ensure_ascii=False, indent=2, default=str)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(_tmph, health_path)
 
     out["logged"] = logged
     out["log_path"] = out_path

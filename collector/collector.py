@@ -43,19 +43,55 @@ def http_get_text(url: str, timeout: int = 30) -> str:
         return r.read().decode("utf-8", errors="replace")
 
 
-def append_jsonl(path: Path, records: list[dict], key: str) -> int:
+def _leer_indice(path: Path, key: str) -> set | None:
+    """Indice de dedup incremental (P1-2.4, auditoria 2026-10-30).
+
+    Devuelve el set de claves si el indice <path>.idx existe Y su tamaño
+    registrado coincide con el del fichero. Si no (otro escritor anexó, se rotó,
+    o no hay indice), devuelve None: el llamador cae a la lectura completa y
+    reconstruye. Asi el caso común es O(1) y el raro sigue siendo correcto.
+    """
+    idx = Path(str(path) + ".idx")
+    try:
+        if not idx.exists() or not Path(path).exists():
+            return None
+        data = json.loads(idx.read_text(encoding="utf-8"))
+        if int(data.get("size", -1)) != Path(path).stat().st_size:
+            return None
+        return set(data.get("keys", []))
+    except Exception:
+        return None
+
+
+def _escribir_indice(path, existing: set) -> None:
+    path = Path(path)
+    idx = Path(str(path) + ".idx")
+    try:
+        # OJO: se guardan las claves TAL CUAL (sin str()): el dedup compara
+        # contra el tipo original del campo. str() aqui rompia el match.
+        idx.write_text(json.dumps({"size": path.stat().st_size,
+                                   "keys": sorted(existing, key=str)},
+                                  ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def append_jsonl(path, records: list[dict], key: str) -> int:
     """Agrega registros nuevos (dedup por `key`). Devuelve cuantos se agregaron."""
-    existing = set()
-    if path.exists():
-        with path.open("r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    existing.add(json.loads(line).get(key))
-                except Exception:
-                    continue
+    path = Path(path)
+    existing = _leer_indice(path, key)
+    if existing is None:
+        existing = set()
+        if path.exists():
+            with path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        existing.add(json.loads(line).get(key))
+                    except Exception:
+                        continue
     added = 0
     with path.open("a", encoding="utf-8") as f:
         for rec in records:
@@ -67,6 +103,8 @@ def append_jsonl(path: Path, records: list[dict], key: str) -> int:
             added += 1
         f.flush()
         os.fsync(f.fileno())
+    if added:
+        _escribir_indice(path, existing)
     return added
 
 
