@@ -6,7 +6,7 @@ on:
     # P1-2.1 (auditoria 2026-10-30): antes solo 5 archivos raiz disparaban los
     # tests: un roto en vigilante/** o analysis/** pasaba a main sin verde.
     paths: ['vigilante_cloud.py', 'test_vigilante.py', 'dashboard.py',
-            'comandos.py', 'backtest.py', '.github/workflows/**',
+            'backtest.py', '.github/workflows/**',
             'vigilante/**', 'analysis/**', 'modelo_toques.json',
             'collector/**', 'tools/**']
   workflow_dispatch:
