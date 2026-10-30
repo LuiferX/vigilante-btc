@@ -129,5 +129,24 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(closed[0]["openTime"], now_ms - 600_000)
 
 
-if __name__ == "__main__":
+    def test_append_jsonl_indice_incremental(self):
+        """P1-2.4: indice incremental; fallback correcto si el fichero
+        cambio por fuera."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, 'datos.jsonl')
+            self.assertEqual(c.append_jsonl(p, [{'openTime': 1, 'v': 'a'}], 'openTime'), 1)
+            self.assertEqual(c.append_jsonl(p, [{'openTime': 1, 'v': 'a'}], 'openTime'), 0)
+            self.assertEqual(c.append_jsonl(p, [{'openTime': 2, 'v': 'b'}], 'openTime'), 1)
+            self.assertTrue(os.path.exists(p + '.idx'), 'debe crear el indice')
+            self.assertEqual(c.append_jsonl(p, [{'openTime': 1, 'v': 'a'}], 'openTime'), 0)
+            self.assertEqual(c.append_jsonl(p, [{'openTime': 3, 'v': 'c'}], 'openTime'), 1)
+            with open(p, 'a', encoding='utf-8') as fh:
+                fh.write(json.dumps({'openTime': 4, 'v': 'd'}) + '\n')
+            self.assertEqual(c.append_jsonl(p, [{'openTime': 4}, {'openTime': 5}], 'openTime'), 1)
+            filas = [json.loads(l) for l in open(p, encoding='utf-8')]
+            self.assertEqual(sorted(f['openTime'] for f in filas), [1, 2, 3, 4, 5])
+            self.assertEqual(len(filas), 5, 'ni duplicados ni perdidos')
+
+if __name__ == '__main__':
     unittest.main(verbosity=2)
