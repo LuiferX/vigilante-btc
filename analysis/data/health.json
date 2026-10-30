@@ -1,12 +1,12 @@
 {
-  "run_at": "2026-10-30T21:46:31.845249+00:00",
+  "run_at": "2026-10-30T22:01:58.411319+00:00",
   "ok": true,
   "fresh": true,
-  "event_time": "2026-10-30T21:40:00+00:00",
-  "bar_close_time": "2026-10-30T21:45:00+00:00",
-  "data_age_min": 1.5,
+  "event_time": "2026-10-30T21:55:00+00:00",
+  "bar_close_time": "2026-10-30T22:00:00+00:00",
+  "data_age_min": 2.0,
   "action": "observar",
-  "confidence": "baja",
+  "confidence": "media",
   "quality": {
     "engine": 9.0,
     "setup": 6.7,
