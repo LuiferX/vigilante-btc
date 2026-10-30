@@ -46,3 +46,20 @@ La skill OOS sigue siendo +2,6% (n=245+), la viva sigue **negativa** (−0,9%, n
 **¿Se rompió algo?** No: 703 tests, 10 suites de analysis, colector, `ruff`, `compileall` y `mypy` verdes; CI verde en cada commit fusionado. Dos errores de proceso cometidos y reparados en el camino (empujar con test local en rojo dos veces) quedan documentados en el historial de commits; la lección quedó aplicada: **verificar local todo antes de cada push**.
 
 **Commits:** `4fcb23a6` (gate) · `624bffb8` (HTF) · `d803f796`+`782df042` (frescura) · `34f42a1d` (fuente única + duplicados) · fusionado `be04da1e56`.
+
+## 5. P1 — lo cerrado después (2026-10-30)
+
+| Ítem | Estado | Evidencia |
+|---|---|---|
+| **CI que cubre lo que importa** | ✅ HECHO (`3619c2b252`) | `test.yml` ahora dispara con `vigilante/**`, `analysis/**`, `modelo_toques.json`, `collector/**`, `tools/**` (antes 5 archivos raíz) y corre las suites de `analysis/` en cada push que las toca |
+| **RUNBOOK con fallos medidos** | ✅ HECHO | `docs/audit/RUNBOOK.md`: latencia por API (Vigilante 41 s mediana, gap 15,3 min ⇒ el README no miente), censo de los últimos 100 fallos y su causa raíz |
+| **Latencia ~4 h del pipeline** | ⛔ REFUTADO | mediana 41 s, gap 15,3 min |
+| **Dos dueñas en `dashboard`** | ⛔ REFUTADO | solo `oyente.yml` escribe esa rama (`contents: write # solo para publicar la rama dashboard`); `oos-refresh` hace `force-with-lease` sobre `main`, no sobre `dashboard` |
+| **Carreras de escritura git** (Oyente/OOS-refresh) | 🔎 DOCUMENTADO con dirección | patrón común: `force-push` a ramas compartidas. Dirección: agrupar concurrencia y publicar evidencia como artefacto. No implementado (toca protocolo de dos workflows) |
+| **Alerta si un crítico falla 2 veces** | 📋 PROPUESTO | en RUNBOOK §5; no implementado |
+| **Poda de JSONL / append sin leer todo / escritura atómica** | 📋 PENDIENTE | P1-2.4, no llegó en esta tanda |
+
+**Veredicto P1:** el agujero que dejaba pasar código roto a producción está
+cerrado (CI real sobre el árbol que importa). Lo que queda de P1 es protocolo de
+ramas y retención de datos: trabajo de precisión, no de parches.
+
