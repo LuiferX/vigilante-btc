@@ -50,7 +50,8 @@ def make_htf(n=200, start=70000.0, step=100.0, minutes=60):
 
 class DecisionEngineTest(unittest.TestCase):
     def test_decide_ok(self):
-        out = de.decide(make_kl(), price=80000.0)
+        out = de.decide(make_kl(), price=80000.0,
+            now=make_kl()[-1]["t"] + timedelta(minutes=5))
         self.assertTrue(out["ok"])
         self.assertEqual(out["price"], 80000.0)
         self.assertTrue(out["levels"])
@@ -62,14 +63,16 @@ class DecisionEngineTest(unittest.TestCase):
         self.assertIn(out["decision"]["action"], {"esperar_confirmacion", "observar", "sin_escenario"})
 
     def test_insufficient_data(self):
-        out = de.decide(make_kl(20), price=80000.0)
+        out = de.decide(make_kl(20), price=80000.0,
+            now=make_kl(20)[-1]["t"] + timedelta(minutes=5))
         self.assertFalse(out["ok"])
         self.assertEqual(out["error"], "faltan_velas")
 
     def test_zone_width_formula(self):
         kl = make_kl()
         price = 80000.0
-        out = de.decide(kl, price=price)
+        out = de.decide(kl, price=price,
+                       now=kl[-1]["t"] + timedelta(minutes=5))
         expected = max(de.ZONE_MIN_PCT * price, de.ZONE_ATR_MULT * de.atr_price(kl, 48))
         self.assertAlmostEqual(out["zone_width"], expected)
 
@@ -114,7 +117,8 @@ class DecisionEngineTest(unittest.TestCase):
             "drivers": [{"feature": "x_atr288", "contribution": -0.2}],
         }
         with patch.object(de.hm, "score_level", return_value=fake) as mocked:
-            out = de.decide(make_kl(), price=80000.0)
+            out = de.decide(make_kl(), price=80000.0,
+            now=make_kl()[-1]["t"] + timedelta(minutes=5))
         self.assertTrue(mocked.called)
         scored = [z for z in out["levels"] if z["hold"] is not None]
         self.assertTrue(scored)
@@ -122,7 +126,8 @@ class DecisionEngineTest(unittest.TestCase):
         self.assertEqual(scored[0]["hold"]["tier"], "alto")
 
     def test_no_order_language_in_decision(self):
-        out = de.decide(make_kl(), price=80000.0)
+        out = de.decide(make_kl(), price=80000.0,
+            now=make_kl()[-1]["t"] + timedelta(minutes=5))
         text = " ".join(str(v) for v in out["decision"].values()).lower()
         self.assertNotIn("comprar", text)
         self.assertNotIn("vender", text)
@@ -166,6 +171,18 @@ class DecisionEngineTest(unittest.TestCase):
         self.assertEqual([b["t"].strftime("%H:%M") for b in out2["1h"]],
                          ["09:00"])
 
+    def test_decide_sin_now_reporta_edad_real(self):
+        """P0-1.5: sin `now`, la frescura se mide contra el reloj real."""
+        kl = make_kl()
+        viejo = kl[-1]["t"]  # los fixtures son de 2026-01: muy viejos
+        out = de.decide(kl, price=80000.0)
+        self.assertGreater(out["data_age_min"], de.STALE_MAX_MIN)
+        self.assertFalse(out["fresh"])
+        # con `now` fijado junto a la vela, la edad es pequena
+        out2 = de.decide(kl, price=80000.0, now=viejo + timedelta(minutes=5))
+        self.assertLess(out2["data_age_min"], 1.0)
+        self.assertTrue(out2["fresh"])
+
     def test_decide_from_jsonl(self):
         # Solo verifica que el atajo exista y falle limpio con un archivo vacio.
         import tempfile
@@ -199,7 +216,8 @@ class DecisionEngineTest(unittest.TestCase):
         self.assertLessEqual(vp["poc"], vp["vah"])
 
     def test_zone_quality_and_scenarios(self):
-        out = de.decide(make_kl(), price=80000.0)
+        out = de.decide(make_kl(), price=80000.0,
+            now=make_kl()[-1]["t"] + timedelta(minutes=5))
         self.assertTrue(out["levels"])
         self.assertTrue(all(0.0 <= z["quality"] <= 10.0 for z in out["levels"]))
         self.assertGreaterEqual(out["engine_quality"], 0.0)
