@@ -39,13 +39,12 @@ class FuenteUnicaTest(unittest.TestCase):
     def _card(self):
         import json
         import os
-        import sys
         raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        sys.path.insert(0, raiz)
         with open(os.path.join(raiz, "modelo_toques.json"), encoding="utf-8") as fh:
             return json.load(fh)
 
     def test_copias_no_divergen(self):
+        import os
         import sys
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import hold_model as hm
