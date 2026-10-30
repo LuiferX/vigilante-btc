@@ -32,6 +32,46 @@ def make_kl(n=320):
     return out
 
 
+class FuenteUnicaTest(unittest.TestCase):
+    """P0-1.3: el modelo tiene UNA fuente (modelo_toques.json). Las 3 copias
+    que consumen los modulos no pueden divergir en silencio."""
+
+    def _card(self):
+        import json
+        import os
+        raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(raiz, "modelo_toques.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_copias_no_divergen(self):
+        import os
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import hold_model as hm
+        card = self._card()
+        for nombre, copia in (("hold_model", hm.MODEL),):
+            self.assertEqual(copia["version"], card["version"], nombre)
+            self.assertEqual(copia["coef"], card["coef"], nombre + ": coef")
+            self.assertEqual(copia["intercept"], card["intercept"], nombre)
+            self.assertEqual(copia["features"], card["features"], nombre)
+            self.assertEqual(copia["mean"], card["mean"], nombre + ": mean")
+            self.assertEqual(copia["scale"], card["scale"], nombre + ": scale")
+
+    def test_toques_apunta_al_mismo_modelo(self):
+        """vigilante/toques.py no puede tener su propia copia delirante."""
+        import os
+        import sys
+        raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, raiz)
+        import vigilante_cloud as vc
+        card = self._card()
+        self.assertEqual(vc.MODELO_TOQUES["version"], card["version"])
+        self.assertEqual(vc.MODELO_TOQUES["coef"], card["coef"])
+        self.assertEqual(vc.MODELO_TOQUES["congelado"]["congelado"], True)
+        self.assertEqual(vc.MODELO_TOQUES["congelado"]["fecha_congelacion"],
+                         card["congelado"]["fecha_congelacion"])
+
+
 class HoldModelTest(unittest.TestCase):
     def test_features_shape(self):
         f = hm.features(make_kl(), 80000.0, 80050.0, datetime(2026, 10, 1, 12, 30, tzinfo=timezone.utc))

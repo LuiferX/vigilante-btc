@@ -1072,7 +1072,11 @@ def main():
                     banco = float(est.get("banco", PAPER_BANCO)) + pnl
                     est["banco"] = round(banco, 2)
                     cerr = est.get("paper_cerradas", [])
-                    cerr.append({"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
+                    # P0-1.4 (auditoria 2026-10-30): el log tenia un cierre
+                    # DUPLICADO exacto (mismo dir/res/pnl/fecha: doscierres del
+                    # mismo evento). Se contaba doble en R total y Sharpe.
+                    # Guardia: si el ultimo registro es identico, no se repite.
+                    _nuevo = {"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
                                  "fee": o.get("fee", 0),
                                  "r": round(pnl / o["riesgo"], 2) if o["riesgo"] else 0,
                                  # auditoria (2026-10-28): el LIQ de octubre fue
@@ -1084,7 +1088,12 @@ def main():
                                  "stop": o.get("stop"), "tp": o.get("tp"),
                                  "liq": o.get("liq"), "lev": o.get("lev"),
                                  "riesgo": o.get("riesgo"),
-                                 "t": ahora.isoformat()})
+                                 "t": ahora.isoformat()}
+                    _ult = cerr[-1] if cerr else {}
+                    _clave = lambda c: (c.get("dir"), c.get("res"), c.get("pnl"),
+                                        str(c.get("t", ""))[:16])
+                    if not cerr or _clave(_ult) != _clave(_nuevo):
+                        cerr.append(_nuevo)
                     est["paper_cerradas"] = cerr[-100:]
                     pdh = est.get("paper_dia") or {}
                     if pdh.get("fecha") != ahora.strftime("%Y-%m-%d"):

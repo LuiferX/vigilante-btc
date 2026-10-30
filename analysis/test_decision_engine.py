@@ -177,11 +177,11 @@ class DecisionEngineTest(unittest.TestCase):
         viejo = kl[-1]["t"]  # los fixtures son de 2026-01: muy viejos
         out = de.decide(kl, price=80000.0)
         self.assertGreater(out["data_age_min"], de.STALE_MAX_MIN)
-        self.assertFalse(out["fresh"])
+        self.assertFalse(out["data_status"]["fresh"])
         # con `now` fijado junto a la vela, la edad es pequena
         out2 = de.decide(kl, price=80000.0, now=viejo + timedelta(minutes=5))
         self.assertLess(out2["data_age_min"], 1.0)
-        self.assertTrue(out2["fresh"])
+        self.assertTrue(out2["data_status"]["fresh"])
 
     def test_decide_from_jsonl(self):
         # Solo verifica que el atajo exista y falle limpio con un archivo vacio.
