@@ -2,7 +2,7 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-10-30T05:16:32.690754+00:00",
+  "checked_at": "2026-10-30T05:31:47.812319+00:00",
   "status": "degradado",
   "healthy": false,
   "sample_status": "muestra_media",
@@ -13,15 +13,15 @@
   "target_samples": 100,
   "samples": {
     "eval": 1340,
-    "effective": 85,
+    "effective": 84,
     "resolved_levels": 1340,
     "levels_with_hold": 1340,
-    "events": 872,
-    "resolved_events": 856,
+    "events": 873,
+    "resolved_events": 857,
     "independent_events": 54,
     "coverage": 0.9817,
-    "avg_levels_per_event": 1.57,
-    "span_hours": 220.0,
+    "avg_levels_per_event": 1.56,
+    "span_hours": 220.2,
     "effective_fallback": null
   },
   "metrics": {
@@ -149,7 +149,7 @@
   },
   "drift": {
     "status": "alert",
-    "psi": 0.3264,
+    "psi": 0.3351,
     "watch_threshold": 0.1,
     "alert_threshold": 0.25,
     "live_bins": [
@@ -167,7 +167,7 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 133
+        "n": 131
       }
     ],
     "backtest_bins": [
@@ -196,12 +196,12 @@
   "data": {
     "klines": {
       "ok": true,
-      "bars": 4140,
-      "unique_bars": 4140,
+      "bars": 4143,
+      "unique_bars": 4143,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-10-30T05:10:00+00:00",
-      "age_min": 6.54,
+      "last": "2026-10-30T05:25:00+00:00",
+      "age_min": 6.8,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-10-30T05:16:27.469922+00:00",
+      "run_at": "2026-10-30T05:31:42.003019+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -232,8 +232,8 @@
     }
   },
   "warnings": [
-    "Muestra efectiva 85 < 100; falta recorrido para validar.",
-    "Muestras nominales 1340; efectivas 85 por solapamiento de 4h.",
+    "Muestra efectiva 84 < 100; falta recorrido para validar.",
+    "Muestras nominales 1340; efectivas 84 por solapamiento de 4h.",
     "Brier skill negativo: el motor no supera la tasa base en esta muestra.",
     "Drift alto en la distribucion de probabilidades; revisar regimen."
   ],
@@ -243,7 +243,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "64197c44f55c91de",
-  "code_sha": "bf4f87075b8f538dc1bee60f1993389adba9b2e4",
+  "data_hash": "969d4e655379971e",
+  "code_sha": "624bffb8d6fd667fdceae215ed5948b23afe6626",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
