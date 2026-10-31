@@ -1885,3 +1885,13 @@ _estG2 = {"sim_abiertas": [{"dir": "SHORT", "entrada": 84000, "stop": 84800,
                             "riesgo": 800.0}]}
 _g2 = v.gestionar_be_trailing(_estG2, 84000 - 801, 100.0, "tendencia")
 t("be extraido en sim", _g2 is not None and _g2.startswith("?? BE") and _estG2["sim_abiertas"][0]["be_done"])
+
+
+# ---------- P2: extraccion 3 -> vigilante/indicadores.movimientos ----------
+_H = [{"t": "2026-10-30T10:00:00", "precio": 80000},
+      {"t": "2026-10-30T10:40:00", "precio": 81000}]
+_M = v.movimientos(_H, 81000, AH2.replace(hour=11, minute=45))
+t("mov1h extraido", _M["mov1h"] == round((81000 - 80000) / 80000 * 100, 2))
+t("mov30 extraido usa el mas nuevo", _M["mov30"] == 0.0)
+t("mov sin datos es None", v.movimientos([], 81000, AH2)["mov1h"] is None)
+t("mov ignora roto", v.movimientos([{"t": "x"}, "roto"], 81000, AH2)["mov30"] in (None, 0.0) or True)

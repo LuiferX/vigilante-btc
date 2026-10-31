@@ -13,6 +13,41 @@ import datetime
 import re
 
 
+def _mov_contra(hist, objetivo, reversed_scan, precio):
+    """% de cambio del precio contra el registro más reciente del historial
+    cuyo timestamp cumple la condición (`reversed_scan` = de más nuevo a más
+    viejo; si no, de más viejo a más nuevo). None si no hay registro."""
+    rango = reversed(hist) if reversed_scan else hist
+    for h in rango:
+        if not isinstance(h, dict):
+            continue
+        ts = str(h.get("t", ""))[:16]
+        p = h.get("precio")
+        if not p:
+            continue
+        if (reversed_scan and ts <= objetivo) or (not reversed_scan and ts >= objetivo):
+            return round((precio - p) / p * 100, 2)
+    return None
+
+
+def movimientos(hist, precio, ahora):
+    """mov1h / mov30 / mov_ny de una vez.
+
+    Extraído de `vigilante_cloud.main()` (P2, troceado 3/N): eran tres bucles
+    casi idénticos sobre el historial. `mov_ny` usa el corte de la apertura de
+    Nueva York (13:30 UTC) del día de `ahora`.
+    """
+    obj1h = (ahora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+    obj30 = (ahora - datetime.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M")
+    corte = ahora.strftime("%Y-%m-%d") + "T13:30"
+    return {
+        "mov1h": _mov_contra(hist, obj1h, True, precio),
+        "mov30": _mov_contra(hist, obj30, True, precio),
+        "mov_ny": _mov_contra(hist, corte, False, precio),
+        "hoy": ahora.strftime("%Y-%m-%d"),
+    }
+
+
 def es_alerta_direccional(motivo):
     """True solo para textos que invitan a tomar direccion o traen un plan."""
     m = str(motivo or "").lower()
