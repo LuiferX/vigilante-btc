@@ -98,7 +98,7 @@ from vigilante.eventos import (  # noqa: E402,F401
     toques_hoy,
     vs_ayer,
 )
-from vigilante.indicadores import (  # noqa: E402,F401  (re-export: API publica)
+from vigilante.indicadores import (  # noqa: E402,F401  (re-export: API publica)  # noqa: E402,F401  (re-export: API publica)
     adx,
     atr,
     atr_regime,
@@ -114,6 +114,7 @@ from vigilante.indicadores import (  # noqa: E402,F401  (re-export: API publica)
     fmt_miles,
     latido_tarde,
     mecha_rechazo,
+    movimientos,
     num_txt,
     quiebre_estructura,
     rsi,
@@ -927,25 +928,10 @@ def main():
             return
         est["stale_n"] = 0
         cvd_v = cvd()
-        mov1h = None
-        obj1h = (ahora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
-        for h in reversed(hist):
-            if h.get("t", "")[:16] <= obj1h and h.get("precio"):
-                mov1h = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
-                break
-        mov30 = None
-        obj30 = (ahora - datetime.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M")
-        for h in reversed(hist):
-            if h.get("t", "")[:16] <= obj30 and h.get("precio"):
-                mov30 = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
-                break
-        hoy = ahora.strftime("%Y-%m-%d")
-        mov_ny = None
-        corte = hoy + "T13:30"
-        for h in hist:
-            if h.get("t", "")[:16] >= corte and h.get("precio"):
-                mov_ny = round((t["last"] - h["precio"]) / h["precio"] * 100, 2)
-                break
+        # Extraido a vigilante/indicadores.movimientos (P2, troceado 3/N).
+        _movs = movimientos(hist, t["last"], ahora)
+        mov1h, mov30, mov_ny, hoy = (_movs["mov1h"], _movs["mov30"],
+                                      _movs["mov_ny"], _movs["hoy"])
         try:
             _ln = liquidez_nivel(kl_h1, t["last"])
         except Exception:
