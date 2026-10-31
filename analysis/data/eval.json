@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1416,
+  "samples": 1418,
   "status": "ok",
-  "decisions_total": 985,
-  "decisions_evaluated": 969,
+  "decisions_total": 986,
+  "decisions_evaluated": 970,
   "coverage": 0.9838,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1416,
-  "base_rate": 0.8284,
+  "brier": 0.1414,
+  "base_rate": 0.8286,
   "mean_prob": 0.8146,
-  "brier_base": 0.1422,
+  "brier_base": 0.142,
   "brier_skill": 0.0039,
-  "calibration_error": 0.0486,
+  "calibration_error": 0.0487,
   "overall": {
-    "n": 1416,
-    "brier": 0.1416,
-    "base_rate": 0.8284,
+    "n": 1418,
+    "brier": 0.1414,
+    "base_rate": 0.8286,
     "mean_prob": 0.8146,
-    "brier_base": 0.1422,
+    "brier_base": 0.142,
     "brier_skill": 0.0039,
     "real_ci95": [
-      0.8079,
-      0.8471
+      0.8081,
+      0.8474
     ]
   },
   "high_score": {
-    "n": 975,
-    "brier": 0.114,
-    "base_rate": 0.8677,
+    "n": 977,
+    "brier": 0.1138,
+    "base_rate": 0.868,
     "mean_prob": 0.8406,
-    "brier_base": 0.1148,
-    "brier_skill": 0.0073,
+    "brier_base": 0.1146,
+    "brier_skill": 0.0072,
     "real_ci95": [
-      0.845,
-      0.8875
+      0.8453,
+      0.8878
     ],
-    "lift_vs_base": 1.0474
+    "lift_vs_base": 1.0476
   },
   "by_side": {
     "soporte": {
-      "n": 741,
-      "brier": 0.1583,
-      "base_rate": 0.8084,
-      "mean_prob": 0.8101,
-      "brier_base": 0.1549,
-      "brier_skill": -0.022,
+      "n": 743,
+      "brier": 0.158,
+      "base_rate": 0.8089,
+      "mean_prob": 0.8102,
+      "brier_base": 0.1546,
+      "brier_skill": -0.0217,
       "real_ci95": [
-        0.7785,
-        0.8351
+        0.7791,
+        0.8355
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 975,
+      "n": 977,
       "pred": 0.8406,
-      "real": 0.8677,
+      "real": 0.868,
       "real_ci95": [
-        0.845,
-        0.8875
+        0.8453,
+        0.8878
       ]
     }
   ],
