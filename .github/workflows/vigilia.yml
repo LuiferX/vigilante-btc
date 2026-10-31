@@ -181,3 +181,73 @@ jobs:
               echo "Comentario reciente: no se comenta para evitar spam."
             fi
           fi
+
+  # P1-2.3 (auditoria): vigila tambien los workflows CRITICOS. Antes, un
+  # fallo repetido solo se veia si abrias la pestana Actions a mano. Ahora, si
+  # un critico falla 2 veces seguidas, se abre/actualiza issue automatico.
+  criticos:
+    needs: vigilia
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Revisar criticos (2 fallos seguidos)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # P1-2.3: REST directo por urllib: no depende de que haya repo git
+          # (el bug historicamente fue justo ese: gh sin repo).
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          TOK = os.environ["GH_TOKEN"]
+          CRITICOS = ["Vigilante BTC Cloud", "OOS refresh (diario)", "Oyente"]
+
+          def api(path):
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/" + REPO + path,
+                  headers={"Authorization": "Bearer " + TOK,
+                           "User-Agent": "vigilia-criticos",
+                           "Accept": "application/vnd.github+json"})
+              return json.loads(urllib.request.urlopen(req, timeout=30).read().decode())
+
+          rotos = []
+          for nombre in CRITICOS:
+              try:
+                  wfs = [w for w in api("/actions/workflows")["workflows"]
+                         if w["name"] == nombre]
+                  if not wfs:
+                      continue
+                  runs = api(f"/actions/workflows/{wfs[0]['id']}/runs?per_page=2")["workflow_runs"]
+                  concl = [r.get("conclusion") for r in runs[:2]]
+                  if len(concl) == 2 and all(c == "failure" for c in concl):
+                      rotos.append((nombre, runs[0]["html_url"]))
+              except Exception as e:
+                  print(f"aviso: no pude revisar {nombre}: {e}")
+
+          if not rotos:
+              print("criticos OK: ninguno con 2 fallos seguidos.")
+              raise SystemExit(0)
+
+          TITULO = "[vigilia] workflow critico Fallando 2 veces seguidas"
+          cuerpo = "Estos workflows criticos fallaron sus ultimas 2 corridas:\n\n"
+          for nombre, url in rotos:
+              cuerpo += f"- **{nombre}**: {url}\n"
+          cuerpo += ("\nRunbook: ver docs/audit/RUNBOOK.md. Lo habitual es carrera "
+                     "de escritura git sobre una rama compartida; si es de red, "
+                     "re-ejecutar. Si sigue, espera la siguiente ventana o corrige "
+                     "el protocolo de publicacion.")
+
+          issues = api("/issues?state=open&per_page=50")
+          num = next((str(i["number"]) for i in issues if i["title"] == TITULO), "")
+          if num:
+              api(f"/issues/{num}/comments", "POST",
+                  {"body": "Sigue fallando (2 corridas mas).\n\n" + cuerpo})
+              print(f"issue #{num} actualizada")
+          else:
+              api("/issues", "POST", {"title": TITULO, "body": cuerpo})
+              print("issue creada")
+          PY
