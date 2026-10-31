@@ -8,17 +8,17 @@ import datetime
 from typing import Any
 
 from vigilante.indicadores import (
-    clamp,
+    adx,
     atr,
+    atr_regime,
+    clamp,
+    eficiencia,
     ema,
     ema_series,
     rsi,
     slope,
-    adx,
-    atr_regime,
-    eficiencia,
-    zscore,
     structure,
+    zscore,
 )
 from vigilante.mercado import snap_nivel
 from vigilante.red import klines

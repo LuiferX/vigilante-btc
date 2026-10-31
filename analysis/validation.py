@@ -28,7 +28,6 @@ from typing import Optional
 import hold_model as hm
 import paths
 
-
 MIN_SAMPLES = 30
 TARGET_SAMPLES = 100
 MAX_KLINE_AGE_MIN = 30.0

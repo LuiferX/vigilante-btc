@@ -24,7 +24,7 @@ def regla_spread(spread_bps):
     return "pausa"
 
 
-from vigilante.indicadores import fmt_miles, num_txt, cuenta_regresiva
+from vigilante.indicadores import cuenta_regresiva, fmt_miles, num_txt
 from vigilante.toques import UMBRAL_TOQUE
 
 RUNBOOK_URL = "https://github.com/LuiferX/vigilante-btc/blob/main/RUNBOOK.md"

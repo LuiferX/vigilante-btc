@@ -22,7 +22,6 @@ from typing import Optional
 import hold_model as hm
 import paths
 
-
 MIN_SAMPLES_RECOMMENDED = 30
 
 

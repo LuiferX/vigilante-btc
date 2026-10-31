@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 
 import validation as v
 
-
 START = datetime(2026, 10, 1, tzinfo=timezone.utc)
 
 

@@ -8,10 +8,10 @@ score de senal.
 import os
 import re
 
+from vigilante.analisis import ficha_zona, fuentes_nivel
 from vigilante.estado import enfriar
 from vigilante.indicadores import fmt_miles
 from vigilante.toques import UMBRAL_TOQUE
-from vigilante.analisis import fuentes_nivel, ficha_zona
 
 
 def cuenta_regresiva(cuando, ahora):
