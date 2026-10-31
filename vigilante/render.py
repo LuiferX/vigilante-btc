@@ -16,9 +16,9 @@ from vigilante.eventos import (
     regla_spread,
     tca_linea,
 )
-from vigilante.indicadores import fmt_miles, sesion_hora, cuenta_regresiva
-from vigilante.mercado import cb_veredicto, veredicto_dom, texto_fvg
-from vigilante.noticias import explicar_noticia, explicar_evento, impacto_noticia, impacto_evento
+from vigilante.indicadores import cuenta_regresiva, fmt_miles, sesion_hora
+from vigilante.mercado import cb_veredicto, texto_fvg, veredicto_dom
+from vigilante.noticias import explicar_evento, explicar_noticia, impacto_evento, impacto_noticia
 from vigilante.precision import linea_motor
 from vigilante.red import FUENTE
 

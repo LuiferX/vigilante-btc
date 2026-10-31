@@ -6,10 +6,10 @@ contrafactual del gate, calibracion por sesion, scoreboard y plan de entrada.
 
 import datetime
 
-from vigilante.estado import MAX_PEND_TODO, MAX_EVAL_TODO
+from vigilante.estado import MAX_EVAL_TODO, MAX_PEND_TODO
 from vigilante.indicadores import (
-    sesion_bucket,
     direccion_alerta,
+    sesion_bucket,
 )
 from vigilante.red import klines
 

@@ -57,11 +57,11 @@ def leer_comandos(offset):
 
 
 from vigilante.estado import MAX_OPS
-from vigilante.paper import PAPER_BANCO, PAPER_LEV, racha_perdidas
-from vigilante.indicadores import fmt_miles
-from vigilante.medicion import precision_plan, calibrar, tabla_calibracion, prec_str
-from vigilante.precision import cargar_motor_nuevo
 from vigilante.eventos import linea_estudio
+from vigilante.indicadores import fmt_miles
+from vigilante.medicion import calibrar, prec_str, precision_plan, tabla_calibracion
+from vigilante.paper import PAPER_BANCO, PAPER_LEV, racha_perdidas
+from vigilante.precision import cargar_motor_nuevo
 
 
 def responder_comando(cmd, ctx):

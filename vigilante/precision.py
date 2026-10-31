@@ -12,7 +12,7 @@ import json
 import os
 from typing import Any
 
-from vigilante.indicadores import fmt_miles, es_alerta_direccional
+from vigilante.indicadores import es_alerta_direccional, fmt_miles
 from vigilante.red import klines
 
 GATE_FILE = os.environ.get("VIGILANTE_VALIDATION", "analysis/data/validation.json")

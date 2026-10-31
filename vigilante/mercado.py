@@ -13,8 +13,8 @@ import json
 import os
 import urllib.request
 
-from vigilante.red import fetch, FAPI, FDATA, VISION
-from vigilante.indicadores import fmt_miles, sesion_bucket, clamp, rsi
+from vigilante.indicadores import clamp, fmt_miles, rsi, sesion_bucket
+from vigilante.red import FAPI, FDATA, VISION, fetch
 from vigilante.toques import UMBRAL_TOQUE
 
 # Rejilla de identidad de niveles (vivia en vigilante_cloud.py; se muda con

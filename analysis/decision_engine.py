@@ -22,7 +22,6 @@ from typing import Optional
 import hold_model as hm
 import paths
 
-
 MIN_KLINES = 300
 PIVOT_K = 5
 ZONE_LOOKBACK = 288          # 24h de velas 5m
