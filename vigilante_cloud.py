@@ -208,6 +208,7 @@ from vigilante.paper import (  # noqa: E402,F401
     PAPER_RIESGO,
     UMBRAL_PAPEL,
     _fee,
+    abrir_mediciones,
     abrir_papel,
     cierre_papel,
     gestion_sl,
@@ -1156,22 +1157,8 @@ def main():
                      "feat": {"rsi": h1["rsi"], "adx": h4.get("adx", 0),
                               "fund": senti["funding"], "taker": senti["taker"],
                               "fg": fg["valor"]}}]
-        # PAPEL: opera señales B (35%+) aunque la alerta pida A (45%+). Aprende sin spamear.
-        if puede_papel(est, dirb["bias"], dirb["confianza"], ahora):
-            # PAPEL INTERNO (invisible): abre virtual con frenos institucionales
-            pos = abrir_papel(est, dirb, niv, t["last"], ahora)
-            if pos:
-                est["paper_ult"] = {"dir": dirb["bias"], "t": ahora.isoformat()}
-        # SOMBRA (invisible): mide TODA señal con sesgo, sin pisos ni frenos.
-        try:
-            abrir_sombra(est, dirb["bias"], dirb["confianza"], t["last"], umbral, ahora)
-        except Exception:
-            pass
-        # TODO (invisible): mide CADA pasada hable o calle, para saber si callar fue correcto.
-        try:
-            abrir_todo(est, dirb["bias"], dirb["confianza"], t["last"], umbral, ahora)
-        except Exception:
-            pass
+        # PAPEL/SOMBRA/TODO (invisibles): extraido a vigilante/paper.abrir_mediciones (P2, troceado 4/N).
+        abrir_mediciones(est, dirb, niv, t["last"], umbral, ahora)
         guardar_estado(est, hist)
 
         # Scoreboard semanal (domingo 12:00 UTC): acierto real por tipo, no promesas.
