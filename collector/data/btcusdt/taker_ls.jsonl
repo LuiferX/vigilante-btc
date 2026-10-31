@@ -3414,3 +3414,7 @@
 {"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793402400000, "buySellRatio": "0.897434", "buyVol": "7471123.852400", "sellVol": "8324987.888200", "collected_at": "2026-10-30T23:31:41.456900+00:00"}
 {"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793403600000, "buySellRatio": "0.745264", "buyVol": "5364904.879000", "sellVol": "7198661.002500", "collected_at": "2026-10-30T23:46:23.788798+00:00"}
 {"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793403300000, "buySellRatio": "0.396583", "buyVol": "8701218.107400", "sellVol": "21940478.469900", "collected_at": "2026-10-30T23:46:23.788817+00:00"}
+{"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793404800000, "buySellRatio": "0.778140", "buyVol": "2938114.208800", "sellVol": "3775815.005300", "collected_at": "2026-10-31T00:02:00.104498+00:00"}
+{"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793404500000, "buySellRatio": "0.914342", "buyVol": "4310997.558000", "sellVol": "4714862.131200", "collected_at": "2026-10-31T00:02:00.104519+00:00"}
+{"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793404200000, "buySellRatio": "1.308461", "buyVol": "2728364.636900", "sellVol": "2085170.412100", "collected_at": "2026-10-31T00:02:00.104524+00:00"}
+{"source": "okx_taker_ls", "symbol": "BTCUSDT", "timestamp": 1793403900000, "buySellRatio": "0.893233", "buyVol": "4553255.841400", "sellVol": "5097503.180600", "collected_at": "2026-10-31T00:02:00.104528+00:00"}
