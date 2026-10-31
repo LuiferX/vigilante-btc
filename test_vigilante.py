@@ -1868,3 +1868,20 @@ if not _estP3["paper_abiertas"]:
 _cerr_antes = len(_estP2["paper_cerradas"])
 v.revisar_cierres_papel(_estP3, _velasTP, 84000, AH2)
 t("papel extraido sin dup", len(_estP3["paper_cerradas"]) >= _cerr_antes)
+
+
+# ---------- P2: extraccion 2 -> vigilante/paper.gestionar_be_trailing ----------
+_estG1 = {"ops": [{"dir": "LONG", "entrada": 83000, "stop": 82200,
+                   "riesgo": 800.0, "riesgo0": 800.0}]}
+_g1 = v.gestionar_be_trailing(_estG1, 83000 + 801, 100.0, "tendencia")
+t("be extraido dispara", _g1 is not None and _g1.startswith("?? BE"))
+t("be extraido mueve stop", _estG1["ops"][0]["stop"] == _estG1["ops"][0]["entrada"])
+t("be extraido marca", _estG1["ops"][0].get("be_done") is True)
+# sin ops: no gestion, no rompe
+t("be extraido vacio", v.gestionar_be_trailing({}, 83000, 100.0, "rango") is None)
+t("be extraido corrupto", v.gestionar_be_trailing({"ops": ["roto", None]}, 83000, 100.0, "rango") is None)
+# sim_abiertas tambien se gestionan (misma funcion)
+_estG2 = {"sim_abiertas": [{"dir": "SHORT", "entrada": 84000, "stop": 84800,
+                            "riesgo": 800.0}]}
+_g2 = v.gestionar_be_trailing(_estG2, 84000 - 801, 100.0, "tendencia")
+t("be extraido en sim", _g2 is not None and _g2.startswith("?? BE") and _estG2["sim_abiertas"][0]["be_done"])

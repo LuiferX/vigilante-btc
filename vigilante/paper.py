@@ -298,6 +298,50 @@ def cierre_papel(o, ref_h, ref_l, last):
         return None
 
 
+def gestionar_be_trailing(est, precio, atr, regimen):
+    """BE/trailing de las ops ABIERTAS del usuario (no de las señales).
+
+    Extraído de `vigilante_cloud.main()` (P2, troceado 2/N). Muta las posiciones
+    en `est["ops"]` / `est["sim_abiertas"]` y devuelve el texto de la primera
+    gestión aplicada (o None). El texto lo emite el llamador.
+    """
+    gestion_txt = None
+    try:
+        for llave in ("ops", "sim_abiertas"):
+            lista = est.get(llave, [])
+            if not isinstance(lista, list):
+                continue
+            for o in lista:
+                if not isinstance(o, dict):
+                    continue
+                r, acc, nsl = gestion_sl(o, precio, atr, regimen)
+                if acc == "BE":
+                    try:
+                        o["risk0"] = abs(float(o["entrada"]) - float(o["stop"]))
+                    except Exception:
+                        pass
+                    o["be_done"] = True
+                    o["stop"] = nsl
+                    gestion_txt = ("🔒 BE: " + str(o.get("dir")) + " " + fmt_miles(o.get("entrada"))
+                                   + " → " + fmt_miles(precio) + f" ({r:+.1f}R). Mueve SL a "
+                                   + fmt_miles(nsl) + " (entrada).")
+                    break
+                if acc == "TRAIL":
+                    if o.get("trail_lock") == nsl:
+                        continue
+                    o["trail_lock"] = nsl
+                    o["stop"] = nsl
+                    gestion_txt = ("🔒 TRAIL: " + str(o.get("dir")) + " " + fmt_miles(o.get("entrada"))
+                                   + " → " + fmt_miles(precio) + f" ({r:+.1f}R). Traba +1R en "
+                                   + fmt_miles(nsl) + ".")
+                    break
+            if gestion_txt:
+                break
+    except Exception:
+        gestion_txt = None
+    return gestion_txt
+
+
 def revisar_cierres_papel(est, kl_h1, precio, ahora):
     """Cierra el papel virtual con la última vela 1H cerrada + el precio.
 
