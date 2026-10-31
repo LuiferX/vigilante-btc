@@ -19,8 +19,9 @@ v = importlib.util.module_from_spec(spec)
 # la costura de red vive en vigilante/red.py: importarla por el sistema normal
 # garantiza que es LA MISMA instancia que usa vigilante_cloud.py (parchear una
 # copia aparte no tendria efecto).
-import vigilante.red as vr  # noqa: E402
 import vigilante.mercado as vm  # noqa: E402
+import vigilante.red as vr  # noqa: E402
+
 spec.loader.exec_module(v)
 
 ok = 0
@@ -224,6 +225,7 @@ t("narrar alza", "compradores" in v.narrar({"bias": "ALZA", "confianza": 60}, {"
 
 # ---------- comandos ----------
 import os
+
 os.environ["TELEGRAM_CHAT_ID"] = "111"
 NIV = {"resistencias": [{"precio": 84000, "origen": "R"}], "soportes": [{"precio": 81000, "origen": "S"}]}
 CTX = {"t": {"last": 83000, "chg": 1.0, "hi": 83500, "lo": 82000}, "dirb": {"bias": "ALZA", "confianza": 60},
@@ -455,6 +457,7 @@ msg2 = v.build_parte({"last": 83000, "chg": 0.5, "hi": 83500, "lo": 82500}, tf("
                     {"valor": 50, "etiqueta": "Neutral"}, {}, "mot", "manana", [], [], ah, ex)
 t("build veredicto", "VEREDICTO" in msg2 and "MERCADO" in msg2 and "CONTEXTO" in msg2)
 import dashboard as _db
+
 _h = [{"precio": 83000 + i * 10, "conf": 20, "bias": "LATERAL", "tipo": "nada"} for i in range(5)]
 _h[2]["tipo"] = "alerta"
 _e = {"ultimo_bias": "LATERAL", "ultima_conf": 20, "runs": 5, "alza": [1, 0, 1, 1, 0],
@@ -604,6 +607,7 @@ t("dash gate", "Gate: 3/4" in _db.build_dashboard(
      "snapshot": {"gate": {"n": 4, "hit": 3, "pending": 2}}}, _ht))
 t("guardia limpia", v.guardia_lectura() is True)
 import os as _os
+
 _os.environ["BINANCE_API_KEY"] = "x"
 try:
     v.guardia_lectura()
@@ -740,6 +744,7 @@ t("dash masonry", ".grid{display:grid" in _db.CSS and "repeat(3,minmax(0,1fr))" 
 t("dash nav fija", "position:sticky" in _db.CSS and 'class="nav"' in _db.build_dashboard({"runs": 1}, []))
 t("dash a11y", "focus-visible" in _db.CSS and "scrollbar-width" in _db.CSS)
 import datetime as _dt
+
 t("prox ny", _db._prox_pasada(_dt.datetime(2026, 10, 12, 13, 2, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "13:05")
 t("prox resto", _db._prox_pasada(_dt.datetime(2026, 10, 12, 11, 16, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "11:30")
 t("prox borde", _db._prox_pasada(_dt.datetime(2026, 10, 12, 20, 58, tzinfo=_dt.timezone.utc)).strftime("%H:%M") == "21:00")
@@ -881,6 +886,7 @@ t("latido tarde si", v.latido_tarde("2026-10-13T14:00:00+00:00", "2026-10-13T14:
 t("latido tarde no", v.latido_tarde("2026-10-13T14:20:00+00:00", "2026-10-13T14:30:00+00:00", 15) is False)
 t("runbook linea", "github.com/LuiferX/vigilante-btc" in v.linea_runbook())
 import importlib.util as _ilu
+
 spec_bt = _ilu.spec_from_file_location("bt", os.path.join(_AQUI, "backtest.py"))
 _bt = _ilu.module_from_spec(spec_bt)
 spec_bt.loader.exec_module(_bt)
@@ -895,8 +901,8 @@ t("frescura viejo", _fr2 == "viejo")
 try:
     import sys as _sysn
     _sysn.path.insert(0, os.path.join(_AQUI, "entrenamiento"))
-    import evaluar as _ev
     import entrenador as _ent
+    import evaluar as _ev
     _TIENE_ENTRENA = True
 except Exception:
     _ev = _ent = None
@@ -1779,6 +1785,7 @@ t("precision stats vacio", v.precision_stats({}) is None)
 # cierre por deriva de regimen
 import json as _json
 import tempfile as _tf
+
 with _tf.TemporaryDirectory() as _td:
     _pv = os.path.join(_td, "validation.json")
     with open(_pv, "w", encoding="utf-8") as _fh:
@@ -1833,3 +1840,31 @@ t("ruido: bajista avisa aunque hubo alcista", _e7[0] is True and "brusco" in _e7
 
 print(f"\nOK {ok} pruebas | FALLOS {len(mal)}")
 sys.exit(1 if mal else 0)
+
+
+# ---------- P2: extraccion de main() -> vigilante/paper.revisar_cierres_papel ----------
+_estP2 = {
+    "banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [],
+    "paper_abiertas": [{
+        "dir": "LONG", "entrada": 83000, "stop": 82200, "tp": 83800,
+        "tam": 0.00125, "riesgo": 10.0, "lev": 50, "liq": 81340,
+        "fee": 0.1, "t": "2026-10-30T10:00:00+00:00"}],
+    "paper_dia": {"fecha": "2026-10-29", "pnl": 0.0},
+}
+_velasTP = [{"h": 83900, "l": 82800, "c": 83850, "t": "2026-10-30T11:00:00+00:00"}]
+v.revisar_cierres_papel(_estP2, _velasTP, 83900, AH2)
+t("papel extraido cierra TP", _estP2["paper_abiertas"] == [] and _estP2["banco"] > 100.0)
+t("papel extraido audita", _estP2["paper_cerradas"][0].get("stop") == 82200
+  and _estP2["paper_cerradas"][0].get("liq") == 81340)
+t("papel extraido dia", _estP2["paper_dia"]["fecha"] == AH2.strftime("%Y-%m-%d"))
+# el duplicado exacto no se re-registra (P0-1.4)
+_estP3 = dict(_estP2, paper_abiertas=list(_estP2["paper_abiertas"]),
+              paper_cerradas=list(_estP2["paper_cerradas"]))
+if not _estP3["paper_abiertas"]:
+    _estP3["paper_abiertas"] = [{"dir": "SHORT", "entrada": 84000, "stop": 84800,
+                                 "tp": 83200, "tam": 0.001, "riesgo": 8.0, "lev": 50,
+                                 "liq": 85680, "fee": 0.1,
+                                 "t": "2026-10-30T11:00:00+00:00"}]
+_cerr_antes = len(_estP2["paper_cerradas"])
+v.revisar_cierres_papel(_estP3, _velasTP, 84000, AH2)
+t("papel extraido sin dup", len(_estP3["paper_cerradas"]) >= _cerr_antes)

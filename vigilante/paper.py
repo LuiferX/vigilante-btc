@@ -298,6 +298,57 @@ def cierre_papel(o, ref_h, ref_l, last):
         return None
 
 
+def revisar_cierres_papel(est, kl_h1, precio, ahora):
+    """Cierra el papel virtual con la última vela 1H cerrada + el precio.
+
+    Extraído de `vigilante_cloud.main()` (P2, auditoria 2026-10-30: troceado).
+    Muta `est`: banco, paper_cerradas (con auditoría de la posición y guardia
+    anti-duplicado), paper_dia y paper_abiertas. Invisible: no avisa nada.
+    """
+    try:
+        ultima = float(precio)
+    except Exception:
+        return
+    def _clave(c):
+        return (c.get("dir"), c.get("res"), c.get("pnl"),
+                str(c.get("t", ""))[:16])
+
+    abiertas_p = []
+    for o in est.get("paper_abiertas", []):
+        try:
+            ref_h, ref_l = ref_rango(kl_h1, o.get("t"))
+            fin = cierre_papel(o, ref_h, ref_l, ultima)
+            if fin:
+                px, donde, pnl = fin
+                banco = float(est.get("banco", PAPER_BANCO)) + pnl
+                est["banco"] = round(banco, 2)
+                cerr = est.get("paper_cerradas", [])
+                nuevo = {"dir": o["dir"], "res": donde, "pnl": round(pnl, 2),
+                         "fee": o.get("fee", 0),
+                         "r": round(pnl / o["riesgo"], 2) if o["riesgo"] else 0,
+                         # auditoría: la posición completa, para que ningún LIQ
+                         # vuelva a ser inexplicable.
+                         "entrada": o.get("entrada"), "tam": o.get("tam"),
+                         "stop": o.get("stop"), "tp": o.get("tp"),
+                         "liq": o.get("liq"), "lev": o.get("lev"),
+                         "riesgo": o.get("riesgo"),
+                         "t": ahora.isoformat()}
+                # P0-1.4: si el último registro es idéntico, no se repite.
+                if not cerr or _clave(cerr[-1]) != _clave(nuevo):
+                    cerr.append(nuevo)
+                est["paper_cerradas"] = cerr[-100:]
+                pdh = est.get("paper_dia") or {}
+                if pdh.get("fecha") != ahora.strftime("%Y-%m-%d"):
+                    pdh = {"fecha": ahora.strftime("%Y-%m-%d"), "pnl": 0.0}
+                pdh["pnl"] = round(pdh.get("pnl", 0) + pnl, 2)
+                est["paper_dia"] = pdh
+            else:
+                abiertas_p.append(o)
+        except Exception:
+            continue
+    est["paper_abiertas"] = abiertas_p
+
+
 def ref_rango(kl_h1, t_iso):
     """Rango (h, l) de la última vela 1H cerrada, SOLO si esa vela empezó en/después
     de la entrada `t_iso`. Si la vela es anterior a la operación devuelve (None, None):
