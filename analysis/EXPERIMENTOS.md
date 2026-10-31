@@ -189,6 +189,50 @@ Skill por regimen (OOS agrupado): el congelado gana en COMPRESION
    buscada no estaba en estos candidatos; E2 (target graduado) queda pendiente
    como la unica palanca con informacion nueva por evento.
 
+## MISIÓN EDGE 2026-10-31 (pre-registro, commit ANTES de resultados)
+
+**Hipótesis H1 — funding extremo → reversión.** Autor: misión externa
+(2026-10-31). Estado del gate de datos: `docs/audit/EDGE_DATA.md` (H1 PASA con
+604 eventos; **H2 DETENIDA por falta de datos**: la API de OI/taker no baja de
+30 días, no se alcanzan 300 eventos → resultado honesto = no concluyente).
+
+### Regla exacta (fijada antes de mirar retornos)
+
+- Señal: `fundingRate` en el timestamp *t*; se compara con los percentiles
+  **causales** de los 30 días trailing (sin look-ahead; mínimo 30 obs).
+  - funding ≥ p95 → corto (la punta larga paga y revierte).
+  - funding ≤ p5 → largo (la punta corta paga y revierte).
+- Entrada: **open del bar 5m siguiente** al timestamp de funding.
+- Salidas (se prueban las 4): **4 h, 8 h, 12 h, 24 h**.
+- Costes (siempre aplicados): fee taker 0,05% × 2 + slippage por lado
+  (0,02% base + 0,25 × ATR) **+ funding cobrado/pagado durante el hold**
+  (cada 8 h; señal corta con funding positivo **cobra**).
+- Cooldown: variante A 24 h (604 eventos), variante B 8 h (1.155 eventos).
+- Direccionalidad: H1 es direccional (no agrega al target del 85%).
+- **Variantes probadas: 8 celdas** (2 cooldowns × 4 horizontes) →
+  corrección Bonferroni α = 0,05/8 = **0,00625**.
+
+### Criterio de muerte (si falla UNO, no hay edge)
+
+```
+[ ] Expectativa neta > 0
+[ ] IC95% inferior > 0 (bootstrap 10.000, semilla fija)
+[ ] Positivo en ambas mitades temporales
+[ ] Positivo en ≥2 regímenes de volatilidad
+[ ] Sobrevive costes ×2
+[ ] n_independientes ≥ 300
+[ ] p_corregido < 0,05 (Bonferroni por 8 celdas)
+```
+
+### Expectativa declarada antes de medir (anti-hindsight)
+
+Espero **gross pequeño o nulo y neto dudoso**: el efecto de extremo de funding
+está documentado en cripto, pero a 4-24 h con 0,10-0,20% de coste de ida y
+vuelta más slippage, la mayoría de la literatura lo da como marginal. Mi
+predicción honesta: *sin_edge* o expectativa que no sobreviva costes ×2.
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
