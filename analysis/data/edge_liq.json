@@ -1,0 +1,6 @@
+{
+  "hipotesis": "H2",
+  "veredicto": "no_concluyente",
+  "razon": "gate de datos: la API de Binance limita OI y taker a 30 dias (probado: startTime de 31 dias -> HTTP 400); no se alcanzan 300 eventos independientes. Ver docs/audit/EDGE_DATA.md.",
+  "n_independientes": 0
+}

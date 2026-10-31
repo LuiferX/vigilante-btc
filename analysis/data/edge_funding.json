@@ -1,0 +1,360 @@
+{
+  "hipotesis": "H1",
+  "parametros": {
+    "ventana_dias": 30,
+    "p_alto": 0.95,
+    "p_bajo": 0.05,
+    "horizontes": [
+      "4h",
+      "8h",
+      "12h",
+      "24h"
+    ],
+    "cooldowns": [
+      "A24h",
+      "B8h"
+    ],
+    "fee_pct": 0.05,
+    "slip_base_pct": 0.02,
+    "slip_k": 0.25,
+    "bootstrap": 10000,
+    "semilla": 42
+  },
+  "variantes_probadas": 8,
+  "p_corregido": 1.0,
+  "resultados": {
+    "A24h": {
+      "cooldown": "A24h",
+      "n_eventos": 282,
+      "celdas": {
+        "4h": {
+          "n": 282,
+          "media": -0.2216,
+          "bruto_medio": 0.0087,
+          "funding_medio": 0.0,
+          "coste_medio": 0.2303,
+          "ic95": [
+            -0.3283,
+            -0.1105
+          ],
+          "p_boot": 0.9999,
+          "hit_rate": 0.3546,
+          "profit_factor": 0.495,
+          "sharpe_por_op": -0.238,
+          "equidad": -62.48,
+          "max_dd": 64.34,
+          "mitades": {
+            "h1": {
+              "n": 141,
+              "media": -0.1719
+            },
+            "h2": {
+              "n": 141,
+              "media": -0.2712
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 142,
+              "media": -0.2491
+            },
+            "alta": {
+              "n": 140,
+              "media": -0.1936
+            }
+          }
+        },
+        "8h": {
+          "n": 282,
+          "media": -0.2487,
+          "bruto_medio": -0.0225,
+          "funding_medio": 0.0041,
+          "coste_medio": 0.2303,
+          "ic95": [
+            -0.4142,
+            -0.0862
+          ],
+          "p_boot": 0.9983,
+          "hit_rate": 0.3475,
+          "profit_factor": 0.589,
+          "sharpe_por_op": -0.175,
+          "equidad": -70.13,
+          "max_dd": 81.97,
+          "mitades": {
+            "h1": {
+              "n": 141,
+              "media": -0.1631
+            },
+            "h2": {
+              "n": 141,
+              "media": -0.3342
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 142,
+              "media": -0.2562
+            },
+            "alta": {
+              "n": 140,
+              "media": -0.2411
+            }
+          }
+        },
+        "12h": {
+          "n": 282,
+          "media": -0.2632,
+          "bruto_medio": -0.037,
+          "funding_medio": 0.0041,
+          "coste_medio": 0.2303,
+          "ic95": [
+            -0.4522,
+            -0.0676
+          ],
+          "p_boot": 0.9946,
+          "hit_rate": 0.383,
+          "profit_factor": 0.631,
+          "sharpe_por_op": -0.157,
+          "equidad": -74.22,
+          "max_dd": 86.34,
+          "mitades": {
+            "h1": {
+              "n": 141,
+              "media": -0.1592
+            },
+            "h2": {
+              "n": 141,
+              "media": -0.3672
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 142,
+              "media": -0.2495
+            },
+            "alta": {
+              "n": 140,
+              "media": -0.2771
+            }
+          }
+        },
+        "24h": {
+          "n": 282,
+          "media": -0.1431,
+          "bruto_medio": 0.0774,
+          "funding_medio": 0.0097,
+          "coste_medio": 0.2303,
+          "ic95": [
+            -0.4473,
+            0.169
+          ],
+          "p_boot": 0.8254,
+          "hit_rate": 0.4504,
+          "profit_factor": 0.841,
+          "sharpe_por_op": -0.055,
+          "equidad": -40.35,
+          "max_dd": 95.63,
+          "mitades": {
+            "h1": {
+              "n": 141,
+              "media": 0.0971
+            },
+            "h2": {
+              "n": 141,
+              "media": -0.3833
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 142,
+              "media": -0.1384
+            },
+            "alta": {
+              "n": 140,
+              "media": -0.1479
+            }
+          }
+        }
+      },
+      "costes_x2": {
+        "4h": -0.4518,
+        "8h": -0.479,
+        "12h": -0.4935,
+        "24h": -0.3734
+      },
+      "veredicto": {
+        "4h": "no_concluyente",
+        "8h": "no_concluyente",
+        "12h": "no_concluyente",
+        "24h": "no_concluyente"
+      }
+    },
+    "B8h": {
+      "cooldown": "B8h",
+      "n_eventos": 416,
+      "celdas": {
+        "4h": {
+          "n": 416,
+          "media": -0.2145,
+          "bruto_medio": 0.0193,
+          "funding_medio": 0.0,
+          "coste_medio": 0.2338,
+          "ic95": [
+            -0.3111,
+            -0.1167
+          ],
+          "p_boot": 0.9999,
+          "hit_rate": 0.3389,
+          "profit_factor": 0.513,
+          "sharpe_por_op": -0.215,
+          "equidad": -89.24,
+          "max_dd": 93.7,
+          "mitades": {
+            "h1": {
+              "n": 208,
+              "media": -0.2057
+            },
+            "h2": {
+              "n": 208,
+              "media": -0.2233
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 209,
+              "media": -0.2293
+            },
+            "alta": {
+              "n": 207,
+              "media": -0.1996
+            }
+          }
+        },
+        "8h": {
+          "n": 416,
+          "media": -0.1877,
+          "bruto_medio": 0.0413,
+          "funding_medio": 0.0048,
+          "coste_medio": 0.2338,
+          "ic95": [
+            -0.329,
+            -0.0437
+          ],
+          "p_boot": 0.9942,
+          "hit_rate": 0.3702,
+          "profit_factor": 0.685,
+          "sharpe_por_op": -0.125,
+          "equidad": -78.07,
+          "max_dd": 102.55,
+          "mitades": {
+            "h1": {
+              "n": 208,
+              "media": -0.1401
+            },
+            "h2": {
+              "n": 208,
+              "media": -0.2353
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 209,
+              "media": -0.2122
+            },
+            "alta": {
+              "n": 207,
+              "media": -0.1629
+            }
+          }
+        },
+        "12h": {
+          "n": 416,
+          "media": -0.1757,
+          "bruto_medio": 0.0532,
+          "funding_medio": 0.0048,
+          "coste_medio": 0.2338,
+          "ic95": [
+            -0.3467,
+            0.0034
+          ],
+          "p_boot": 0.9734,
+          "hit_rate": 0.3894,
+          "profit_factor": 0.75,
+          "sharpe_por_op": -0.097,
+          "equidad": -73.1,
+          "max_dd": 102.75,
+          "mitades": {
+            "h1": {
+              "n": 208,
+              "media": -0.0799
+            },
+            "h2": {
+              "n": 208,
+              "media": -0.2716
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 209,
+              "media": -0.1246
+            },
+            "alta": {
+              "n": 207,
+              "media": -0.2274
+            }
+          }
+        },
+        "24h": {
+          "n": 416,
+          "media": -0.1205,
+          "bruto_medio": 0.1006,
+          "funding_medio": 0.0127,
+          "coste_medio": 0.2338,
+          "ic95": [
+            -0.3767,
+            0.1321
+          ],
+          "p_boot": 0.8207,
+          "hit_rate": 0.4471,
+          "profit_factor": 0.867,
+          "sharpe_por_op": -0.045,
+          "equidad": -50.14,
+          "max_dd": 133.01,
+          "mitades": {
+            "h1": {
+              "n": 208,
+              "media": 0.1276
+            },
+            "h2": {
+              "n": 208,
+              "media": -0.3687
+            }
+          },
+          "regimenes": {
+            "baja": {
+              "n": 209,
+              "media": -0.0249
+            },
+            "alta": {
+              "n": 207,
+              "media": -0.2171
+            }
+          }
+        }
+      },
+      "costes_x2": {
+        "4h": -0.4483,
+        "8h": -0.4214,
+        "12h": -0.4095,
+        "24h": -0.3543
+      },
+      "veredicto": {
+        "4h": "sin_edge",
+        "8h": "sin_edge",
+        "12h": "sin_edge",
+        "24h": "sin_edge"
+      }
+    }
+  },
+  "veredicto": "sin_edge"
+}
