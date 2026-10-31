@@ -210,6 +210,7 @@ from vigilante.paper import (  # noqa: E402,F401
     abrir_papel,
     cierre_papel,
     gestion_sl,
+    gestionar_be_trailing,
     journal_check,
     kelly_half,
     perdon_bloqueo,
@@ -1028,39 +1029,8 @@ def main():
                 print(f"  simulada cerrada {cc['dir']} {cc['res']}")
             est["sim_cerradas"] = sc[-20:]
         # GESTION: BE/trailing de ops abiertas (las del usuario, no señales).
-        gestion_txt = None
-        try:
-            _atr1 = h1.get("atr")
-            for _llave in ("ops", "sim_abiertas"):
-                _lista = est.get(_llave, [])
-                if not isinstance(_lista, list):
-                    continue
-                for _o in _lista:
-                    if not isinstance(_o, dict):
-                        continue
-                    _r, _acc, _nsl = gestion_sl(_o, t["last"], _atr1, regimen)
-                    if _acc == "BE":
-                        try:
-                            _o["risk0"] = abs(float(_o["entrada"]) - float(_o["stop"]))
-                        except Exception:
-                            pass
-                        _o["be_done"] = True
-                        _o["stop"] = _nsl
-                        gestion_txt = (f"🔒 BE: {_o.get('dir')} {fmt_miles(_o.get('entrada'))} → {fmt_miles(t['last'])} "
-                                       f"({_r:+.1f}R). Mueve SL a {fmt_miles(_nsl)} (entrada).")
-                        break
-                    if _acc == "TRAIL":
-                        if _o.get("trail_lock") == _nsl:
-                            continue
-                        _o["trail_lock"] = _nsl
-                        _o["stop"] = _nsl
-                        gestion_txt = (f"🔒 TRAIL: {_o.get('dir')} {fmt_miles(_o.get('entrada'))} → {fmt_miles(t['last'])} "
-                                       f"({_r:+.1f}R). Traba +1R en {fmt_miles(_nsl)}.")
-                        break
-                if gestion_txt:
-                    break
-        except Exception:
-            gestion_txt = None
+        # Extraido a vigilante/paper.gestionar_be_trailing (P2, troceado 2/N).
+        gestion_txt = gestionar_be_trailing(est, t["last"], h1.get("atr"), regimen)
         # PAPEL XLX: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
         # Extraido a vigilante/paper.revisar_cierres_papel (P2, troceado de main).
         revisar_cierres_papel(est, kl_h1, t["last"], ahora)
