@@ -231,6 +231,37 @@ está documentado en cripto, pero a 4-24 h con 0,10-0,20% de coste de ida y
 vuelta más slippage, la mayoría de la literatura lo da como marginal. Mi
 predicción honesta: *sin_edge* o expectativa que no sobreviva costes ×2.
 
+### RESULTADO (2026-10-31, medido después del commit del pre-registro)
+
+**H1: SIN EDGE. No operar.** Informe completo: `docs/audit/EDGE_REPORT.md`.
+Datos: `analysis/data/edge_funding.json`.
+
+| Variante | Horizonte | n | neta | IC95 | hit | veredicto |
+|---|---|---:|---:|---|---:|---|
+| B8h | 4h | 416 | −0,2145% | [−0,3111, −0,1167] | 0,34 | sin_edge |
+| B8h | 8h | 416 | −0,1877% | [−0,3290, −0,0437] | 0,37 | sin_edge |
+| B8h | 12h | 416 | −0,1757% | [−0,3467, +0,0034] | 0,39 | sin_edge |
+| B8h | 24h | 416 | −0,1205% | [−0,3767, +0,1321] | 0,45 | sin_edge |
+| A24h | 4/8/12/24h | 282 | −0,2216/−0,2487/−0,2632/−0,1431% | todos cruzan 0 | 0,35-0,45 | **no_concluyente** (n<300) |
+
+- Bruto: de +0,0193% (4h) a +0,1006% (24h). Coste medio: **0,2338%** por viaje.
+  El mejor bruto es el 43% del coste: el efecto existe pero no llega a pagar el
+  viaje. Funding apenas compensa (+0,0000 a +0,0127%).
+- Fallan los 7 criterios de muerte: neta<0, IC95 inferior<0, no positiva en
+  ambas mitades (mejor celda 24h: h1 +0,1276 vs h2 −0,3687), no positiva en ≥2
+  regímenes, no sobrevive costes ×2 (−0,35 a −0,49%), p_corregido=1,00000.
+- Hit rate 0,34-0,45 (<0,5): sesgo de **signo opuesto** (continuación, no
+  reversión). Equidad B8h 4h: −89,2% en 416 ops, max_dd 93,7%.
+
+**Corrección declarada:** los tests destaparon que `>=` en p95 empataba con la
+tasa por defecto (+0,0001 = 27,1% de los registros) y disparaba eventos falsos
+en el 16,6% de las ventanas. Corregido a comparación estricta: la muestra BAJA
+de 603→282 (A24h) y 1153→416 (B8h), y el veredicto no mejora. Motivación:
+fallo de test, no el resultado. Test de regresión añadido.
+
+**H2: no concluyente por falta de datos** (tope de 30 días de la API de OI/taker;
+no se alcanzan 300 eventos). Ver `EDGE_DATA.md`.
+
 ---
 
 ## Auditoria de la red neuronal (2026-10-27)
