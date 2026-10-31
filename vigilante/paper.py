@@ -11,7 +11,7 @@ from vigilante.estado import MAX_PAPER_ABIERTAS
 from vigilante.indicadores import (
     fmt_miles,
 )
-from vigilante.medicion import DEDUP_HORAS
+from vigilante.medicion import DEDUP_HORAS, abrir_sombra, abrir_todo
 
 UMBRAL_PAPEL = 40  # subido de 35: el papel aprende con menos ruido
 
@@ -340,6 +340,29 @@ def gestionar_be_trailing(est, precio, atr, regimen):
     except Exception:
         gestion_txt = None
     return gestion_txt
+
+
+def abrir_mediciones(est, dirb, niv, precio, umbral, ahora):
+    """Abre papel/sombra/todo de una pasada (todo invisible, sin avisos).
+
+    Extraído de `vigilante_cloud.main()` (P2, troceado 4/N). El papel real
+    respeta sus frenos institucionales (`puede_papel`/`abrir_papel`); la sombra
+    mide TODA señal con sesgo sin pisos; "todo" mide cada pasada, hable o
+    calle, para saber si callar fue correcto. Las dos últimas nunca deben
+    tumbar la pasada: van con su propio guardián.
+    """
+    if puede_papel(est, dirb["bias"], dirb["confianza"], ahora):
+        pos = abrir_papel(est, dirb, niv, precio, ahora)
+        if pos:
+            est["paper_ult"] = {"dir": dirb["bias"], "t": ahora.isoformat()}
+    try:
+        abrir_sombra(est, dirb["bias"], dirb["confianza"], precio, umbral, ahora)
+    except Exception:
+        pass
+    try:
+        abrir_todo(est, dirb["bias"], dirb["confianza"], precio, umbral, ahora)
+    except Exception:
+        pass
 
 
 def revisar_cierres_papel(est, kl_h1, precio, ahora):

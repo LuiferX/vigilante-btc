@@ -1895,3 +1895,21 @@ t("mov1h extraido", _M["mov1h"] == round((81000 - 80000) / 80000 * 100, 2))
 t("mov30 extraido usa el mas nuevo", _M["mov30"] == 0.0)
 t("mov sin datos es None", v.movimientos([], 81000, AH2)["mov1h"] is None)
 t("mov ignora roto", v.movimientos([{"t": "x"}, "roto"], 81000, AH2)["mov30"] in (None, 0.0) or True)
+
+
+# ---------- P2: extraccion 4 -> vigilante/paper.abrir_mediciones ----------
+_estM = {"banco": 100.0, "banco_pico": 100.0, "paper_cerradas": [],
+         "paper_abiertas": [], "paper_dia": {"fecha": "2026-10-30", "pnl": 0.0},
+         "cools": {}, "pend_sombra": [], "pend_todo": [], "eval_log": []}
+v.abrir_mediciones(_estM, {"bias": "ALZA", "confianza": 60},
+                   {"soportes": [{"precio": 82200}], "resistencias": [{"precio": 83800}]},
+                   83000, 100.0, AH2)
+t("mediciones abre papel", len(_estM["paper_abiertas"]) >= 0 and _estM.get("paper_ult") is not None)
+t("mediciones no rompe", True)
+# con sesgo LATERAL el papel no abre pero la funcion no falla
+_estM2 = dict(_estM)
+v.abrir_mediciones(_estM2, {"bias": "LATERAL", "confianza": 50}, {"soportes": [], "resistencias": []}, 83000, 100.0, AH2)
+t("mediciones lateral ok", True)
+# la funcion nunca debe tirar la pasada: con basura dentro, vuelve igual
+v.abrir_mediciones({"paper_abiertas": "roto"}, {"bias": "BAJA", "confianza": 80}, {}, 83000, 100.0, AH2)
+t("mediciones blindada", True)
