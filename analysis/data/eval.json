@@ -1,67 +1,67 @@
 {
   "ok": true,
-  "samples": 1525,
+  "samples": 1527,
   "status": "ok",
-  "decisions_total": 1038,
-  "decisions_evaluated": 1022,
+  "decisions_total": 1039,
+  "decisions_evaluated": 1023,
   "coverage": 0.9846,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1331,
-  "base_rate": 0.8407,
-  "mean_prob": 0.817,
-  "brier_base": 0.134,
-  "brier_skill": 0.006,
-  "calibration_error": 0.0559,
+  "brier": 0.133,
+  "base_rate": 0.8409,
+  "mean_prob": 0.8171,
+  "brier_base": 0.1338,
+  "brier_skill": 0.0061,
+  "calibration_error": 0.056,
   "overall": {
-    "n": 1525,
-    "brier": 0.1331,
-    "base_rate": 0.8407,
-    "mean_prob": 0.817,
-    "brier_base": 0.134,
-    "brier_skill": 0.006,
+    "n": 1527,
+    "brier": 0.133,
+    "base_rate": 0.8409,
+    "mean_prob": 0.8171,
+    "brier_base": 0.1338,
+    "brier_skill": 0.0061,
     "real_ci95": [
-      0.8214,
-      0.8582
+      0.8217,
+      0.8584
     ]
   },
   "high_score": {
-    "n": 1084,
-    "brier": 0.1048,
-    "base_rate": 0.881,
-    "mean_prob": 0.8414,
-    "brier_base": 0.1048,
-    "brier_skill": 0.0001,
+    "n": 1086,
+    "brier": 0.1047,
+    "base_rate": 0.8812,
+    "mean_prob": 0.8415,
+    "brier_base": 0.1047,
+    "brier_skill": 0.0,
     "real_ci95": [
-      0.8604,
-      0.8989
+      0.8606,
+      0.8991
     ],
     "lift_vs_base": 1.0479
   },
   "by_side": {
     "soporte": {
-      "n": 839,
-      "brier": 0.1425,
-      "base_rate": 0.8308,
-      "mean_prob": 0.8145,
-      "brier_base": 0.1406,
-      "brier_skill": -0.0138,
+      "n": 840,
+      "brier": 0.1424,
+      "base_rate": 0.831,
+      "mean_prob": 0.8146,
+      "brier_base": 0.1405,
+      "brier_skill": -0.0137,
       "real_ci95": [
-        0.8039,
-        0.8546
+        0.8041,
+        0.8548
       ]
     },
     "resistencia": {
-      "n": 686,
-      "brier": 0.1216,
-      "base_rate": 0.8528,
-      "mean_prob": 0.82,
-      "brier_base": 0.1256,
-      "brier_skill": 0.0311,
+      "n": 687,
+      "brier": 0.1215,
+      "base_rate": 0.853,
+      "mean_prob": 0.8201,
+      "brier_base": 0.1254,
+      "brier_skill": 0.0312,
       "real_ci95": [
-        0.8243,
-        0.8773
+        0.8245,
+        0.8775
       ]
     }
   },
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 1084,
-      "pred": 0.8414,
-      "real": 0.881,
+      "n": 1086,
+      "pred": 0.8415,
+      "real": 0.8812,
       "real_ci95": [
-        0.8604,
-        0.8989
+        0.8606,
+        0.8991
       ]
     }
   ],
