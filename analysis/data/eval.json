@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1396,
+  "samples": 1397,
   "status": "ok",
-  "decisions_total": 973,
-  "decisions_evaluated": 957,
+  "decisions_total": 974,
+  "decisions_evaluated": 958,
   "coverage": 0.9836,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1433,
-  "base_rate": 0.8259,
-  "mean_prob": 0.814,
-  "brier_base": 0.1438,
-  "brier_skill": 0.0031,
-  "calibration_error": 0.0471,
+  "brier": 0.1432,
+  "base_rate": 0.8261,
+  "mean_prob": 0.8141,
+  "brier_base": 0.1437,
+  "brier_skill": 0.0032,
+  "calibration_error": 0.0472,
   "overall": {
-    "n": 1396,
-    "brier": 0.1433,
-    "base_rate": 0.8259,
-    "mean_prob": 0.814,
-    "brier_base": 0.1438,
-    "brier_skill": 0.0031,
+    "n": 1397,
+    "brier": 0.1432,
+    "base_rate": 0.8261,
+    "mean_prob": 0.8141,
+    "brier_base": 0.1437,
+    "brier_skill": 0.0032,
     "real_ci95": [
-      0.8052,
-      0.8449
+      0.8053,
+      0.845
     ]
   },
   "high_score": {
-    "n": 955,
-    "brier": 0.1159,
-    "base_rate": 0.8649,
+    "n": 956,
+    "brier": 0.1158,
+    "base_rate": 0.8651,
     "mean_prob": 0.8404,
-    "brier_base": 0.1168,
-    "brier_skill": 0.0081,
+    "brier_base": 0.1167,
+    "brier_skill": 0.008,
     "real_ci95": [
-      0.8418,
-      0.8851
+      0.8419,
+      0.8853
     ],
     "lift_vs_base": 1.0472
   },
   "by_side": {
     "soporte": {
-      "n": 735,
-      "brier": 0.1594,
-      "base_rate": 0.8068,
+      "n": 736,
+      "brier": 0.1592,
+      "base_rate": 0.8071,
       "mean_prob": 0.8098,
-      "brier_base": 0.1559,
-      "brier_skill": -0.0228,
+      "brier_base": 0.1557,
+      "brier_skill": -0.0227,
       "real_ci95": [
-        0.7767,
-        0.8337
+        0.777,
+        0.834
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 955,
+      "n": 956,
       "pred": 0.8404,
-      "real": 0.8649,
+      "real": 0.8651,
       "real_ci95": [
-        0.8418,
-        0.8851
+        0.8419,
+        0.8853
       ]
     }
   ],
