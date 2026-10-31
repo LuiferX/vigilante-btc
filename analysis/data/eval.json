@@ -1,55 +1,55 @@
 {
   "ok": true,
-  "samples": 1456,
+  "samples": 1458,
   "status": "ok",
-  "decisions_total": 1006,
-  "decisions_evaluated": 989,
+  "decisions_total": 1007,
+  "decisions_evaluated": 990,
   "coverage": 0.9831,
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples_recommended": 30,
-  "brier": 0.1384,
-  "base_rate": 0.8331,
+  "brier": 0.1383,
+  "base_rate": 0.8333,
   "mean_prob": 0.8153,
-  "brier_base": 0.139,
-  "brier_skill": 0.0044,
-  "calibration_error": 0.0516,
+  "brier_base": 0.1389,
+  "brier_skill": 0.0045,
+  "calibration_error": 0.0518,
   "overall": {
-    "n": 1456,
-    "brier": 0.1384,
-    "base_rate": 0.8331,
+    "n": 1458,
+    "brier": 0.1383,
+    "base_rate": 0.8333,
     "mean_prob": 0.8153,
-    "brier_base": 0.139,
-    "brier_skill": 0.0044,
+    "brier_base": 0.1389,
+    "brier_skill": 0.0045,
     "real_ci95": [
-      0.8131,
-      0.8514
+      0.8133,
+      0.8516
     ]
   },
   "high_score": {
-    "n": 1015,
-    "brier": 0.1105,
-    "base_rate": 0.8729,
+    "n": 1017,
+    "brier": 0.1103,
+    "base_rate": 0.8732,
     "mean_prob": 0.8406,
-    "brier_base": 0.1109,
-    "brier_skill": 0.0041,
+    "brier_base": 0.1108,
+    "brier_skill": 0.0039,
     "real_ci95": [
-      0.851,
-      0.892
+      0.8513,
+      0.8922
     ],
-    "lift_vs_base": 1.0478
+    "lift_vs_base": 1.0479
   },
   "by_side": {
     "soporte": {
-      "n": 775,
-      "brier": 0.1525,
-      "base_rate": 0.8168,
-      "mean_prob": 0.8114,
-      "brier_base": 0.1497,
-      "brier_skill": -0.019,
+      "n": 777,
+      "brier": 0.1522,
+      "base_rate": 0.8172,
+      "mean_prob": 0.8115,
+      "brier_base": 0.1494,
+      "brier_skill": -0.0189,
       "real_ci95": [
-        0.788,
-        0.8424
+        0.7885,
+        0.8428
       ]
     },
     "resistencia": {
@@ -98,12 +98,12 @@
     },
     {
       "bin": "0.80-1.01",
-      "n": 1015,
+      "n": 1017,
       "pred": 0.8406,
-      "real": 0.8729,
+      "real": 0.8732,
       "real_ci95": [
-        0.851,
-        0.892
+        0.8513,
+        0.8922
       ]
     }
   ],
