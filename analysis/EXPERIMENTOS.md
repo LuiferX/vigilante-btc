@@ -681,6 +681,68 @@ autoriza des-congelar `toques-wf-1` (los 4 criterios siguen vigentes), pero sí
 obligaría a replantear el target `hold_4h` del modelo: eso sería un
 **candidato nuevo**, con su propio pre-registro, no un retoque del campeón.
 
+### RESULTADO (2026-11-01)
+
+**H6: SIN EDGE. Y el giro importa más que el veredicto: el bruto crece hasta
+24 h y luego se DESPLOMA** (−0,10 % a 48 h, −0,33 % a 72 h). La palanca del
+horizonte se agota en 24 h; más allá perjudica. Informe:
+`docs/audit/EDGE_HORIZONTES.md`. Datos: `analysis/data/edge_horizontes.json`.
+
+| Horizonte | Convicción | n | bruto | funding | coste | **neta** | hit | veredicto |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| 12 h | todas | 1.551 | +0,0101 % | −0,0004 % | 0,2170 % | −0,2073 % | 0,39 | sin_edge |
+| 12 h | top | 486 | −0,0273 % | −0,0006 % | 0,1850 % | −0,2130 % | 0,33 | sin_edge |
+| **24 h** | **top** | 325 | **+0,0904 %** | −0,0033 % | 0,1839 % | **−0,0968 %** | 0,42 | sin_edge |
+| 24 h | todas | 990 | −0,0048 % | +0,0014 % | 0,2215 % | −0,2248 % | 0,43 | sin_edge |
+| 48 h | todas | 576 | −0,1027 % | +0,0006 % | 0,2220 % | −0,3241 % | 0,43 | sin_edge |
+| 48 h | top | 219 | +0,0054 % | −0,0037 % | 0,1854 % | −0,1836 % | 0,43 | no_concluyente (n<300) |
+| 72 h | todas | 406 | −0,3348 % | +0,0010 % | 0,2201 % | −0,5539 % | 0,43 | sin_edge |
+| 72 h | top | 186 | −0,2364 % | −0,0089 % | 0,1887 % | −0,4340 % | 0,39 | no_concluyente (n<300) |
+
+- **Mejor celda de toda la investigación**: 24 h con alta convicción,
+  −0,0968 % neta (bruto +0,0904 %). Sigue siendo negativa: el bruto no llega al
+  peaje ni en su mejor momento.
+- **El gradiente del horizonte se invierte a partir de 24 h**: a 48 h el bruto
+  ya es negativo y a 72 h es −0,33 %. Mantener la posición más tiempo no espera
+  el movimiento: lo devora. La predicción "mejor celda top:24h o top:48h" se
+  cumplió (fue top:24h); la de "ninguna pasa" también.
+- **El funding pesó mucho menos de lo que temía** (−0,0004 % a −0,0089 %): la
+  mayoría de los holds atraviesan pagos cercanos a la tasa por defecto. No era
+  el freno.
+- La n cae con el horizonte (el cooldown se estira con el hold): 48 h y 72 h en
+  `top` quedan en 219 y 186 → **no_concluyente**, no "sin edge": no hay muestra
+  para dictar sentencia.
+- `p_corregido` = **1,00000**.
+
+### Veredicto final de la búsqueda de edge (6 hipótesis, 6 refutaciones)
+
+| # | Familia / palanca | Mejor neta medida | Veredicto |
+|---|---|---:|---|
+| H1 | funding extremo → reversión | −0,09 % | sin_edge (signo opuesto) |
+| H3 | rebote en el nivel, afinada | −0,0968 % (24 h, top) | sin_edge |
+| H4 | rebote, entrada rediseñada (4 variantes) | −0,2226 % | sin_edge |
+| H5 | ruptura → continuación | −0,1977 % | sin_edge |
+| H6 | horizontes largos 12-72 h | −0,0968 % (24 h, top) | sin_edge |
+
+**Cierre con evidencia:** en ~10.000 operaciones independientes sobre 3,8 años,
+ninguna familia ni palana produce una expectativa neta positiva. El mejor bruto
+medido en toda la investigación es **+0,0904 %**, contra un peaje de 0,18-0,23 %,
+y aparece solo en 24 h con alta convicción. El marco (velas 5 m, señal de nivel,
+hold 4-72 h, coste taker) **no contiene edge direccional demostrable**, y las
+tres palancas disponibles —afinar la señal, rediseñar la entrada, estirar el
+horizonte— están medidas y agotadas.
+
+Consecuencias honestas para el bot:
+1. **No operar con el modelo actual**. Su expectativa medida es −0,10 a −0,25 %
+   por operación. El papel vivo (−0,28 % de media) lo confirma de forma
+   independiente.
+2. **Lo que queda es gestión, no búsqueda**: tope de pérdida por operación
+   (el trade de −25 R), tamaño, y coste real frente al modelado.
+3. **Si se quiere rentabilidad estructural**, la vía no es otra señal: es
+   invertir la ecuación de coste (ganar el spread en vez de pagarlo), que es
+   otro sistema, con su propio pre-registro y sus propios riesgos. Eso **no**
+   está probado aquí y no se afirma que funcione.
+
 ---
 
 ## Auditoria de la red neuronal (2026-10-27)
