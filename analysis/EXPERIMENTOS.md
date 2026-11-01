@@ -558,6 +558,56 @@ autoriza des-congelar `toques-wf-1`: los 4 criterios siguen vigentes, y esta
 familia es además **independiente del modelo** (ni usa su dirección ni su
 probabilidad en el lado de ruptura).
 
+### RESULTADO (2026-11-01)
+
+**H5: SIN EDGE en las 8 celdas, y la predicción fuerte de mecánica también
+falló: el bruto de `ruptura` NO supera al del `control` (son espejos, ±0,002 %).**
+Informe: `docs/audit/EDGE_RUPTURA.md`. Datos:
+`analysis/data/edge_ruptura.json`.
+
+| Filtro | Dirección | Salida | n | bruto | coste | neta | hit | veredicto |
+|---|---|---|---:|---:|---:|---:|---:|---|
+| todas | ruptura | h4 | 2.586 | −0,0010 % | 0,2132 % | −0,2142 % | 0,32 | sin_edge |
+| todas | ruptura | fallo | 2.586 | +0,0115 % | 0,2132 % | −0,2017 % | 0,12 | sin_edge |
+| todas | control | h4 | 2.586 | +0,0010 % | 0,2132 % | −0,2122 % | 0,36 | sin_edge |
+| todas | control | fallo | 2.586 | −0,0115 % | 0,2132 % | −0,2247 % | 0,16 | sin_edge |
+| extremos | ruptura | h4 | 1.592 | +0,0097 % | 0,2093 % | −0,1997 % | 0,33 | sin_edge |
+| extremos | ruptura | fallo | 1.592 | +0,0116 % | 0,2093 % | −0,1977 % | 0,13 | sin_edge |
+| extremos | control | h4 | 1.592 | −0,0097 % | 0,2093 % | −0,2190 % | 0,34 | sin_edge |
+| extremos | control | fallo | 1.592 | −0,0116 % | 0,2093 % | −0,2209 % | 0,15 | sin_edge |
+
+Informativo (fuera del Bonferroni): `expansion` a solas, `ruptura:h4` →
+n=503, neta **−0,2793 %** (la peor celda del experimento); gestionada TP1/SL0,5
+en `todas` → −0,2119 % (ruptura) / −0,2066 % (control).
+
+- **`ruptura` y `control` son espejos exactos** (+0,0010 vs −0,0010 a 4 h): el
+  movimiento tras la ruptura es **cero en ambas direcciones**. Una ruptura no
+  predice nada a 4 h; es un evento de nivel, no de precio.
+- **La apuesta específica (`expansion`) es la peor** (−0,2793 %, n=503, IC95
+  [−0,3776, −0,1793]): el régimen de expansión tiene el coste más alto (0,2567 %)
+  y el bruto más negativo. La hipótesis del operador queda refutada con su
+  propio subconjunto.
+- El nivel sí "aguanta la ruptura" en el sentido de nivel (la salida `fallo`
+  solo se dispara el 12-16 % de las veces), pero eso no se traduce en precio.
+- `p_corregido` = **1,00000**. Ninguna celda pasa ninguno de los 7 criterios.
+
+### Balance final de la búsqueda de edge (5 hipótesis, 5 refutaciones)
+
+| # | Familie | n medida | Bruto máximo observado | Veredicto |
+|---|---|---:|---:|---|
+| H1 | funding extremo → reversión | 416 | ~0 | sin_edge (signo opuesto) |
+| H3 | rebote en el nivel (afinada) | 2.513 | +0,090 % | sin_edge |
+| H4 | rebote, entrada rediseñada | 2.513 | +0,024 % | sin_edge (mejora de tiempo, no de información) |
+| H5 | ruptura → continuación | 2.586 | +0,012 % | sin_edge (y `expansion` la peor) |
+
+**Patrón consistente en ~10.000 operaciones independientes: ninguna familia
+produce bruto por encima de 0,09 % cuando el peaje es 0,21 %.** El cuello de
+botella no es la señal, es la relación movimiento/coste en este marco (5m de
+dato, 4 h de hold). Con este coste, hace falta bruto ≥0,5 % para operar; eso
+solo aparece en horizontes largos (el bruto de H3 crecía con el hold) o en
+costes mucho menores. Los siguientes pasos honestos son horizontes largos
+(12-72 h) y la gestión de riesgo/coste, no más variantes de esta familia.
+
 ---
 
 ## Auditoria de la red neuronal (2026-10-27)
