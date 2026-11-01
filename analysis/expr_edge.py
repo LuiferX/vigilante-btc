@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 expr_edge.py - MISION EDGE 2026-10-31: H1 (funding extremo -> reversion).
 
 Pre-registro: analysis/EXPERIMENTOS.md, seccion "MISION EDGE 2026-10-31"
-(commiteado ANTES de correr esto). Gate de datos: docs/audit/EDGE_DATA.md
+(commiteado ANTES de correr esto). Gate de datos: docs/audit/INVESTIGACION_EDGE.md
 (H2 detenida por falta de datos: la API de OI/taker no baja de 30 dias).
 
 Reglas duras implementadas aqui:
@@ -94,7 +94,7 @@ def atr_pct(kl, idx, n=14):
     return atr / px * 100.0 if px else None
 
 
-# ------------------------------------------------------------- simulación --
+# ------------------------------------------------------------- simulaciÃ³n --
 def eventos_h1(funding, kl, cooldown_h):
     """Eventos independientes de H1 con todo el detalle para evaluar."""
     tiempos = [v["t"] for v in kl]
@@ -333,7 +333,7 @@ def main():
                "razon": "gate de datos: la API de Binance limita OI y taker a "
                         "30 dias (probado: startTime de 31 dias -> HTTP 400); "
                         "no se alcanzan 300 eventos independientes. Ver "
-                        "docs/audit/EDGE_DATA.md.",
+                        "docs/audit/INVESTIGACION_EDGE.md.",
                "n_independientes": 0}
         p = os.path.join(AQUI, "data", "edge_liq.json")
         with open(p, "w", encoding="utf-8") as fh:
@@ -380,3 +380,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

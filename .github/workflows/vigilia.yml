@@ -1,4 +1,4 @@
-name: Vigilia latido
+﻿name: Vigilia latido
 
 on:
   schedule:
@@ -204,7 +204,8 @@ jobs:
 
           REPO = os.environ["GITHUB_REPOSITORY"]
           TOK = os.environ["GH_TOKEN"]
-          CRITICOS = ["Vigilante BTC Cloud", "OOS refresh (diario)", "Oyente"]
+          CRITICOS = ["Archivo microestructura", "Tests", "Analysis tests",
+                      "Collect BTC public data (manual)"]
 
           def api(path):
               req = urllib.request.Request(
@@ -236,7 +237,7 @@ jobs:
           cuerpo = "Estos workflows criticos fallaron sus ultimas 2 corridas:\n\n"
           for nombre, url in rotos:
               cuerpo += f"- **{nombre}**: {url}\n"
-          cuerpo += ("\nRunbook: ver docs/audit/RUNBOOK.md. Lo habitual es carrera "
+          cuerpo += ("\nArquitectura: ver ARCHITECTURE.md. Lo habitual es carrera "
                      "de escritura git sobre una rama compartida; si es de red, "
                      "re-ejecutar. Si sigue, espera la siguiente ventana o corrige "
                      "el protocolo de publicacion.")
@@ -251,3 +252,4 @@ jobs:
               api("/issues", "POST", {"title": TITULO, "body": cuerpo})
               print("issue creada")
           PY
+
