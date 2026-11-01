@@ -423,6 +423,50 @@ Predicción honesta: **sin_edge en las 8 celdas**, o como mucho una celda con
 media positiva que no sobreviva costes ×2 ni el Bonferroni. Lo escribo antes de
 mirar para no poder hacer trampa después.
 
+### RESULTADO (2026-11-01)
+
+**H4: SIN EDGE en las 8 celdas. La predicción se cumplió, incluida la parte
+fina (el control de tiempo absorbe la mejora).** Informe:
+`docs/audit/EDGE_ENTRADA.md`. Datos: `analysis/data/edge_entrada.json`.
+
+| Entrada | Salida | n | bruto | coste | neta | IC95 | hit | veredicto |
+|---|---|---:|---:|---:|---:|---|---:|---|
+| base | h4 | 2.513 | −0,0252 % | 0,2206 % | −0,2458 % | [−0,2816, −0,2089] | 0,31 | sin_edge |
+| retardo | h4 | 2.513 | −0,0200 % | 0,2221 % | −0,2421 % | — | 0,31 | sin_edge |
+| confirm | h4 | 2.396 | −0,0133 % | 0,2237 % | −0,2370 % | — | 0,32 | sin_edge |
+| **barrido** | h4 | 728 | **+0,0240 %** | 0,2466 % | **−0,2226 %** | — | 0,38 | sin_edge |
+| base | gest | 2.513 | −0,0076 % | 0,2206 % | −0,2282 % | — | 0,33 | sin_edge |
+| retardo | gest | 2.513 | −0,0046 % | 0,2221 % | −0,2267 % | — | 0,33 | sin_edge |
+| confirm | gest | 2.396 | −0,0021 % | 0,2237 % | −0,2259 % | — | 0,35 | sin_edge |
+| barrido | gest | 728 | −0,0029 % | 0,2466 % | −0,2495 % | — | 0,36 | sin_edge |
+
+- **La descomposición `base` → `retardo` → `confirm` dicta sentencia**: esperar
+  10 minutos ya captura +0,0037 % de mejora, y la confirmación completa añade
+  solo +0,0051 % más. Es decir, **la mejora es de tiempo, no de información**,
+  exactamente la refutación que predije. La hipótesis "entrar tras confirmar
+  aporta" queda refutada por su propio control.
+- `barrido` es la única entrada con bruto positivo (+0,024 %) pero **paga el
+  coste más alto de las 8 celdas** (0,2466 %: entra más tarde, con ATR más alto)
+  y descarta el 71 % de las señales. Neto −0,2226 %: sigue sin edge.
+- El rango completo de las 8 celdas es −0,2226 % a −0,2495 %: **0,03 % de
+  amplitud sobre expectativas de −0,24 %**. Todas las variantes de entrada son
+  la misma medición con distinto ruido.
+- `p_corregido` = **1,00000**. Ninguna celda pasa ninguno de los 7 criterios.
+
+### Conclusión (tres hipótesis de edge medidas, tres refutaciones)
+
+| # | Hipótesis | Resultado |
+|---|---|---|
+| H1 | funding extremo → reversión | sin_edge (y de signo opuesto) |
+| H3 | la señal del modelo, afinada | bruto ~0, neta −0,20 a −0,25 % |
+| H4 | rediseño de la entrada | sin_edge; la mejora es de tiempo, no de información |
+
+**El cuello de botella no es la entrada ni la predicción: es que esta familia
+de señales no produce movimiento de precio suficiente para pagar 0,2 % de
+viaje.** Buscar edge aquí es buscar en el sitio equivocado. Las vías que
+quedan honestamente abiertas son otra familia de señales (movimiento real,
+bruto ≥0,5 %) o el control de riesgo/coste. Ambas fuera del modelo congelado.
+
 ### Si saliera edge
 
 Solo se replicaría el filtro de entrada **en papel** (`paper`), sin tocar el
