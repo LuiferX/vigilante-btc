@@ -42,12 +42,26 @@ import hold_model as hm  # noqa: E402
 
 def compact_record(out: dict) -> dict:
     """Schema compacto de un corte de backfill (equivalente al de decisions.jsonl)."""
-    keys = ("t", "ok", "precio", "bias", "confianza", "regimen", "score",
-            "niveles", "fuentes", "gatillo", "motivo", "atr", "direccion")
+    keys = (
+        "t",
+        "ok",
+        "precio",
+        "bias",
+        "confianza",
+        "regimen",
+        "score",
+        "niveles",
+        "fuentes",
+        "gatillo",
+        "motivo",
+        "atr",
+        "direccion",
+    )
     rec = {k: out.get(k) for k in keys if k in out}
     rec.setdefault("t", out.get("t"))
     rec.setdefault("ok", True)
     return rec
+
 
 UTC = datetime.UTC
 VISION = "https://data-api.binance.vision/api/v3/klines"
@@ -267,4 +281,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
