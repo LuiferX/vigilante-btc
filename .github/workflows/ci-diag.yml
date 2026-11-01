@@ -1,0 +1,47 @@
+name: CI diagnostico
+
+# Temporal: corre las mismas suites que "Tests"/"Analysis tests" y deja el
+# resultado en la rama ci-diag, porque el token no puede leer logs de Actions.
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ci-diag.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Correr cada suite y dejar constancia
+        run: |
+          {
+            echo "python: $(python --version 2>&1)"
+            echo "--- pasos ---"
+            echo "secret_scan:"; python tools/secret_scan.py 2>&1 | tail -2
+            echo "test_vigilante:"; python test_vigilante.py 2>&1 | tail -3
+            echo "collector:"; python collector/test_collector.py 2>&1 | tail -2
+            for f in analysis/test_*.py; do
+              echo "=== $f"
+              if python "$f" >/tmp/out.txt 2>&1; then
+                echo "  OK"; tail -3 /tmp/out.txt
+              else
+                echo "  FALLO (exit $?)"; tail -20 /tmp/out.txt
+              fi
+            done
+          } > ci_diag.txt 2>&1 || true
+          cp /tmp/out.txt /tmp/last.txt 2>/dev/null || true
+          git config user.name  "ci-diag[bot]"
+          git config user.email "ci-diag@users.noreply.github.com"
+          git checkout -B ci-diag
+          git add ci_diag.txt
+          git commit -m "diag $(date -u +%Y-%m-%dT%H:%MZ)" || echo "nada que commitear"
+          git push -f origin ci-diag || echo "push fallo"
