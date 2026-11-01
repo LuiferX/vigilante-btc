@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 eventos.py - EVENTOS, SCOREBOARD Y NARRATIVA (Fase 12): preaviso de
 eventos High, estudio historico por evento, marcador de precision,
@@ -12,7 +12,7 @@ import urllib.request
 
 
 def regla_spread(spread_bps):
-    """Ejecución por spread (Kaiko/Bybit): market/limit/pausa. Puro."""
+    """EjecuciÃ³n por spread (Kaiko/Bybit): market/limit/pausa. Puro."""
     try:
         s = float(spread_bps)
     except Exception:
@@ -27,7 +27,7 @@ def regla_spread(spread_bps):
 from vigilante.indicadores import cuenta_regresiva, fmt_miles, num_txt
 from vigilante.toques import UMBRAL_TOQUE
 
-RUNBOOK_URL = "https://github.com/LuiferX/vigilante-btc/blob/main/RUNBOOK.md"
+RUNBOOK_URL = "https://github.com/LuiferX/vigilante-btc/blob/main/ARCHITECTURE.md"
 DASH_URL = "https://luiferx.github.io/vigilante-btc/motor.html"
 
 
@@ -40,7 +40,7 @@ def narrar(dirb, h1, h4, d1, res, sup, precio):
         )
     elif b == "BAJA":
         base = (
-            f"los vendedores mandan con {c}% de confianza: la presión va "
+            f"los vendedores mandan con {c}% de confianza: la presiÃ³n va "
             f"hacia {fmt_miles(sup['precio'])}"
         )
     else:
@@ -151,7 +151,7 @@ def imanes(last):
 def scoreboard(eval_log, min_n=1, solo_plan=False):
     """Acierto REAL por tipo de alerta, medido en vivo (eval_log).
     Devuelve filas (tipo, n, aciertos, pct), mejor primero. Sin promesas.
-    `solo_plan=True` excluye el histórico viejo, que medía sesgo y no plan."""
+    `solo_plan=True` excluye el histÃ³rico viejo, que medÃ­a sesgo y no plan."""
     # acc[tipo] = (evaluadas, aciertos)
     acc: dict[str, tuple[int, int]] = {}
     for e in eval_log or []:
@@ -170,23 +170,23 @@ def scoreboard(eval_log, min_n=1, solo_plan=False):
 
 
 def texto_scoreboard(eval_log, min_n=5, max_filas=6, solo_plan=False):
-    """Linea(s) de scoreboard para Telegram. Vacío si no hay muestra."""
+    """Linea(s) de scoreboard para Telegram. VacÃ­o si no hay muestra."""
     rows = scoreboard(eval_log, min_n=min_n, solo_plan=solo_plan)
     if not rows:
         return ""
     partes = [f"{t} {h}/{n} ({p:.0f}%)" for t, n, h, p in rows[:max_filas]]
     total_n = sum(r[1] for r in rows)
     total_h = sum(r[2] for r in rows)
-    cab = f"📊 Medido en vivo ({total_h}/{total_n} = {100.0*total_h/total_n:.0f}%)"
-    return cab + "\n· " + "\n· ".join(partes)
+    cab = f"ðŸ“Š Medido en vivo ({total_h}/{total_n} = {100.0*total_h/total_n:.0f}%)"
+    return cab + "\nÂ· " + "\nÂ· ".join(partes)
 
 
 def acuerdo_tecnica(bias, valor):
     if abs(valor) < 25:
-        return "noticias neutras: manda la técnica"
+        return "noticias neutras: manda la tÃ©cnica"
     if (bias == "ALZA") == (valor > 0):
-        return f"viento a favor de la técnica ({bias})"
-    return f"VIENTO EN CONTRA: técnica {bias} vs noticias"
+        return f"viento a favor de la tÃ©cnica ({bias})"
+    return f"VIENTO EN CONTRA: tÃ©cnica {bias} vs noticias"
 
 
 def linea_escenario(e):
@@ -201,7 +201,7 @@ def linea_escenario(e):
         r"cpi|ppi|pce|nfp|non-farm|nonfarm|payroll|unemployment|jobless|fomc|rate|interest", t
     ):
         return base + ": ALTO = baja | BAJO = sube"
-    return base + ": la sorpresa manda la dirección"
+    return base + ": la sorpresa manda la direcciÃ³n"
 
 
 def familia_evento(titulo):
@@ -225,7 +225,7 @@ def familia_evento(titulo):
 
 def estudiar_eventos(est, hist, evs, ahora):
     """Aprende de eventos pasados: mide |movimiento| 2h post-evento con el
-    propio historial. Sin historia no inventa (arranca frío, lo dice)."""
+    propio historial. Sin historia no inventa (arranca frÃ­o, lo dice)."""
     try:
         evs = evs or []
         hechas = est.get("ev_study_keys", [])
@@ -277,20 +277,20 @@ def estudiar_eventos(est, hist, evs, ahora):
 
 
 def linea_estudio(est, titulo):
-    """'CPI suele mover ±0.8% (n=5)'. '' si hay menos de 3 casos."""
+    """'CPI suele mover Â±0.8% (n=5)'. '' si hay menos de 3 casos."""
     try:
         arr = (est.get("ev_study", {}) or {}).get(familia_evento(titulo), [])
         if len(arr) < 3:
             return ""
-        return f"{familia_evento(titulo)} suele mover ±{sum(arr) / len(arr):.2f}% (n={len(arr)})"
+        return f"{familia_evento(titulo)} suele mover Â±{sum(arr) / len(arr):.2f}% (n={len(arr)})"
     except Exception:
         return ""
 
 
 def preaviso(est, evs, ahora, hoy=None):
-    """Aviso único 15–60 min antes de un evento High (con su historial medido).
+    """Aviso Ãºnico 15â€“60 min antes de un evento High (con su historial medido).
     Devuelve texto o None. Puro: NO marca; la marca la pone marcar_preaviso()
-    solo tras envío real (evita perder el aviso si no hay señal principal)."""
+    solo tras envÃ­o real (evita perder el aviso si no hay seÃ±al principal)."""
     try:
         if hoy is None:
             hoy = ahora.strftime("%Y-%m-%d")
@@ -308,9 +308,9 @@ def preaviso(est, evs, ahora, hoy=None):
                 continue
             stu = linea_estudio(est, e.get("titulo", ""))
             return (
-                f"⚠️ {e['titulo']} en {cuenta_regresiva(e['cuando'], ahora)}"
+                f"âš ï¸ {e['titulo']} en {cuenta_regresiva(e['cuando'], ahora)}"
                 + (f" ({stu})" if stu else "")
-                + ": cierro la boca ±30 min (blackout). Cuida el apalancamiento."
+                + ": cierro la boca Â±30 min (blackout). Cuida el apalancamiento."
             )
         return None
     except Exception:
@@ -318,7 +318,7 @@ def preaviso(est, evs, ahora, hoy=None):
 
 
 def marcar_preaviso(est, evs, ahora, hoy=None):
-    """Marca el preaviso como enviado (solo tras envío real). Jamás lanza."""
+    """Marca el preaviso como enviado (solo tras envÃ­o real). JamÃ¡s lanza."""
     try:
         try:
             if hoy is None:
@@ -347,7 +347,7 @@ def marcar_preaviso(est, evs, ahora, hoy=None):
 
 
 def tca_linea(arrival, px, fee_bps=20.0):
-    """Costo en cristiano: de dónde viene el precio y cuánto te come operar. Puro."""
+    """Costo en cristiano: de dÃ³nde viene el precio y cuÃ¡nto te come operar. Puro."""
     try:
         _fee = float(fee_bps)
         if not (0 < _fee < 100):
@@ -361,7 +361,7 @@ def tca_linea(arrival, px, fee_bps=20.0):
         if arrival <= 0 or px <= 0:
             return "Ref s/d (sin precio previo)"
         mov = (px - arrival) / arrival * 100
-        return "Ref %s → ahora %s (%+.2f%%) · operar te cuesta ~%.2f%% ida+vuelta" % (
+        return "Ref %s â†’ ahora %s (%+.2f%%) Â· operar te cuesta ~%.2f%% ida+vuelta" % (
             fmt_miles(arrival),
             fmt_miles(px),
             mov,
@@ -372,8 +372,9 @@ def tca_linea(arrival, px, fee_bps=20.0):
 
 
 def linea_runbook():
-    """Una línea con runbook + página + comando de diagnóstico. Puro."""
+    """Una lÃ­nea con runbook + pÃ¡gina + comando de diagnÃ³stico. Puro."""
     return "Runbook: %s | Page: %s | diag: gh run view --repo LuiferX/vigilante-btc" % (
         RUNBOOK_URL,
         DASH_URL,
     )
+
