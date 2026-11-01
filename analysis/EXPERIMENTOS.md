@@ -475,6 +475,91 @@ modelo ni el gate. Un edge de entrada **no** autoriza des-congelar
 
 ---
 
+## H5 — RUPTURA del nivel → continuación (familia con movimiento) (2026-11-01)
+
+Autor: misión propia. Objetivo del operador: *buscar edge en la familia de
+rupturas con expansión*. Pre-registro commiteado **antes** de medir.
+
+### Motivación medida
+
+H1, H3 y H4 refutaron la familia "rebote en el nivel": su bruto medido es ~0
+(0,000-0,024 %) contra 0,2 % de peaje. Queda una familia con **mecánica de
+movimiento** en los mismos datos: las **rupturas**. En el replay, 1.778 de las
+11.049 muestras (16,1 %) tienen `barras_ruptura` con dato y **las 1.778 tienen
+`y=0`**: el nivel se rompió siempre. Es decir, el modelo falló en el 16 % de los
+casos, y esos casos son justo los eventos de movimiento grande.
+
+### Universo y limitación declarada (importante)
+
+Universo = las muestras cuyo nivel se rompe dentro de 48 velas. La ruptura se
+detecta **en tiempo real**: primer **cierre** más allá del nivel tras `t`, y
+entrada al open de la vela siguiente. Detector validado sobre las 1.778:
+detecta el 100 % y todas dentro de las 48 velas. Mi definición dispara antes
+que la etiqueta `barras_ruptura` del replay (mediana 11 velas antes): uso la mía
+y lo declaro.
+
+**Limitación honesta:** el universo se selecciona sabiendo que el nivel acabó
+rompiendo. El experimento mide *"dada una ruptura identificada en el momento en
+que ocurre, ¿paga el lado de la continuación?"*, **no** *"¿puedo detectar
+rupturas en tiempo real?"*. Lo segundo es un desarrollo aparte y no está probado
+aquí.
+
+### Regla exacta
+
+- **Dirección `ruptura`** (invertida respecto al modelo): `resistencia` rota →
+  **largo**; `soporte` roto → **corto**.
+- **Control `control`**: la dirección del modelo (`resistencia`→corto,
+  `soporte`→largo), **misma vela de entrada**. Control de sustitución: mismo
+  evento, mismo momento, lado opuesto.
+- **Entrada**: open de la vela siguiente al cierre que confirma la ruptura.
+- **Filtros (2)**: `todas` (1.778 rupturas) y `extremos`
+  (`volatilidad` ∈ {`expansion`, `compresion`}).
+- **Salidas (2)**: `h4` cierre a 48 velas desde la ruptura; `fallo` salida en el
+  primer cierre que vuelve a meterse dentro del nivel (la ruptura falla), o a 48
+  velas si no falla.
+- **Coste**: 0,05 %×2 + 0,02 %×2 + 0,25×ATR%×2 (≈0,2 %).
+- **Independencia**: un trade a la vez + cooldown **2 h** (la ruptura es el
+  evento; 2 h las separa razonablemente).
+- **Variantes probadas: 8 celdas** (2 filtros × 2 direcciones × 2 salidas) →
+  Bonferroni α = 0,05/8 = **0,00625**.
+- Adicional **informativo, fuera de las 8 celdas**: salida gestionada
+  TP +1,0 % / SL −0,5 % y el subconjunto `expansion` a solas (~337 eventos).
+  Se reporta pero **no** cuenta para el Bonferroni ni para el veredicto.
+
+### Criterio de muerte (si falla UNO, no hay edge)
+
+```
+[ ] Expectativa neta > 0
+[ ] IC95% inferior > 0 (bootstrap 10.000, semilla fija)
+[ ] Positivo en ambas mitades temporales
+[ ] Positivo en >=2 regimenes de volatilidad
+[ ] Sobrevive costes x2
+[ ] n_independientes >= 300
+[ ] p_corregido < 0,05 (Bonferroni por 8 celdas)
+```
+
+### Expectativa declarada antes de medir (anti-hindsight)
+
+Dos predicciones separadas, para que ninguna se esconda detrás de la otra:
+
+1. **Predicción fuerte (mecánica)**: el bruto del lado `ruptura` será
+   **claramente mayor** que el del `control` (que arrastra el ~0 medido en H3).
+   Es la mecánica de la familia: una ruptura mueve el precio más que un rebote.
+2. **Predicción de veredicto**: **ninguna celda pasa los 7 criterios**. El
+   movimiento post-ruptura a 4 h tendría que superar 0,25 % neto de forma
+   estable en mitades y regímenes, y mi lectura de H1/H3/H4 es que este marco no
+   lo da. Si alguna pasa, apuesto a que sería `todas:ruptura:h4`.
+
+### Si saliera edge
+
+Solo se replicaría en papel (`paper`) **después** de construir y validar el
+detector de ruptura en tiempo real (no probado aquí). Un edge de ruptura **no**
+autoriza des-congelar `toques-wf-1`: los 4 criterios siguen vigentes, y esta
+familia es además **independiente del modelo** (ni usa su dirección ni su
+probabilidad en el lado de ruptura).
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
