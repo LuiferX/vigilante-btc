@@ -361,6 +361,76 @@ muestra: son 2.513 operaciones independientes reales.** Informe:
 
 ---
 
+## H4 — rediseño de la ENTRADA (misma dirección, mejor momento) (2026-11-01)
+
+Autor: misión propia. Objetivo declarado por el operador: *mejorar el edge
+rediseñando la entrada*. Pre-registro commiteado **antes** de medir.
+
+### Motivación medida (no intuición)
+
+En H3 el `mae_pct` mediano fue **0,787 %** frente a un `mfe_pct` mediano de
+**0,056 %**: tras el toque, el precio suele profundizar ~0,8 % en contra antes
+de rebotar. Entrar en el toque es entrar justo en el lado malo del latigazo.
+La dirección del modelo (`soporte`→largo, `resistencia`→corto) se mantiene
+intacta; **solo cambia el momento de entrada**. El modelo congelado no se toca:
+se reutiliza su dirección y su `prob_modelo`.
+
+### Regla exacta
+
+Para cada muestra del replay (`t`, `nivel`, `lado`), con ventana de espera
+máxima **W = 24 velas (2 h)** y el `nivel` como referencia:
+
+| Variante | Regla de entrada (todo con datos hasta el bar usado) |
+|---|---|
+| `base` | open de la vela siguiente a `t` (el H3 de referencia) |
+| `retardo` | open de la vela siguiente a `t+2` velas (**control de tiempo**: aísla el retardo del efecto de la información) |
+| `confirm` | entrar cuando el **cierre** de una vela queda ≥0,3 % del lado favorable del nivel (largo: cierre ≥ nivel×1,003; corto: ≤ nivel×0,997); entrada al open de la **siguiente** vela. Si no confirma en W velas → no hay trade |
+| `barrido` | entrar cuando (a) una vela **perfora** el nivel ≥0,2 % (largo: low ≤ nivel×0,998) **y** (b) una vela posterior **recupera** el nivel (cierre ≥ nivel×1,0005); entrada al open de la siguiente. Si no ocurre en W velas → no hay trade |
+
+- **Salidas (2)**: `h4` cierre a 48 velas; `gest` TP +0,5 % / SL −0,3 % con
+  cierre forzoso a 48 velas (si TP y SL en la misma vela, manda SL).
+- **Coste**: idéntico a H3 (0,05 %×2 + 0,02 %×2 + 0,25×ATR%×2 ≈ 0,18-0,23 %).
+- **Independencia**: un trade a la vez + cooldown 4 h tras el cierre.
+- **Variantes probadas: 8 celdas** (4 entradas × 2 salidas) → Bonferroni
+  α = 0,05/8 = **0,00625**.
+
+### Criterio de muerte (si falla UNO, no hay edge)
+
+```
+[ ] Expectativa neta > 0
+[ ] IC95% inferior > 0 (bootstrap 10.000, semilla fija)
+[ ] Positivo en ambas mitades temporales
+[ ] Positivo en >=2 regimenes de volatilidad
+[ ] Sobrevive costes x2
+[ ] n_independientes >= 300
+[ ] p_corregido < 0,05 (Bonferroni por 8 celdas)
+```
+
+### Expectativa declarada antes de medir (anti-hindsight)
+
+Espero que `confirm` y `barrido` **reduzcan mucho el mae** (esa es la mecánica
+de la hipótesis) pero que **sigan sin pasar el peaje**, porque:
+
+1. entran más caro: se comen el movimiento de confirmación (≥0,3 %) antes de
+   abrir, y el rebote total medido en H3 fue de apenas ~0,09 % bruto;
+2. descartan las señales que no confirman, que podrían ser justo las buenas;
+3. mi predicción es que el control `retardo` absorba la mayor parte de
+   cualquier mejora, es decir que el efecto sería de **tiempo**, no de
+   **información**: si D1 mejora y `confirm`/`barrido` no mejoran más que D1,
+   la hipótesis "la confirmación aporta" queda refutada.
+
+Predicción honesta: **sin_edge en las 8 celdas**, o como mucho una celda con
+media positiva que no sobreviva costes ×2 ni el Bonferroni. Lo escribo antes de
+mirar para no poder hacer trampa después.
+
+### Si saliera edge
+
+Solo se replicaría el filtro de entrada **en papel** (`paper`), sin tocar el
+modelo ni el gate. Un edge de entrada **no** autoriza des-congelar
+`toques-wf-1`: los 4 criterios registrados siguen vigentes.
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
