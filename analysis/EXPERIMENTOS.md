@@ -264,6 +264,103 @@ no se alcanzan 300 eventos). Ver `EDGE_DATA.md`.
 
 ---
 
+## H3 — expectativa NETA del signal "toques" del modelo congelado (2026-11-01)
+
+Autor: misión propia (objetivo del operador: *mejorar el edge*). Pre-registro
+commiteado **antes** de medir resultados de expectativa.
+
+### Contexto y por qué este experimento
+
+El modelo solo se ha evaluado en Brier/skill (bien calibrado, skill +0,007 vivo
+y +0,0314 OOS). **Nunca en dinero.** El papel da −28,07 R en 15 operaciones,
+dominadas por un solo trade de −25,67 R. Con 0,23 % de coste por viaje, ningún
+número de skill dice si el signal gana dinero. Este experimento lo mide.
+
+### Datos
+
+`analysis/data/cache/expr_muestras.jsonl` — 11.049 muestras de replay
+(2023-01-02 → 2026-09-30) del modelo `toques-wf-1`, con `prob_modelo`, `y`
+(target 4 h), `mfe_pct`, `mae_pct`, `nivel`, `lado`, `sesion`, `volatilidad`,
+`bias`. Cobertura verificada: **100 %** de las muestras tienen klines 5m
+suficientes para medir 4 h y 24 h.
+
+### Regla exacta (fijada antes de medir)
+
+- **Entrada**: open de la vela 5m siguiente al timestamp `t` de la muestra.
+  Cero look-ahead. Dirección: `lado=resistencia` → corto; `soporte` → largo.
+- **Coste**: 0,23 % por viaje (fee 0,05 %×2 + slippage 0,02 %×2 +
+  0,25×ATR%×2), igual que H1.
+- **Independencia**: simulación secuencial de un operador real: una posición a
+  la vez, cooldown de 4 h tras el cierre. Se reporta `n_independientes`.
+- **Salidas (3 reglas)**:
+  - `E1` — cierre a horizonte 4 h (48 velas), sin stop (equivale al target
+    `hold_4h` del modelo).
+  - `E2` — gestionada: TP +0,5 % / SL −0,3 %, cierre forzoso a 4 h. Si en la
+    misma vela se tocan TP y SL, se asume **SL primero** (conservador).
+  - `E3` — cierre a horizonte 24 h (288 velas), sin stop.
+- **Conviction (2 filtros)**: `todas` (sin filtro) y `top` (prob_modelo en el
+  cuartil superior, ≈ ≥0,858).
+- **Variantes probadas: 6 celdas** (3 salidas × 2 convicciones) →
+  Bonferroni α = 0,05/6 = **0,00833**.
+
+### Criterio de muerte (si falla UNO, no hay edge)
+
+```
+[ ] Expectativa neta > 0
+[ ] IC95% inferior > 0 (bootstrap 10.000, semilla fija)
+[ ] Positivo en ambas mitades temporales
+[ ] Positivo en >=2 regimenes de volatilidad
+[ ] Sobrevive costes x2
+[ ] n_independientes >= 300
+[ ] p_corregido < 0,05 (Bonferroni por 6 celdas)
+```
+
+### Expectativa declarada antes de medir (con sesgo declarado)
+
+**sin_edge**. Y declaro el sesgo honestamente: durante el gate de cobertura vi
+las medianas de `mfe_pct` = 0,056 % y `mae_pct` = 0,787 %, es decir el
+recorrido favorable típico es unas 4× menor que el coste del viaje. Por tanto
+mi expectativa ya está contaminada por ese dato: declaro que espero que
+**ninguna** de las 6 celdas supere el peaje, y que la manageda (E2) salga peor
+aún por el stop contra un mae de 0,79 %.
+
+### Qué se haría si sale edge
+
+Solo si alguna celda pasa los 7 criterios: replicar el filtro/la salida en
+papel (`paper`), sin tocar el modelo. Un edge aquí **no** autoriza des-congelar
+`toques-wf-1`: exigiría de todas formas los 4 criterios registrados.
+
+### RESULTADO (2026-11-01)
+
+**H3: SIN EDGE. La señal del modelo congelado no gana dinero, y no es por la
+muestra: son 2.513 operaciones independientes reales.** Informe:
+`docs/audit/EDGE_REPORT.md` §8. Datos: `analysis/data/edge_toques.json`.
+
+| Salida | Convicción | n | bruto | coste | **neta** | IC95 | hit | veredicto |
+|---|---|---:|---:|---:|---:|---|---:|---|
+| 4 h | todas | **2.513** | −0,0252 % | 0,2206 % | **−0,2458 %** | [−0,2816, −0,2089] | 0,31 | sin_edge |
+| 4 h | top | 660 | −0,0215 % | 0,1828 % | −0,2043 % | [−0,2441, −0,1655] | 0,26 | sin_edge |
+| gestionada TP0,5/SL0,3 | todas | 2.513 | −0,0076 % | 0,2206 % | −0,2282 % | [−0,2421, −0,2137] | 0,33 | sin_edge |
+| gestionada | top | 660 | +0,0012 % | 0,1828 % | −0,1816 % | [−0,2055, −0,1572] | 0,28 | sin_edge |
+| 24 h | todas | 990 | −0,0048 % | 0,2215 % | −0,2262 % | [−0,3776, −0,0742] | 0,43 | sin_edge |
+| 24 h | top | 325 | **+0,0904 %** | 0,1839 % | **−0,0935 %** | [−0,2790, +0,0884] | 0,42 | sin_edge |
+
+- **El bruto es ~cero** (−0,025 % a +0,090 %): la llamada de dirección no
+  aporta movimiento suficiente ni para acercarse al peaje. La mejor celda
+  (24 h + convicción alta) tiene bruto +0,09 % frente a 0,18 % de coste.
+- El 84 % de acierto del modelo es sobre *"el nivel aguanta 4 h"*, que **no es
+  dinero**: el hit rate de la operación es 0,26-0,43.
+- Fallan los 7 criterios en las 6 celdas. `p_corregido` = 1,00000.
+- **Validación independiente**: el papel vivo mide −0,28 % medio por operación
+  (n=15); este replay predice −0,25 %. La maquinaria de medición acierta al
+  vivo casi exacto, así que este resultado no es un artefacto del backtest.
+- Conclusión operativa: **no se puede "mejorar" esta señal afinándola**; su
+  bruto es estructuralmente menor que el coste. Mejorar el edge exige otra
+  familia de señales (con movimiento real) o abaratar el coste por debajo de
+  ~0,09 % (imposible: maker dejaría ~0,16 %).
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
