@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-31T23:46:27.750355+00:00",
+  "run_at": "2026-11-01T00:02:54.149631+00:00",
   "ok": true,
   "kline_ok": true,
   "data_dir": "data/btcusdt",
@@ -7,18 +7,18 @@
     "funding.jsonl": {
       "ok": true,
       "fetched": 100,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "okx_funding",
-      "last_key": 1790611200000
+      "last_key": 1790640000000
     },
     "open_interest.jsonl": {
       "ok": true,
-      "fetched": 575,
-      "added": 3,
+      "fetched": 576,
+      "added": 4,
       "trimmed": 0,
       "source": "okx_oi",
-      "last_key": 1793317800000
+      "last_key": 1793318700000
     },
     "global_ls.jsonl": {
       "ok": true,
@@ -26,7 +26,7 @@
       "added": 3,
       "trimmed": 0,
       "source": "okx_global_ls",
-      "last_key": 1793317800000
+      "last_key": 1793318700000
     },
     "top_ls_account.jsonl": {
       "ok": false,
@@ -39,10 +39,10 @@
     "taker_ls.jsonl": {
       "ok": true,
       "fetched": 72,
-      "added": 3,
+      "added": 4,
       "trimmed": 0,
       "source": "okx_taker_ls",
-      "last_key": 1793468700000
+      "last_key": 1793469900000
     },
     "klines_5m.jsonl": {
       "ok": true,
@@ -50,31 +50,31 @@
       "added": 3,
       "trimmed": 0,
       "source": "binance_vision_klines_5m",
-      "last_key": 1793490000000
+      "last_key": 1793490900000
     },
     "klines_1h.jsonl": {
       "ok": true,
       "fetched": 999,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "binance_vision_klines_1h",
-      "last_key": 1793484000000
+      "last_key": 1793487600000
     },
     "klines_4h.jsonl": {
       "ok": true,
       "fetched": 499,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "binance_vision_klines_4h",
-      "last_key": 1793462400000
+      "last_key": 1793476800000
     },
     "klines_1d.jsonl": {
       "ok": true,
       "fetched": 199,
-      "added": 0,
+      "added": 1,
       "trimmed": 0,
       "source": "binance_vision_klines_1d",
-      "last_key": 1793318400000
+      "last_key": 1793404800000
     }
   },
   "news": {
@@ -94,5 +94,5 @@
     "added": 0,
     "trimmed": 0
   },
-  "finished_at": "2026-10-31T23:46:32.766483+00:00"
+  "finished_at": "2026-11-01T00:03:00.337010+00:00"
 }
