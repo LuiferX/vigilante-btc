@@ -36,12 +36,16 @@ OKX / Bybit / Kraken / RSS (fallback) ─┤
 | Pieza | Qué hace | No hace |
 |---|---|---|
 | `collector/collector.py` | baja klines/micro/noticias cada 5 min y las guarda con dedup | no decide nada |
-| `analysis/archivo_micro.py` | archivo **durable** de OI/taker/ballenas/funding (la API solo da 30 días: sin esto, se pierde la historia para siempre) | no recorta, no borra |
-| `analysis/percentiles.py` | percentil causal por serie y ventana: "percentil 91 de 1.666 días" | no predice |
+| `analysis/archivo_micro.py` | archivo **durable** de OI/taker/ballenas/funding (la API solo da 30 días: sin esto, se pierde la historia para siempre); si Binance bloquea con 451, cae a OKX/Bybit y lo etiqueta | no recorta, no borra |
+| `analysis/percentiles.py` | percentil causal por serie y ventana: "percentil 91 de 1.666 días" (solo fuente primaria; las alternas miden en otra escala) | no predice |
 | `vigilante/indicadores.py` | matemáticas puras: EMA, RSI, ADX, ATR, estructura, swings | no envía nada |
 | `vigilante/analisis.py` | velas → régimen, niveles, sesgo, sesión | no propone entradas |
-| `analysis/expr_*.py` | investigación con hipótesis pre-registrada y criterio de muerte | no toca producción |
-| `analysis/informe.py` | junta lo medido y escribe el informe | no opera |
+| `analysis/laboratorio.py` | **motor compartido** de los experimentos: cargadores, bootstrap, ATR, máquina de independencia, evaluación y veredicto | no decide por su cuenta |
+| `analysis/expr_*.py` | investigación con hipótesis pre-registrada y criterio de muerte ( deleg an en `laboratorio.py` la infraestructura) | no toca producción |
+| `analysis/informe.py` | junta lo medido y escribe el informe (`data/informe.json` + `.md`) | no opera |
+| `analysis/resumen_semanal.py` | digest semanal: cómo se movió el posicionamiento medido | no opera |
+| `analysis/check_health.py` | vigila que los datos sigan llegando y el informe esté al día; código 1 si algo crítico | no repara, solo avisa |
+| `entrenar.py` | laboratorio de medicion del mercado: volatilidad por hora, sesiones, régimen ADX, recambio compresión→expansion ( reutiliza `vigilante/red.py`) | no toca nada |
 
 ## Reglas que la arquitectura garantiza
 

@@ -1,4 +1,4 @@
-# --- Python ---
+﻿# --- Python ---
 __pycache__/
 *.pyc
 *.pyo
@@ -43,3 +43,7 @@ collector/data/.pytest_cache/
 #     se regeneran con: python analysis/backfill.py --descargar) ---
 analysis/data/cache/
 analysis/data/decisions_hist.jsonl
+
+# dashboards de progreso del agente (nunca van al repo)
+.opencode/
+
