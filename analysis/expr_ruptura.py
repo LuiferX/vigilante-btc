@@ -24,63 +24,43 @@ import bisect
 import datetime
 import json
 import os
-import random
 import sys
 
 UTC = datetime.timezone.utc
 AQUI = os.path.dirname(os.path.abspath(__file__))
-CACHE = os.path.join(AQUI, "data", "cache")
+sys.path.insert(0, AQUI)
 
-FEE_PCT = 0.05
-SLIP_BASE = 0.02
-SLIP_K = 0.25
-BOOT = 10000
-SEMILLA = 42
 COOLDOWN_H = 2
 H4 = 48
 TP_G, SL_G = 1.0, 0.5        # salida gestionada (informativa, fuera del Bonferroni)
 VENTANA_ROT = 48             # velas para detectar la ruptura
-P_TOP = 0.858
 
 FILTROS = ["todas", "extremos"]
 DIRECCIONES = ["ruptura", "control"]
 SALIDAS = ["h4", "fallo"]
 
 
+from laboratorio import (  # noqa: E402,F401
+    BOOT,
+    CACHE,
+    FEE_PCT,
+    P_TOP,
+    SEMILLA,
+    SLIP_BASE,
+    SLIP_K,
+    atr_pct,
+    bootstrap_ci,
+    cargar_klines,
+    cargar_muestras,
+    coste_viaje,
+    evaluar,
+    motor_secuencia,
+    veredicto,
+)
+
 # ------------------------------------------------------------------ datos --
-def cargar_muestras():
-    filas = []
-    with open(os.path.join(CACHE, "expr_muestras.jsonl"), encoding="utf-8") as fh:
-        for linea in fh:
-            r = json.loads(linea)
-            if r.get("_meta"):
-                continue
-            filas.append(r)
-    return filas
-
-
-def cargar_klines():
-    sys.path.insert(0, AQUI)
-    import hold_model as hm  # noqa: E402
-    kl = hm.load_klines_jsonl(os.path.join(CACHE, "klines_5m.jsonl"))
-    kl.sort(key=lambda v: v["t"])
-    return kl
-
-
-def atr_pct(kl, idx, n=14):
-    i0 = max(0, idx - n)
-    trs = []
-    prev = kl[i0]
-    for v in kl[i0:idx + 1]:
-        tr = max(v["h"] - v["l"], abs(v["h"] - prev["c"]), abs(v["l"] - prev["c"]))
-        trs.append(tr)
-        prev = v
-    if not trs:
-        return None
-    return (sum(trs) / len(trs)) / kl[idx]["c"] * 100.0
-
-
 # ---------------------------------------------------- deteccion de ruptura --
+
 def detectar_ruptura(muestra, kl, tiempos):
     """Primer cierre mas alla del nivel dentro de 48 velas -> (idx_confirma,).
 
@@ -164,80 +144,17 @@ def resolver(muestra, kl, tiempos, direccion, salida):
 
 
 def secuencia_independiente(muestras, kl, tiempos, filtro, direccion, salida):
-    if filtro == "extremos":
-        sel = [m for m in muestras if m.get("volatilidad") in ("expansion", "compresion")]
-    else:
-        sel = list(muestras)
-    sel = sorted(sel, key=lambda m: m["t"])
-    rets, detalle = [], []
-    libre = None
-    for m in sel:
-        t = datetime.datetime.fromisoformat(m["t"].replace("Z", "+00:00"))
-        if libre is not None and t < libre:
-            continue
-        r = resolver(m, kl, tiempos, direccion, salida)
-        if r is None:
-            continue
-        fin = r["t"] + datetime.timedelta(minutes=5 * H4)
-        libre = fin + datetime.timedelta(hours=COOLDOWN_H)
-        rets.append(r["neto"])
-        detalle.append(r)
-    return rets, detalle
+    """Una operacion a la vez + cooldown (motor compartido).
 
-
-def bootstrap_ci(vals, alpha=0.05, boot=BOOT, semilla=SEMILLA):
-    rnd = random.Random(semilla)
-    n = len(vals)
-    if n == 0:
-        return (0.0, 0.0, 1.0)
-    medias = []
-    for _ in range(boot):
-        s = 0.0
-        for _ in range(n):
-            s += vals[rnd.randrange(n)]
-        medias.append(s / n)
-    medias.sort()
-    lo = medias[int(boot * alpha / 2)]
-    hi = medias[int(boot * (1 - alpha / 2))]
-    p = sum(1 for m in medias if m <= 0) / boot
-    return (lo, hi, p)
-
-
-def evaluar(rets, detalle):
-    if not rets:
-        return None
-    n = len(rets)
-    media = sum(rets) / n
-    lo, hi, p = bootstrap_ci(rets)
-    wins = sum(1 for r in rets if r > 0)
-    gp = sum(r for r in rets if r > 0)
-    gl = -sum(r for r in rets if r <= 0)
-    var = sum((r - media) ** 2 for r in rets) / (n - 1) if n > 1 else 0.0
-    eq, pico, mdd = 0.0, 0.0, 0.0
-    for r in rets:
-        eq += r
-        pico = max(pico, eq)
-        mdd = max(mdd, pico - eq)
-
-    def md(sel):
-        return round(sum(sel) / len(sel), 4) if sel else None
-
-    corte = detalle[len(detalle) // 2]["t"]
-    m1 = [d["neto"] for d in detalle if d["t"] < corte]
-    m2 = [d["neto"] for d in detalle if d["t"] >= corte]
-    regs = {k: {"n": len([d for d in detalle if d["vol"] == k]),
-                "media": md([d["neto"] for d in detalle if d["vol"] == k] or [])}
-            for k in ("compresion", "normal", "expansion")}
-    return {"n": n, "media": round(media, 4),
-            "bruto_medio": round(sum(d["bruto"] for d in detalle) / n, 4),
-            "coste_medio": round(sum(d["coste"] for d in detalle) / n, 4),
-            "ic95": [round(lo, 4), round(hi, 4)], "p_boot": round(p, 5),
-            "hit_rate": round(wins / n, 4),
-            "profit_factor": round(gp / gl, 3) if gl > 0 else None,
-            "equidad": round(eq, 2), "max_dd": round(mdd, 2),
-            "mitades": {"h1": {"n": len(m1), "media": md(m1)},
-                        "h2": {"n": len(m2), "media": md(m2)}},
-            "regimenes": regs}
+    `filtro=extremos` recorta a los regimenes expansion/compresion."""
+    sel = muestras if filtro != "extremos" else [
+        m for m in muestras
+        if m.get("volatilidad") in ("expansion", "compresion")]
+    return motor_secuencia(
+        sel,
+        lambda m: resolver(m, kl, tiempos, direccion, salida),
+        conviccion="todas", cooldown_h=COOLDOWN_H,
+        hold_fn=lambda r: H4)
 
 
 def main():

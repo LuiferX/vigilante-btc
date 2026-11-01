@@ -1,4 +1,4 @@
-"""Motor de decision por contexto. No ejecuta ordenes.
+﻿"""Motor de decision por contexto. No ejecuta ordenes.
 
 Conecta el modelo de aguante (`hold_model`) con:
 - deteccion de pivotes y zonas (ancho ATR),
@@ -16,11 +16,17 @@ from __future__ import annotations
 import json
 import math
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import hold_model as hm
 import paths
+
+# `fmt_miles` vive en un solo sitio: vigilante/indicadores.py (matematicas
+# puras). Antes estaba duplicado aqui, con el mismo codigo.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from vigilante.indicadores import fmt_miles  # noqa: E402,F401
 
 MIN_KLINES = 300
 PIVOT_K = 5
@@ -64,13 +70,9 @@ def ema_last(values: list[float], span: int) -> float:
     return e
 
 
-def fmt_miles(x: float) -> str:
-    """82.500 en vez de 82500."""
-    return f"{x:,.0f}".replace(",", ".")
-
 
 def _zone_label(z: dict) -> str:
-    return f"{fmt_miles(z['zone_low'])}–{fmt_miles(z['zone_high'])}"
+    return f"{fmt_miles(z['zone_low'])}â€“{fmt_miles(z['zone_high'])}"
 
 
 # ---------------------------------------------------------------------------
@@ -750,7 +752,7 @@ def decide(
     # P0-1.5 (auditoria 2026-10-29): antes `now = now or event_time`, asi que
     # un llamador vivo sin `now` medias la frescura contra la propia vela:
     # data_age_min salia ~0 y el dato viejo parecia fresco. Ahora el default es
-    # la hora REAL; los replays/backtests ya pasan `now` explícito (su trabajo
+    # la hora REAL; los replays/backtests ya pasan `now` explÃ­cito (su trabajo
     # es pinchar el tiempo) y los tests tambien deben fijarlo.
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -1124,3 +1126,4 @@ if __name__ == "__main__":
         extra = load_vigilante_levels(args.vigilante) if args.vigilante else None
     out = decide_from_jsonl(args.klines, price=args.price, extra_levels=extra)
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+
