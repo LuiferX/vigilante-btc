@@ -1,5 +1,10 @@
 ﻿name: Vigilia latido
 
+# REARME 2026-11-01: el latido vigilaba la rama 'estado' (borrada) y, al no
+# encontrarla, emitia "OK transitorio": era un adorno. Ahora vigila lo que de
+# verdad importa en la maquina de analisis: que los DATOS sigan llegando y el
+# informe este al dia (analysis/check_health.py).
+
 on:
   schedule:
     - cron: '*/15 * * * *'
@@ -16,81 +21,35 @@ concurrency:
 jobs:
   vigilia:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     outputs:
       ok: ${{ steps.check.outputs.ok }}
-      edad_min: ${{ steps.check.outputs.edad_min }}
+      detalle: ${{ steps.check.outputs.detalle }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Comprobar latido
+      - name: Comprobar salud de la maquina
         id: check
         run: |
-          git fetch origin estado --quiet || echo "aviso: fetch estado fallo (transitorio)"
+          python3 analysis/check_health.py > /tmp/salud.json || true
+          cat /tmp/salud.json
           python3 - <<'PY'
-          import json
-          import os
-          import subprocess
-          from datetime import datetime, timezone
-
-          out_path = os.environ.get("GITHUB_OUTPUT", "")
-
-          def emit(ok, edad):
-              with open(out_path, "a", encoding="utf-8") as fh:
-                  fh.write(f"ok={ok}\n")
-                  fh.write(f"edad_min={edad}\n")
-
-          def fallo(msg, edad="-1"):
-              print(f"FALLO: {msg}")
-              emit("false", edad)
-              raise SystemExit(0)
-
-          try:
-              raw = subprocess.check_output(
-                  ["git", "show", "origin/estado:estado.json"],
-                  text=True,
-                  stderr=subprocess.STDOUT,
-              )
-          except subprocess.CalledProcessError as e:
-              print(getattr(e, "output", e))
-              print("sin rama estado o red caida: OK transitorio, sin issue (proximo run revalida)")
-              emit("true", "0")
-              raise SystemExit(0)
-
-          try:
-              data = json.loads(raw)
-          except json.JSONDecodeError as e:
-              fallo(f"estado.json no es JSON valido: {e}")
-
-          latido = data.get("latido") or data.get("ultimo_run")
-          if not latido:
-              fallo("falta el dato 'latido' (o 'ultimo_run') en estado.json")
-
-          texto = str(latido).strip().replace("Z", "+00:00")
-          try:
-              ts = datetime.fromisoformat(texto)
-              if ts.tzinfo is None:
-                  ts = ts.replace(tzinfo=timezone.utc)
-          except ValueError:
-              fallo(f"formato de fecha no valido: {latido!r}")
-
-          ahora = datetime.now(timezone.utc)
-          edad_min = (ahora - ts).total_seconds() / 60
-          print(f"latido hace {edad_min:.1f}min (valor: {latido})")
-
-          if edad_min > 20:
-              print(f"latido demasiado antiguo ({edad_min:.1f}min > 20min)")
-              emit("false", f"{edad_min:.1f}")
-              raise SystemExit(0)
-
-          print("OK: latido vigente")
-          emit("true", f"{edad_min:.1f}")
+          import json, os
+          data = json.load(open("/tmp/salud.json", encoding="utf-8"))
+          out = os.environ["GITHUB_OUTPUT"]
+          fallos = data.get("fallos") or []
+          with open(out, "a", encoding="utf-8") as fh:
+              fh.write("ok=%s\n" % ("true" if data.get("ok") else "false"))
+              # resumen corto para el issue (sin comas: son de un json)
+              resumen = "; ".join(fallos[:4]) if fallos else "todo al dia"
+              fh.write("detalle=%s\n" % resumen.replace("\n", " "))
+          print("ok=%s" % data.get("ok"))
           PY
 
-      - name: Exigir latido vigente
+      - name: Exigir salud
         if: always()
         run: |
-          echo "ok=${{ steps.check.outputs.ok }} edad_min=${{ steps.check.outputs.edad_min }}"
+          echo "ok=${{ steps.check.outputs.ok }} detalle=${{ steps.check.outputs.detalle }}"
           test "${{ steps.check.outputs.ok }}" = "true"
 
   avisar:
@@ -103,16 +62,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           # BUG REAL (2026-10-27): este job no tiene actions/checkout, asi que `gh`
-          # no tenia repo git del que colgarse y fallaba SIEMPRE (0 verdes de 25
-          # runs; el repo no tiene un solo issue creado). GH_REPO lo hace explicito.
+          # no tenia repo git del que colgarse y fallaba SIEMPRE. GH_REPO lo hace explicito.
           GH_REPO: ${{ github.repository }}
           OK: ${{ needs.vigilia.outputs.ok }}
-          EDAD: ${{ needs.vigilia.outputs.edad_min }}
+          DETALLE: ${{ needs.vigilia.outputs.detalle }}
         run: |
           set -euo pipefail
-          TITULO='[vigilia] latido atrasado'
-          echo "ok=${OK:-} edad_min=${EDAD:-} "
-          # Reintento generico para llamadas gh (la API de GitHub a veces da 502/503)
+          TITULO='[vigilia] datos de la maquina atrasados'
+          echo "ok=${OK:-} detalle=${DETALLE:-} "
           gh_reint() {
             local n=0
             until "$@"; do
@@ -120,10 +77,6 @@ jobs:
               echo "reintento $n tras fallo transitorio: $*"; sleep 10
             done
           }
-          # ANTES: gh issue list --search "$TITULO in:title" -> el endpoint de SEARCH
-          # de GitHub es fragil (422 con corchetes, rate limits intermitentes): la
-          # vigilia fallaba cada ~5h SIN llegar a crear el issue. Ahora: listado
-          # plano (endpoint estable) + coincidencia exacta en Python + reintento.
           intentos=0
           until gh issue list --state open --limit 50 --json number,title,updatedAt > /tmp/issues.json 2>/tmp/gh_err.txt; do
             intentos=$((intentos+1))
@@ -134,41 +87,45 @@ jobs:
           done
           python3 - <<'PY' > /tmp/hallazgo.txt
           import json
-          titulo = "[vigilia] latido atrasado"
+          titulo = "[vigilia] datos de la maquina atrasados"
           with open("/tmp/issues.json", encoding="utf-8") as fh:
               items = json.load(fh)
-          num = ""
-          updated = ""
+          num = ""; updated = ""
           for it in items:
               if it.get("title") == titulo:
-                  num = str(it.get("number", ""))
-                  updated = str(it.get("updatedAt", ""))
-                  break
+                  num = str(it.get("number", "")); updated = str(it.get("updatedAt", "")); break
           print(f"{num}\t{updated}")
           PY
           NUM="$(cut -f1 /tmp/hallazgo.txt)"
           UPDATED_AT="$(cut -f2 /tmp/hallazgo.txt)"
           if [ "${OK:-}" = "true" ]; then
             if [ -n "$NUM" ]; then
-              gh_reint gh issue comment "$NUM" --body "Recuperado: el latido vuelve a estar vigente (edad_min=${EDAD:-desconocida}). Cierro este aviso."
+              gh_reint gh issue comment "$NUM" --body "Recuperado: los datos y el informe vuelven a estar al dia. Cierro este aviso."
               gh_reint gh issue close "$NUM"
             else
-              echo "Latido ok y sin issue abierta: nada que hacer."
+              echo "Datos ok y sin issue abierta: nada que hacer."
             fi
             exit 0
           fi
           if [ -z "$NUM" ]; then
             cat > /tmp/cuerpo.md <<EOF
-          El latido esta atrasado (edad_min=${EDAD:-desconocida}, umbral 20min).
+          La maquina de analisis tiene datos atrasados. Fallos:
 
-          Runbook:
-          - Revisar el workflow programado (cron cada 15min) y su ultima ejecucion.
-          - Comprobar la rama 'estado' y el fichero 'estado.json' (campos 'latido' / 'ultimo_run').
-          - Verificar el emisor del latido y relanzarlo si hace falta.
+          \`\`\`
+          ${DETALLE:-desconocido}
+          \`\`\`
+
+          Que hacer:
+          - Revisar el workflow 'Archivo microestructura' (cron 25 4 * * *) y el
+            'Informe de inteligencia' (45 4 * * *): son los que traen los datos.
+          - Binance puede estar bloqueando con HTTP 451 a los runners de GitHub:
+            en ese caso el archivo cae a OKX/Bybit. Si ambos fallan, es red.
+          - Lanzar a mano \`python analysis/archivo_micro.py --diario\` y
+            \`python analysis/informe.py\` desde local para recuperar el dia.
 
           Enlaces:
-          - Accion que falla: Vigilia latido
-          - Fichero vigilado: estado.json en rama estado
+          - Arquitectura: ARCHITECTURE.md
+          - Diagnosticar: \`python analysis/check_health.py\`
           EOF
             echo "- Acciones del repositorio: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> /tmp/cuerpo.md
             gh_reint gh issue create --title "$TITULO" --body-file /tmp/cuerpo.md
@@ -176,15 +133,14 @@ jobs:
             ANTIG_MIN="$(UPDATED_AT="$UPDATED_AT" python3 -c 'import os; from datetime import datetime, timezone; u=os.environ.get("UPDATED_AT","").strip().replace("Z","+00:00"); ts=datetime.fromisoformat(u); now=datetime.now(timezone.utc); print(int((now-ts).total_seconds()//60))')"
             echo "Issue abierta #$NUM actualizada hace ${ANTIG_MIN}min."
             if [ "$ANTIG_MIN" -gt 30 ]; then
-              gh_reint gh issue comment "$NUM" --body "Sigue atrasado (edad_min=${EDAD:-desconocida}). Actualizacion de seguimiento (maximo un comentario cada 30min)."
+              gh_reint gh issue comment "$NUM" --body "Sigue atrasado (${DETALLE:-sin detalle}). Maximo un comentario cada 30min."
             else
               echo "Comentario reciente: no se comenta para evitar spam."
             fi
           fi
 
-  # P1-2.3 (auditoria): vigila tambien los workflows CRITICOS. Antes, un
-  # fallo repetido solo se veia si abrias la pestana Actions a mano. Ahora, si
-  # un critico falla 2 veces seguidas, se abre/actualiza issue automatico.
+  # P1-2.3 (auditoria): vigila tambien los workflows criticos. Si uno falla 2
+  # veces seguidas, se abre/actualiza issue automatico.
   criticos:
     needs: vigilia
     if: always()
@@ -194,8 +150,6 @@ jobs:
       - name: Revisar criticos (2 fallos seguidos)
         env:
           GH_TOKEN: ${{ github.token }}
-          # P1-2.3: REST directo por urllib: no depende de que haya repo git
-          # (el bug historicamente fue justo ese: gh sin repo).
         run: |
           python3 - <<'PY'
           import json
@@ -204,8 +158,8 @@ jobs:
 
           REPO = os.environ["GITHUB_REPOSITORY"]
           TOK = os.environ["GH_TOKEN"]
-          CRITICOS = ["Archivo microestructura", "Tests", "Analysis tests",
-                      "Collect BTC public data (manual)"]
+          CRITICOS = ["Archivo microestructura", "Informe de inteligencia",
+                      "Tests", "Analysis tests"]
 
           def api(path):
               req = urllib.request.Request(
@@ -252,4 +206,3 @@ jobs:
               api("/issues", "POST", {"title": TITULO, "body": cuerpo})
               print("issue creada")
           PY
-

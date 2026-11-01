@@ -32,7 +32,6 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(AQUI)
 DATA = os.path.join(AQUI, "data")
 PCT_HOY = os.path.join(DATA, "percentiles_hoy.json")
-ESTADO_LOCAL = os.path.join(RAIZ, "estado.json")
 VALIDACION = os.path.join(DATA, "validation.json")
 
 sys.path.insert(0, AQUI)
