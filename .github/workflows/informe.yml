@@ -1,0 +1,58 @@
+name: Informe de inteligencia
+
+# Genera el informe diario a partir de los datos ya archivados (porcentiles +
+# microestructura). No opera: solo mide y publica.
+#
+# Orden: primero baja el corte del dia (archivo_micro --diario), luego calcula
+# percentiles y redacta el informe.
+
+on:
+  schedule:
+    - cron: '45 4 * * *'      # despues del archivo (25 4 * * *)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: informe
+  cancel-in-progress: false
+
+jobs:
+  informar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bajar el corte del dia (por si el archivo fallo)
+        run: python3 analysis/archivo_micro.py --diario
+
+      - name: Calcular percentiles causales
+        run: python3 analysis/percentiles.py --todo
+
+      - name: Redactar el informe
+        run: |
+          python3 analysis/informe.py
+          echo "--- informe.md ---"
+          head -40 analysis/data/informe.md
+
+      - name: Publicar (commit si hay cambios)
+        run: |
+          git config user.name  "vigilante-informe[bot]"
+          git config user.email "vigilante-informe@users.noreply.github.com"
+          git add analysis/data/informe.json analysis/data/informe.md \
+                  analysis/data/percentiles_hoy.json
+          if git diff --cached --quiet; then
+            echo "sin cambios"
+            exit 0
+          fi
+          git commit -m "informe: corte $(date -u +%Y-%m-%d)"
+          for i in 1 2 3; do
+            git push origin HEAD:main && break
+            echo "reintento $i..."
+            git pull --rebase origin main --quiet
+            sleep 10
+          done
