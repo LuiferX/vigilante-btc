@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 archivo_micro.py - archivo DURABLE de microestructura (OI, taker, ballenas,
 funding).
@@ -28,6 +28,7 @@ import argparse
 import datetime
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -35,6 +36,11 @@ import urllib.request
 UTC = datetime.timezone.utc
 AQUI = os.path.dirname(os.path.abspath(__file__))
 ARCHIVO = os.path.join(AQUI, "data", "archivo")
+# El colector vive un nivel arriba, en collector/. Se anade al path para poder
+# reusar SUS fuentes alternativas (OKX/Bybit) cuando Binance bloquea con 451.
+_COLECTOR = os.path.join(os.path.dirname(AQUI), "collector")
+if _COLECTOR not in sys.path:
+    sys.path.insert(0, _COLECTOR)
 UA = "vigilante-archivo/1.0 (+https://github.com/LuiferX/vigilante-btc)"
 PASO_MS = 5 * 60 * 1000          # las series son de 5 minutos
 LIMITE = 500                      # maximo por pagina de la API
@@ -84,7 +90,7 @@ def dt_ms(v) -> datetime.datetime:
 # -------------------------------------------------------------- descarga ----
 def descargar_serie(endpoint: str, campo_tiempo: str, campos, dias: int,
                     symbol: str = "BTCUSDT", pasm: int = PASO_MS):
-    """Baja todo el histórico disponible (hasta `dias` o el tope de la API).
+    """Baja todo el histÃ³rico disponible (hasta `dias` o el tope de la API).
 
     Pagina hacia atras desde ahora. Devuelve lista de dicts normalizados.
     """
@@ -124,7 +130,7 @@ def descargar_serie(endpoint: str, campo_tiempo: str, campos, dias: int,
 
 
 def descargar_funding(dias: int = 1500, symbol: str = "BTCUSDT"):
-    """El funding no tiene el tope de 30 dias: se baja todo el histórico."""
+    """El funding no tiene el tope de 30 dias: se baja todo el histÃ³rico."""
     fin = datetime.datetime.now(UTC)
     inicio = fin - datetime.timedelta(days=dias)
     out: dict[int, dict] = {}
@@ -155,6 +161,47 @@ def descargar_funding(dias: int = 1500, symbol: str = "BTCUSDT"):
     return [out[k] for k in sorted(out)]
 
 
+# --------------------------------------------------------- fallback (451) ---
+# Binance devuelve HTTP 451 (bloqueo legal/geografico) a las IPs de los runners
+# de GitHub Actions: el trabajo automatico se quedaria sin datos todos los dias.
+# El colector ya tiene fallbacks que SI funcionan desde ahi (OKX/Bybit), con el
+# mismo esquema de campos y su propio `source`. Se reutilizan: el archivo crece
+# igual, y la procedencia queda en cada fila.
+FALLBACK = {
+    "oi": "fetch_open_interest_okx",
+    "taker": "fetch_taker_okx",
+    "top_cuentas": "fetch_long_short_okx",
+    "global_cuentas": "fetch_long_short_okx",
+    "top_posiciones": "fetch_long_short_bybit",
+}
+
+
+def descargar_alterno(nombre: str) -> list[dict]:
+    """Registros de la fuente alternativa (OKX/Bybit) para una serie."""
+    fn_nombre = FALLBACK.get(nombre)
+    if fn_nombre is None:
+        return []
+    try:
+        import collector as co  # noqa: E402  (script hermano)
+        fn = getattr(co, fn_nombre, None)
+        if fn is None:
+            return []
+        return fn() or []
+    except Exception as e:
+        print(f"    (fallback {nombre}: {type(e).__name__} {str(e)[:50]})")
+        return []
+
+
+def descargar_funding_alterno() -> list[dict]:
+    """Funding historico de OKX (hasta 100 pagos por llamada)."""
+    try:
+        import collector as co  # noqa: E402
+        return co.fetch_funding_okx(100) or []
+    except Exception as e:
+        print(f"    (fallback funding: {type(e).__name__} {str(e)[:50]})")
+        return []
+
+
 # ------------------------------------------------------------ persistencia --
 def ruta_serie(nombre: str) -> str:
     return os.path.join(ARCHIVO, f"{nombre}.jsonl")
@@ -180,7 +227,7 @@ def fusionar(nombre: str, nuevos: list[dict], campo: str) -> tuple[int, int]:
     """Idempotente y CANONICO: anade solo lo que no este y deja el archivo
     ordenado por `campo` (timestamp) y sin duplicados.
 
-    El orden no es cosmético: los consumidores hacen bisect sobre el archivo, y
+    El orden no es cosmÃ©tico: los consumidores hacen bisect sobre el archivo, y
     un archivo desordenado da resultados silenciosamente falsos. Por eso se
     reescribe ordenado en cada pasada (a esta escala, ~9.000 filas, es barato).
     Lineas que no son JSON se conservan al final: nunca se pierde informacion.
@@ -318,12 +365,19 @@ def main() -> int:
     # funding: historico profundo (no tiene el tope de 30 dias)
     if a.todo or a.serie == "funding" or (a.diario and not a.serie):
         regs = descargar_funding(dias=1500 if not a.diario else 3)
+        origen = "binance"
+        if not regs:
+            regs = descargar_funding_alterno()
+            origen = "okx (alterno)"
         agr, prev = fusionar("funding", regs, "fundingTime")
         total += agr
-        d0 = dt_ms(regs[0]["fundingTime"]) if regs else None
-        d1 = dt_ms(regs[-1]["fundingTime"]) if regs else None
-        print(f"  funding            +{agr:6d} nuevos ({prev} previos) | "
-              f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}" if regs else "  funding: sin datos")
+        if regs:
+            d0 = dt_ms(regs[0]["fundingTime"])
+            d1 = dt_ms(regs[-1]["fundingTime"])
+            print(f"  funding [{origen:^18s}] +{agr:6d} nuevos ({prev} previos) | "
+                  f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}")
+        else:
+            print(f"  funding [{origen:^18s}] sin datos")
 
     objetivos = [a.serie] if a.serie else sorted(SERIES)
     if a.diario:
@@ -331,17 +385,22 @@ def main() -> int:
     for nombre in objetivos:
         endpoint, campo, campos = SERIES[nombre]
         regs = descargar_serie(endpoint, campo, campos, dias)
+        origen = "binance"
         if not regs:
-            print(f"  {nombre:18s} sin datos (la API no devolvio nada)")
+            regs = descargar_alterno(nombre)
+            origen = "okx/bybit (alterno)"
+        if not regs:
+            print(f"  {nombre:18s} sin datos (binance bloqueado y sin alterno)")
             continue
         agr, prev = fusionar(nombre, regs, campo)
         total += agr
         d0, d1 = dt_ms(regs[0][campo]), dt_ms(regs[-1][campo])
-        print(f"  {nombre:18s} +{agr:6d} nuevos ({prev} previos) | "
-              f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d} | {(d1-d0).days} dias")
+        print(f"  {nombre:18s} [{origen:>18s}] +{agr:6d} nuevos ({prev} previos) | "
+              f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}")
     print(f"OK -> {total} registros nuevos en {ARCHIVO}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

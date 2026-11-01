@@ -38,8 +38,15 @@ SERIES = {
 }
 
 
-def cargar(nombre: str) -> tuple[list[int], list[float]]:
-    """Devuelve (timestamps, valores) ordenados. Castea a float sin fallar."""
+def cargar(nombre: str, incluir_alternas: bool = False) -> tuple[list[int], list[float]]:
+    """Devuelve (timestamps, valores) ordenados. Castea a float sin fallar.
+
+    Por defecto solo usa la fuente primaria (`binance_*`): las fuentes
+    alternativas (OKX/Bybit, que se usan cuando Binance bloquea con 451) miden
+    en otra escala (el OI de OKX viene en dolares, el de Binance en contratos)
+    y mezclarlas corromperia el percentil. Se piden explicitamente con
+    `incluir_alternas=True`.
+    """
     archivo, campo_t, campo_v = SERIES[nombre]
     p = os.path.join(ARCHIVO, archivo)
     ts: list[int] = []
@@ -53,6 +60,12 @@ def cargar(nombre: str) -> tuple[list[int], list[float]]:
                 r = json.loads(linea)
             except Exception:
                 continue
+            if not incluir_alternas:
+                src = r.get("source")
+                # solo se descartan las filas que declaran una fuente NO primaria;
+                # las legacy (sin etiqueta) se mantienen
+                if src is not None and not str(src).startswith("binance"):
+                    continue
             t = r.get(campo_t)
             v = r.get(campo_v)
             if t is None or v is None:
