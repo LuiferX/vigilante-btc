@@ -25,6 +25,16 @@ from vigilante.red import klines
 
 
 def analyze(candles, mins, label):
+    # Robustez: sin velas no hay analisis. Se devuelve un dict vacio coherente
+    # en lugar de un IndexError, para que un corte con datos incompletos degrade
+    # (menos informacion) en vez de tumbar el pipeline entero.
+    if not candles:
+        return {"precio": None, "atr": None, "atrPct": None, "rsi": None,
+                "ema20": None, "ema50": None, "adx": None, "macd": None,
+                "score": 0, "tend": 0, "slopePct": 0.0, "regLabel": label,
+                "regPct": 0.0, "volRel": 0.0, "compresion": None, "er": None,
+                "winH": None, "winL": None, "cierreEnMin": None, "tf": label,
+                "estructura": None, "z": None}
     closes = [c["c"] for c in candles]
     last = closes[-1]
     e20 = ema(closes, 20)

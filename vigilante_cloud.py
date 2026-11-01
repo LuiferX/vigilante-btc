@@ -1,15 +1,22 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-vigilante_cloud.py - VIGILANTE BTCUSDT v6 (1H 4H 1D 1S) en la nube.
+"""Vigilante analitico: mide el mercado y publica informacion. NO OPERA.
 
-v6 institucional: score A/B/C, regimen ADX + MACD en rango, veto premium/DXY,
-blackout de eventos, anti-spam por categoria, PILAS techo/piso, plan 2R,
-paper invisible con frenos, precision MFE/MAE a 8h.
-v5 Companero (tono, narrativa, memoria, comandos) + v4 Maquina + v3 base.
+REARME 2026-11-01: se retiro toda la capa de OPERACION que arrastraba este
+archivo (paper trading, planes de trade, alertas de entrada, comandos por
+chat, vetos de sesgo). Lo que queda es una maquina de analisis cuantitativo:
+baja datos publicos, mide contexto multi-temporal (1H 4H 1D 1S), estructura
+de niveles, liquidez, regimen, sesgo, movimiento y noticias, y publica un
+veredicto ANALITICO (solidez + nivel cercano + estructura).
+
+Historial: v6 tenia score de senal A/B/C, planes 2R y paper invisible. Esa
+capa se retiro por decision del operador: la investigacion medida
+(analysis/EXPERIMENTOS.md: H1..H6) demostro que la familia de senales no
+supera el coste de operar, asi que el valor esta en el analisis, no en la
+ejecucion.
 
 SEGURIDAD: solo API publica de Binance (+ espejo vision si bloquean).
-Secretos por variables de entorno. Sin API keys, sin trading.
+Secretos por variables de entorno. Sin API keys, sin ordenes, sin trading.
 """
 
 import datetime
@@ -23,29 +30,6 @@ import urllib.request
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 if _AQUI not in sys.path:
     sys.path.insert(0, _AQUI)
-from vigilante.alertas import (  # noqa: E402,F401
-    BLACKOUT_MIN,
-    FEE_PCT,
-    FILTRO_VOL,
-    FUNDING_EXTREMO,
-    MAX_STOP_ATR,
-    MIN_RR_ALERTA,
-    UMBRAL_BRUSCO,
-    UMBRAL_CONF_CAMBIO,
-    UMBRAL_CONF_FUERTE,
-    UMBRAL_CONF_SENAL,
-    UMBRAL_DIA_NY,
-    UMBRAL_RITMO,
-    blackout,
-    cuenta_regresiva,
-    decidir_alerta,
-    funding_flag,
-    hay_veto,
-    plan_entrada,
-    plan_trade,
-    score_senal,
-    texto_plan,
-)
 from vigilante.analisis import (  # noqa: E402,F401
     analyze,
     confluencia_nivel,
@@ -58,10 +42,6 @@ from vigilante.analisis import (  # noqa: E402,F401
     pivots,
     proxima_sesion,
     regimen_operativo,
-)
-from vigilante.comandos import (  # noqa: E402,F401
-    leer_comandos,
-    responder_comando,
 )
 from vigilante.estado import (  # noqa: E402,F401  (re-export: API publica)
     ESTADO_FILE,
@@ -201,26 +181,6 @@ from vigilante.noticias import (  # noqa: E402,F401
     noticias,
     peso_noticia,
     presion_noticias,
-)
-from vigilante.paper import (  # noqa: E402,F401
-    PAPER_BANCO,
-    PAPER_LEV,
-    PAPER_RIESGO,
-    UMBRAL_PAPEL,
-    _fee,
-    abrir_mediciones,
-    abrir_papel,
-    cierre_papel,
-    gestion_sl,
-    gestionar_be_trailing,
-    journal_check,
-    kelly_half,
-    perdon_bloqueo,
-    puede_papel,
-    racha_perdidas,
-    ref_rango,
-    revisar_cierres_papel,
-    sharpe,
 )
 from vigilante.precision import (  # noqa: E402,F401
     BT_FILE,
@@ -445,8 +405,8 @@ GRID_NIVELES = 500  # rejilla fija: max14/min14 caminan cada hora; sin snap cada
 ABRIDORES = [
     "Oye, te cuento lo que veo",
     "Reporte desde la nube",
-    "Pasaba por aquí y vi esto",
-    "Actualización del mercado",
+    "Pasaba por aquÃ­ y vi esto",
+    "ActualizaciÃ³n del mercado",
     "Te traigo noticias frescas",
 ]
 
@@ -751,6 +711,78 @@ def guardia_lectura():
     return True
 
 
+
+# ---------------- REARME 2026-11-01: analisis, no operacion ----------------
+# Estas dos funciones sustituyen a la capa de senales de trading retirada.
+# Miden
+# la SOLIDEZ del analisis (regimen, confluencia, estructura); no proponen
+# entradas, no calculan planes de trade y no ejecutan nada.
+
+def _grado_analitico(dirb: dict, regimen: str, confl) -> str:
+    """Solidez del analisis, no senal: A solo con tendencia y confluencia."""
+    g = (dirb or {}).get("grado") or "C"
+    if regimen != "tendencia":
+        return "C"
+    if confl:
+        return g if g in ("A", "B") else "B"
+    # sin confluencia confirmada, un A se degrada a B: la estructura sola no
+    # basta para llamar solido al analisis
+    return "B" if g == "A" else g
+
+
+def cerca_etiqueta(niv: dict, last: float) -> str:
+    """Etiqueta del nivel mas cercano al precio, con su distancia en %."""
+    if not niv or not last:
+        return "s/d"
+    res = ((niv.get("resistencias") or [{}])[0]) or {}
+    sop = ((niv.get("soportes") or [{}])[0]) or {}
+    d_res = abs(res.get("precio", last) - last)
+    d_sup = abs(last - sop.get("precio", last))
+    if d_res <= d_sup:
+        return f"R {d_res / last * 100:.2f}%"
+    return f"S {d_sup / last * 100:.2f}%"
+
+
+def _veredicto_analitico(last, niv, dirb, regimen, confl, mov1h, mov30,
+                         rup, qb, liq, est, ahora):
+    """Devuelve (enviar, motivo, tipo) con el veredicto del corte.
+
+    `enviar` = True solo cuando el analisis cambia de forma relevante, para no
+    spamear. `motivo` describe el HALLAZGO, no una accion.
+    """
+    bias = (dirb or {}).get("bias") or "LATERAL"
+    grado = _grado_analitico(dirb, regimen, confl)
+    res = (niv or {}).get("resistencias") or [{}]
+    sop = (niv or {}).get("soportes") or [{}]
+    d_res = abs((res[0] or {}).get("precio", last) - last)
+    d_sup = abs(last - (sop[0] or {}).get("precio", last))
+    cerca = "resistencia" if d_res <= d_sup else "soporte"
+    dist = min(d_res, d_sup)
+    dist_pct = dist / last * 100 if last else 0.0
+    partes = [f"rÃ©gimen={regimen}", f"bias={bias}", f"solidez={grado}",
+              f"nivel cercano={cerca} a {dist_pct:.2f}%"]
+    if rup:
+        partes.append("ruptura de estructura")
+    if qb:
+        partes.append("quiebre de estructura")
+    if mov1h:
+        partes.append(f"mov 1h={mov1h:.2f}%")
+    if mov30:
+        partes.append(f"mov 30m={mov30:.2f}%")
+    if liq:
+        partes.append(f"liquidez: {liq}")
+    motivo = "; ".join(partes)
+    # cambio relevante: solidez A, nivel muy cerca, o ruptura/quiebre
+    previo = (est or {}).get("ultimo_veredicto") or {}
+    cambio_relevante = (previo.get("grado") != grado or previo.get("cerca") != cerca
+                        or previo.get("bias") != bias)
+    enviar = bool(cambio_relevante or grado == "A" or dist_pct < 0.25 or rup or qb)
+    if est is not None and ahora is not None:
+        est["ultimo_veredicto"] = {"grado": grado, "cerca": cerca, "bias": bias,
+                                   "t": ahora.isoformat()}
+    return enviar, motivo, "analisis"
+
+
 def main():
     guardia_lectura()
     _elegir_fuente()  # fija spot/futuros una sola vez para toda la pasada
@@ -786,7 +818,7 @@ def main():
         fg = fear_greed(d1, senti, t["chg"])
         notis = noticias()
         # M1: una sola bajada del calendario. `evs` = solo futuros (para mostrar/avisar);
-        # `_evs_cal` incluye las últimas 24 h para que el estudio de eventos no esté muerto.
+        # `_evs_cal` incluye las Ãºltimas 24 h para que el estudio de eventos no estÃ© muerto.
         _evs_cal = calendario(limit=80, incluir_pasadas_h=48)
         evs = [e for e in _evs_cal if e.get("cuando") and e["cuando"] > ahora][:5]
 
@@ -908,11 +940,12 @@ def main():
             _confl = _c_res if _d_res <= _d_sup else _c_sup
         except Exception:
             _confl = 0
-        grade = score_senal(dirb, h1, h4, regimen, confl=_confl)
-        veto = hay_veto(dirb["bias"], (cb or {}).get("prem"), ((mx or {}).get("dxy") or {}).get("chg", 0))
-        if veto and grade in ("A", "B"):
-            grade = chr(ord(grade) + 2)
-        bloqueo, motivo_bloq = blackout(evs, ahora)
+        # REARME 2026-11-01: fuera la senal de trading. `grado` pasa a ser
+        # la SOLIDEZ del analisis (regimen + confluencia), nunca una
+        # invitacion a entrar. Sin vetos de trading ni blackouts.
+        grado = _grado_analitico(dirb, regimen, _confl)
+        veto = False
+        bloqueo, motivo_bloq = False, ""
         aviso_previo = preaviso(est, evs, ahora)
         try:
             edad_h = (ahora - kl_h1[-1]["t"]).total_seconds() / 3600 if kl_h1 else 99
@@ -922,7 +955,7 @@ def main():
             est["stale_n"] = est.get("stale_n", 0) + 1
             guardar_estado(est, hist)
             if est["stale_n"] >= 3:
-                send_telegram("⚠️ Datos desactualizados (velas viejas): revisa fuentes. No opero a ciegas.")
+                send_telegram("âš ï¸ Datos desactualizados (velas viejas): revisa fuentes. El analisis puede estar sesgado.")
                 est["stale_n"] = 0
                 guardar_estado(est, hist)
             print(f"Datos viejos ({round(edad_h, 2)} h). Salto.")
@@ -937,16 +970,10 @@ def main():
             _ln = liquidez_nivel(kl_h1, t["last"])
         except Exception:
             _ln = None
-        liq = _ln["texto"] if _ln else None
+        liq = _ln["texto"] if _ln else None  # informativa
+        # REARME 2026-11-01: sin plan de trade; la liquidez de nivel se
+        # reporta como informacion, no como propuesta de entrada.
         liq_plan = None
-        try:
-            if _ln and h1.get("atr"):
-                _buf = 0.15 * h1["atr"]
-                _stop_liq = (_ln["extremo"] + _buf) if _ln["lado"] == "max" else (_ln["extremo"] - _buf)
-                liq_plan = plan_trade("short" if _ln["lado"] == "max" else "long",
-                                      t["last"], niv, h1.get("atr"), stop=_stop_liq)
-        except Exception:
-            liq_plan = None
         poc = punto_control(kl_h1)
         try:
             fvg = fvgs_activos(kl_h1, kl_h4, t["last"])
@@ -954,7 +981,7 @@ def main():
             fvg = None
         rup = ruptura(kl_h1, niv["soportes"][0]["precio"], niv["resistencias"][0]["precio"])
         try:
-            # M3: solo velas CERRADAS (antes usaba la viva y la señal repintaba)
+            # M3: solo velas CERRADAS (antes usaba la viva y la seÃ±al repintaba)
             qb = quiebre_estructura(kl_h1[:-1])
         except Exception:
             qb = None
@@ -992,46 +1019,31 @@ def main():
             try:
                 hit = (a["dir"] == "sube" and t["last"] >= a["precio"]) or (a["dir"] == "baja" and t["last"] <= a["precio"])
                 if hit and forzado is None:
-                    verbo = "llegó a" if a["dir"] == "sube" else "cayó a"
+                    verbo = "llegÃ³ a" if a["dir"] == "sube" else "cayÃ³ a"
                     forzado = f"Tu alerta: BTC {verbo} {fmt_miles(a['precio'])}"
                 elif not hit:
                     vivas.append(a)
             except Exception:
                 continue
         est["mis_alertas"] = vivas
-        abiertas, cierres = journal_check(est.get("ops", []), kl_h1, t["last"])
-        est["ops"] = abiertas
-        if cierres:
-            journal = est.get("journal", [])
-            for cc in cierres:
-                journal.append({"dir": cc["dir"], "res": cc["res"], "r": cc["r"], "t": ahora.isoformat()})
-            est["journal"] = journal[-50:]
-        sims_ab, sims_ci = journal_check(est.get("sim_abiertas", []), kl_h1, t["last"])
-        est["sim_abiertas"] = sims_ab
-        if sims_ci:
-            sc = est.get("sim_cerradas", [])
-            for cc in sims_ci:
-                sc.append({"dir": cc["dir"], "res": cc["res"], "r": cc["r"], "t": ahora.isoformat()})
-                send_telegram(f"🔬 Simulada cerrada: {cc['dir']} {cc['res']} ({cc['r']:+.1f}R). Sin dinero, solo aprendizaje.")
-                print(f"  simulada cerrada {cc['dir']} {cc['res']}")
-            est["sim_cerradas"] = sc[-20:]
-        # GESTION: BE/trailing de ops abiertas (las del usuario, no señales).
+        # REARME 2026-11-01: retirado el journal de papel/sombra
+        # (ops, journal, sim_abiertas, sim_cerradas) y sus avisos.
+        # GESTION: BE/trailing de ops abiertas (las del usuario, no seÃ±ales).
         # Extraido a vigilante/paper.gestionar_be_trailing (P2, troceado 2/N).
-        gestion_txt = gestionar_be_trailing(est, t["last"], h1.get("atr"), regimen)
         # PAPEL XLX: revisa cierres con la ultima vela 1H + ticker (invisible, sin avisos)
         # Extraido a vigilante/paper.revisar_cierres_papel (P2, troceado de main).
-        revisar_cierres_papel(est, kl_h1, t["last"], ahora)
         hist.append({"t": ahora.isoformat(), "precio": round(t["last"]),
                      "bias": dirb["bias"], "conf": dirb["confianza"], "fg": fg["valor"],
                      "fund": senti["funding"], "taker": senti["taker"],
                      "res": niv["resistencias"][0]["precio"], "sup": niv["soportes"][0]["precio"],
-                     "grade": grade})
+                     "grado": grado})
 
         calib = calibrar(est)
         est["calib"] = calib
         f_ses = calib.get(sesion_bucket(ahora.hour), 1.0)
-        uf = UMBRAL_CONF_FUERTE * f_ses
-        uc = UMBRAL_CONF_CAMBIO * f_ses
+        # REARME: umbrales de "confianza del analisis" (ya no de senal)
+        uf = 0.75 * f_ses
+        uc = 0.55 * f_ses
         try:
             cools_antes = dict(est.get("cools") or {})
         except Exception:
@@ -1055,12 +1067,16 @@ def main():
             if _atr1 > 0 and _ema1 > 0:
                 _dx = (t["last"] - _ema1) / _atr1
                 if _dx <= -2.0 and _rsi1 < 35:
-                    estir = f"bajo media {_dx:.1f}×ATR (RSI {_rsi1:.0f})"
+                    estir = f"bajo media {_dx:.1f}Ã—ATR (RSI {_rsi1:.0f})"
                 elif _dx >= 2.0 and _rsi1 > 65:
-                    estir = f"sobre media +{_dx:.1f}×ATR (RSI {_rsi1:.0f})"
+                    estir = f"sobre media +{_dx:.1f}Ã—ATR (RSI {_rsi1:.0f})"
         except Exception:
             estir = None
-        enviar, motivo, tipo = decidir_alerta(t["last"], niv, dirb, est, ahora, forzado, mov1h, regimen, bloqueo, motivo_bloq, mov_ny, liq, pila, uf, uc, mov30, rup, qb, sl, gestion_txt, mecha, slm, estir, foot, umbral=umbral, atr=h1.get("atr"), liq_plan=liq_plan, chop=_chop)
+        # REARME 2026-11-01: el motor de alertas de trading se retira.
+        # En su lugar, el veredicto ANALITICO del corte.
+        enviar, motivo, tipo = _veredicto_analitico(
+            t["last"], niv, dirb, regimen, _confl, mov1h, mov30,
+            rup, qb, liq, est, ahora)
         # Capa 1: toques multiples (contexto, no entrada). Solo si no hay otro
         # mensaje programado (manana/noche/preny) para no pisarlo.
         if (not es_dup) and kl_m5 and not (enviar and tipo != "alerta"):
@@ -1078,13 +1094,13 @@ def main():
         gate = cargar_gate_validacion()
         motor = cargar_motor_nuevo()
         enviar, motivo, tipo, gate_blocked = aplicar_gate_alerta(
-            enviar, motivo, tipo, gate, forzado=forzado, gestion=gestion_txt
+            enviar, motivo, tipo, gate, forzado=forzado, gestion=None
         )
         if gate_blocked:
             print(f"Gate validacion: alerta direccional silenciada ({gate.get('reason', 'sin evidencia')}).")
             # Contrafactual: medir la alerta silenciada con la misma regla que las
             # enviadas. Sirve para saber si el gate protege o si esta bloqueando
-            # señales buenas; nunca se envia ni se mezcla con el scoreboard vivo.
+            # seÃ±ales buenas; nunca se envia ni se mezcla con el scoreboard vivo.
             registrar_pend_gate(est, ahora, t["last"], dirb, _dir_alerta,
                                 _tipo_alerta, _motivo_alerta,
                                 gate.get("reason", "sin evidencia"), umbral,
@@ -1129,7 +1145,7 @@ def main():
         # Confluencia: registrar solo si hay grado B+ o evidencia (liquidez/ruptura/mecha/PILAS).
         _conf_ok = True
         if os.environ.get("VIGILANTE_FILTRO_CONFLUENCIA", "1") not in ("", "0", "false", "False"):
-            _conf_ok = (grade in ("A", "B")) or bool(liq) or bool(rup) or bool(mecha) or bool(pila)
+            _conf_ok = (grado in ("A", "B")) or bool(liq) or bool(rup) or bool(mecha) or bool(pila)
         # Toque real obligatorio (flag opt-in): solo registrar si hubo toque de nivel/liquidez/ruptura/mecha.
         _toque_ok = True
         if os.environ.get("VIGILANTE_SOLO_TOQUE", "0") not in ("", "0", "false", "False"):
@@ -1158,7 +1174,6 @@ def main():
                               "fund": senti["funding"], "taker": senti["taker"],
                               "fg": fg["valor"]}}]
         # PAPEL/SOMBRA/TODO (invisibles): extraido a vigilante/paper.abrir_mediciones (P2, troceado 4/N).
-        abrir_mediciones(est, dirb, niv, t["last"], umbral, ahora)
         guardar_estado(est, hist)
 
         # Scoreboard semanal (domingo 12:00 UTC): acierto real por tipo, no promesas.
@@ -1166,8 +1181,8 @@ def main():
             if ahora.weekday() == 6 and ahora.hour == 12 and est.get("ultimo_score") != hoy:
                 _txt_sb = texto_scoreboard(est.get("eval_log", []), min_n=5, solo_plan=True)
                 if _txt_sb:
-                    send_telegram("🗓️ SCOREBOARD SEMANAL (señales direccionales)\n" + _txt_sb +
-                                  "\nSin promesas: es lo que pasó, no lo que va a pasar.")
+                    send_telegram("ðŸ—“ï¸ SCOREBOARD SEMANAL (seÃ±ales direccionales)\n" + _txt_sb +
+                                  "\nSin promesas: es lo que pasÃ³, no lo que va a pasar.")
                 est["ultimo_score"] = hoy
                 guardar_estado(est, hist)
         except Exception:
@@ -1176,26 +1191,18 @@ def main():
         ctx = {"t": t, "dirb": dirb, "niv": niv, "fg": fg, "est": est,
                "h1": h1, "h4": h4, "d1": d1, "w1": w1, "senti": senti,
                "notis": notis, "evs": evs, "ahora": ahora, "cb": cb, "smart": sm, "aut": aut,
-               "grade": grade, "regimen": regimen, "bloqueo": bloqueo, "pres": pres,
+               "grado": grado, "regimen": regimen, "bloqueo": bloqueo, "pres": pres,
                "confl": _confl, "motor": motor}
-        try:
-            cmds, new_off = leer_comandos(est.get("offset", 0))
-        except Exception:
-            cmds, new_off = [], est.get("offset", 0)
-        if new_off != est.get("offset", 0):
-            est["offset"] = new_off
-            guardar_estado(est, hist)
-        for cc in cierres:
-            send_telegram("📓 " + cc["txt"])
+        # REARME 2026-11-01: se retiran los comandos por chat, el journal de
+        # papel y el envio de cierres de operacion. El corte se publica abajo.
         if not fresco:
-            print(f"Comandos pendientes: {len(cmds)}")
-            for cm in cmds:
-                r, d = responder_comando(cm, ctx)
-                if r:
-                    send_telegram("💬 " + cm["texto"] + "\n" + r)
-                    print(f"  respondido {cm['texto']} (chat {cm['chat']})")
-                else:
-                    print(f"  ignorado {cm['texto']} (chat {cm['chat']})")
+            # REARME 2026-11-01: el corte del analisis se registra siempre.
+            print(f"[corte {ahora.strftime('%H:%M')}] regimen={regimen} "
+                  f"bias={dirb['bias']} solidez={grado} "
+                  f"nivel={cerca_etiqueta(niv, t['last'])}")
+            if est is not None:
+                est["ultimo_corte"] = ahora.isoformat()
+                guardar_estado(est, hist)
 
         try:
             _tags = etiquetar_senal(senti, ahora.hour, dcvd)
@@ -1204,7 +1211,7 @@ def main():
         est["snapshot"] = {
             "t": ahora.isoformat(),
             "precio": t["last"], "chg": t["chg"], "hi": t["hi"], "lo": t["lo"],
-            "bias": dirb["bias"], "conf": dirb["confianza"], "grade": grade, "regimen": regimen,
+            "bias": dirb["bias"], "conf": dirb["confianza"], "grado": grado, "regimen": regimen,
             "confl": _confl,
             "tf": {k: {"tend": x["tend"], "rsi": x["rsi"], "macd": x["macd"], "score": x["score"],
                          "er": x.get("er"), "z": x.get("z")}
@@ -1242,21 +1249,23 @@ def main():
         if gate_blocked and est.get("gate_aviso") != hoy:
             try:
                 if send_telegram(
-                    "🔇 Alerta direccional silenciada.\n"
-                    f"La validación todavía no permite señales: {gate.get('reason', 'sin evidencia')}.\n"
-                    f"Medición: {resumen_medicion(est)}.\n"
+                    "ðŸ”‡ Alerta direccional silenciada.\n"
+                    f"La validaciÃ³n todavÃ­a no permite seÃ±ales: {gate.get('reason', 'sin evidencia')}.\n"
+                    f"MediciÃ³n: {resumen_medicion(est)}.\n"
                     "Sigo midiendo; no convierto confianza en entrada."
                 ):
                     est["gate_aviso"] = hoy
                     guardar_estado(est, hist)
             except Exception:
                 pass
-        forzar = (any(cm.get("texto") == "/detalle" for cm in cmds) if not fresco else False) or pide
+        # REARME 2026-11-01: sin comandos por chat; el detalle se pide solo por
+        # estado persistido (pide_detalle).
+        forzar = bool(pide)
         if forzar:
             motivo, tipo, enviar = "Detalle pedido", "alerta", True
-        # FIX BUG1: envío centralizado del preaviso High 15-60min.
-        # Debe salir aunque no haya señal principal (enviar=False).
-        # La marca preavisos solo se pone tras envío real, nunca al calcularlo.
+        # FIX BUG1: envÃ­o centralizado del preaviso High 15-60min.
+        # Debe salir aunque no haya seÃ±al principal (enviar=False).
+        # La marca preavisos solo se pone tras envÃ­o real, nunca al calcularlo.
         try:
             if aviso_previo and not es_dup:
                 try:
@@ -1327,36 +1336,36 @@ def main():
             return
         runs = est["runs"]
         if tipo == "alerta":
-            intro = ABRIDORES[runs % len(ABRIDORES)] + " 👀"
+            intro = ABRIDORES[runs % len(ABRIDORES)] + " ðŸ‘€"
         elif tipo == "manana":
-            intro = "¡Buenos días! Arranca Londres: este es el plan del día."
+            intro = "Â¡Buenos dÃ­as! Arranca Londres: este es el plan del dÃ­a."
         elif tipo == "preny":
             intro = "Faltan 30 min para NY: reporte detallado pre-apertura."
         elif tipo == "madrugada":
-            intro = "Mientras dormías: así le fue a la noche."
+            intro = "Mientras dormÃ­as: asÃ­ le fue a la noche."
         else:
-            intro = "Cerramos el día: esto fue lo importante."
+            intro = "Cerramos el dÃ­a: esto fue lo importante."
         memoria = []
         if veto:
-            memoria.append("veto institucional: premium USA + dólar en contra (calidad degradada)")
+            memoria.append("veto institucional: premium USA + dÃ³lar en contra (calidad degradada)")
         if tipo == "alerta" and motivo.startswith("Tocando"):
             nivel = res["precio"] if "resistencia" in motivo else sup["precio"]
             n = toques_hoy(hist, nivel, ahora)
             if n >= 2:
-                memoria.append(f"ya tocó ese nivel {n} veces hoy: cada toque lo debilita")
+                memoria.append(f"ya tocÃ³ ese nivel {n} veces hoy: cada toque lo debilita")
         va = vs_ayer(hist, t["last"], ahora)
         if va is not None:
             memoria.append(f"vs ayer a esta hora: {va:+.2f}%")
         bj = sum(1 for h in hist if isinstance(h, dict) and h.get("tipo") == "alerta"
                  and str(h.get("t", ""))[:10] == hoy
                  and ("BAJISTA" in str(h.get("motivo", "")) or "PISO" in str(h.get("motivo", ""))
-                      or "bajo mínimos" in str(h.get("motivo", "")) or "Ritmo acelerado -" in str(h.get("motivo", ""))))
+                      or "bajo mÃ­nimos" in str(h.get("motivo", "")) or "Ritmo acelerado -" in str(h.get("motivo", ""))))
         bl = sum(1 for h in hist if isinstance(h, dict) and h.get("tipo") == "alerta"
                  and str(h.get("t", ""))[:10] == hoy
                  and ("ALCISTA" in str(h.get("motivo", "")) or "TECHO" in str(h.get("motivo", ""))
-                      or "sobre máximos" in str(h.get("motivo", "")) or "Ritmo acelerado +" in str(h.get("motivo", ""))))
+                      or "sobre mÃ¡ximos" in str(h.get("motivo", "")) or "Ritmo acelerado +" in str(h.get("motivo", ""))))
         if bj + bl > 0:
-            memoria.append(f"presión del día: {bj} avisos bajistas / {bl} alcistas")
+            memoria.append(f"presiÃ³n del dÃ­a: {bj} avisos bajistas / {bl} alcistas")
         er1 = h1.get("er")
         if er1 is not None and er1 >= 0.5:
             memoria.append(f"eficiencia {er1}: el 1H va a alguna parte (tendencia real)")
@@ -1364,9 +1373,9 @@ def main():
             memoria.append(f"eficiencia {er1}: puro ruido en 1H (chop, no persigas)")
         z1 = h1.get("z")
         if z1 is not None and abs(z1) >= 2:
-            memoria.append(f"estirado {z1:+}σ sobre media 20H: no persigas la vela")
+            memoria.append(f"estirado {z1:+}Ïƒ sobre media 20H: no persigas la vela")
         pu, pdn = psico(t["last"])
-        memoria.append(f"psicológicos: {fmt_miles(pu)} (+{round((pu - t['last']) / t['last'] * 100, 2)}%) / {fmt_miles(pdn)} ({round((pdn - t['last']) / t['last'] * 100, 2)}%)")
+        memoria.append(f"psicolÃ³gicos: {fmt_miles(pu)} (+{round((pu - t['last']) / t['last'] * 100, 2)}%) / {fmt_miles(pdn)} ({round((pdn - t['last']) / t['last'] * 100, 2)}%)")
         rt = retest(kl_h1, res, sup, t["last"])
         if rt:
             memoria.append(rt)
@@ -1385,10 +1394,10 @@ def main():
             pdh = est.get("paper_dia") or {}
             tc0 = tabla_calibracion(est.get("eval_log", []))
             cal0 = (f"mi tino: {tc0['n']} evaluadas, Brier {tc0['brier']}" if tc0
-                    else "aún sin evaluadas: aprendo en silencio")
-            memoria.append(f"auto-revisión: hoy {len(hy)} pasadas y {na} alertas; "
-                           f"papel del día {pdh.get('pnl', 0):+.0f} USDT; {cal0}; "
-                           f"{len(est.get('pendientes', []))} señales en seguimiento")
+                    else "aÃºn sin evaluadas: aprendo en silencio")
+            memoria.append(f"auto-revisiÃ³n: hoy {len(hy)} pasadas y {na} alertas; "
+                           f"papel del dÃ­a {pdh.get('pnl', 0):+.0f} USDT; {cal0}; "
+                           f"{len(est.get('pendientes', []))} seÃ±ales en seguimiento")
         lf = None
         for h in reversed(hist[:-1]):
             if h.get("fund") is not None:
@@ -1397,41 +1406,43 @@ def main():
         if lf is not None and senti["funding"] is not None:
             dd = senti["funding"] - lf
             if abs(dd) >= 0.002:
-                direc = "se calentó" if dd > 0 else "se enfrió"
-                memoria.append(f"el funding {direc} desde tu último parte ({lf:+.4f}% → {senti['funding']:+.4f}%)")
-        # M6/M5: no marcar las noticias como vistas HASTA que el envío tenga éxito
-        # (más abajo, tras send ok). Así la sección "NOTICIAS NUEVAS" sí las muestra
-        # y, si el envío falla, no se pierden (se reintentan en la pasada siguiente).
+                direc = "se calentÃ³" if dd > 0 else "se enfriÃ³"
+                memoria.append(f"el funding {direc} desde tu Ãºltimo parte ({lf:+.4f}% â†’ {senti['funding']:+.4f}%)")
+        # M6/M5: no marcar las noticias como vistas HASTA que el envÃ­o tenga Ã©xito
+        # (mÃ¡s abajo, tras send ok). AsÃ­ la secciÃ³n "NOTICIAS NUEVAS" sÃ­ las muestra
+        # y, si el envÃ­o falla, no se pierden (se reintentan en la pasada siguiente).
         nuevas = [n for n in notis if n.get("titulo") not in est.get("vistas", [])][:2]
         if tipo == "manana":
             ca = cierre_ayer(hist, ahora)
             if ca:
-                memoria.append(f"ayer cerró en {fmt_miles(ca)}")
+                memoria.append(f"ayer cerrÃ³ en {fmt_miles(ca)}")
             if evs:
                 memoria.append("hoy vigilo: " + ", ".join(e["titulo"] for e in evs[:2]))
         if tipo == "madrugada":
             ay = (ahora - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
             sd = stats_fecha(hist, ay)
             if sd:
-                memoria.append(f"anoche: máx {fmt_miles(sd['max'])}, mín {fmt_miles(sd['min'])}, sesgo {sd['dom']}")
+                memoria.append(f"anoche: mÃ¡x {fmt_miles(sd['max'])}, mÃ­n {fmt_miles(sd['min'])}, sesgo {sd['dom']}")
         if tipo == "noche":
             ini = (ahora - datetime.timedelta(hours=24)).isoformat()
             ps = [h["precio"] for h in hist if h.get("t", "") >= ini and h.get("precio")]
             bs = [h["bias"] for h in hist if h.get("t", "") >= ini and h.get("bias")]
             if ps:
                 dom = max(set(bs), key=bs.count) if bs else "?"
-                memoria.append(f"tu día: máx {fmt_miles(max(ps))}, mín {fmt_miles(min(ps))}, sesgo dominante {dom}")
+                memoria.append(f"tu dÃ­a: mÃ¡x {fmt_miles(max(ps))}, mÃ­n {fmt_miles(min(ps))}, sesgo dominante {dom}")
             if evs:
-                memoria.append("mañana vigilo: " + ", ".join(e["titulo"] for e in evs[:2]))
+                memoria.append("maÃ±ana vigilo: " + ", ".join(e["titulo"] for e in evs[:2]))
         extras = {"intro": intro,
                   "arrival": precio_ant if isinstance(precio_ant, (int, float)) else est.get("ultimo_precio"),
                   "narrativa": narrar(dirb, h1, h4, d1, res, sup, t["last"]),
                   "memoria": memoria,
-                  "plan": plan_entrada(dirb, niv, evs, ahora),
-                  "fflag": funding_flag(senti),
+                  # REARME: sin plan de entrada ni flag de funding como
+                  # invitacion; se publica el contexto analitico.
+                  "plan": None,
+                  "fflag": None,
                   "nuevas": nuevas,
                   "mov_ny": mov_ny,
-                  "grade": grade,
+                  "grado": grado,
                   "regimen": regimen,
                   "motor": motor,
                   "cvd_v": cvd_v,
@@ -1451,7 +1462,7 @@ def main():
                   "fvg": fvg,
                   "pres": pres,
                   "vistas": list(est.get("vistas", []))}
-        # (preaviso ya enviado de forma centralizada arriba, incluso sin señal principal)
+        # (preaviso ya enviado de forma centralizada arriba, incluso sin seÃ±al principal)
         msg = build_parte(t, h1, h4, d1, w1, niv, dirb, prox, senti, fg, est, motivo, tipo, notis, evs, ahora, extras)
         ok = send_telegram(msg)
         print("Enviado OK" if ok else "NO enviado (modo local)")
@@ -1476,7 +1487,7 @@ def main():
                 pass
             guardar_estado(est, hist)
     except Exception as e:  # noqa: BLE001
-        err = f"⚠️ El Vigilante fallo: {e} (si es Telegram 400: revisa Chat ID, pulsa Start en tu bot y verifica el token)"
+        err = f"âš ï¸ El Vigilante fallo: {e} (si es Telegram 400: revisa Chat ID, pulsa Start en tu bot y verifica el token)"
         try:
             print(err)
         except UnicodeEncodeError:

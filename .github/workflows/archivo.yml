@@ -1,0 +1,55 @@
+name: Archivo microestructura
+
+# Por que existe: la API publica de Binance solo sirve ~30 dias de OI, taker y
+# ratios de ballenas. Todo lo que no se archive se pierde para siempre. Este
+# workflow baja el corte cada dia y lo deja commiteado en el repo.
+#
+# No opera, no toca el modelo ni el gate: solo descarga datos publicos y los
+# guarda ordenados y deduplicados (analysis/archivo_micro.py).
+
+on:
+  schedule:
+    - cron: '25 4 * * *'      # una vez al dia, antes del cierre de vela UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: archivo
+  cancel-in-progress: false
+
+jobs:
+  archivar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bajar corte diario
+        run: |
+          python3 analysis/archivo_micro.py --diario
+
+      - name: Comprobar cobertura
+        run: |
+          python3 analysis/archivo_micro.py --estado
+
+      - name: Commitear si hay datos nuevos
+        run: |
+          git config user.name  "vigilante-archivo[bot]"
+          git config user.email "vigilante-archivo@users.noreply.github.com"
+          git add analysis/data/archivo
+          if git diff --cached --quiet; then
+            echo "sin cambios: nada que archivar hoy"
+            exit 0
+          fi
+          git commit -m "archivo: corte diario de microestructura $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase origin main --quiet || echo "aviso: rebase sin cambios"
+          for i in 1 2 3; do
+            git push origin HEAD:main && break
+            echo "reintento $i de push..."
+            git pull --rebase origin main --quiet
+            sleep 10
+          done

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 backfill.py - REPLAY HISTORICO sin mirada al futuro (canal OOS auditable).
 
@@ -34,7 +34,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import decision_engine as de  # noqa: E402
 import evaluate_decisions as ev  # noqa: E402
 import hold_model as hm  # noqa: E402
-import run_decision as rd  # noqa: E402
+
+# REARME 2026-11-01: `run_decision.compact_record` vivia en la capa de operar
+# (retirada). Su funcion era solo compactar el esquema de la decision; se deja
+# aqui una version local, identica en efecto, para no arrastrar la dependencia.
+
+
+def compact_record(out: dict) -> dict:
+    """Schema compacto de un corte de backfill (equivalente al de decisions.jsonl)."""
+    keys = ("t", "ok", "precio", "bias", "confianza", "regimen", "score",
+            "niveles", "fuentes", "gatillo", "motivo", "atr", "direccion")
+    rec = {k: out.get(k) for k in keys if k in out}
+    rec.setdefault("t", out.get("t"))
+    rec.setdefault("ok", True)
+    return rec
 
 UTC = datetime.UTC
 VISION = "https://data-api.binance.vision/api/v3/klines"
@@ -157,7 +170,7 @@ def replay(kl, htf, start=None, end=None, step=48, warmup=300):
         )
         if not out.get("ok"):
             continue
-        rec = rd.compact_record(out)
+        rec = compact_record(out)
         rec["origen"] = "backfill"
         registros.append(rec)
     return registros, None
@@ -254,3 +267,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
