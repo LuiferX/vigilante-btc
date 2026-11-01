@@ -1,0 +1,1253 @@
+{
+ "resumen": {
+  "generado": "2026-10-27T18:30:45.338067+00:00",
+  "folds": 11,
+  "muestras_oos": 7776,
+  "skill_wf_folds": [
+   0.0211,
+   0.0104,
+   0.0028,
+   0.019,
+   0.0304,
+   0.0231,
+   -0.0055,
+   0.0204,
+   0.0348,
+   0.0132,
+   0.0251
+  ],
+  "skill_wf_medio": 0.0177,
+  "publicado_folds": [
+   0.0296,
+   0.0211,
+   0.018,
+   0.0142,
+   0.0363,
+   0.0248,
+   -0.0066,
+   0.0306,
+   0.0364,
+   0.0191,
+   0.0228
+  ],
+  "racha_positiva": 6,
+  "cumple_dos_seguidos": true,
+  "etiqueta": "wf-control-semanal",
+  "C": 0.03,
+  "recalibrado": false,
+  "features": null,
+  "holdout": null
+ },
+ "folds": [
+  {
+   "fold": "2024-01-01..2024-03-31",
+   "train_n": 3175,
+   "test_n": 657,
+   "wf": {
+    "n": 657,
+    "brier": 0.1607,
+    "brier_base": 0.1642,
+    "base_rate": 0.793,
+    "brier_skill": 0.0211,
+    "mean_prob": 0.8386,
+    "ece": 0.047
+   },
+   "publicado_in_sample": {
+    "n": 657,
+    "brier": 0.1593,
+    "brier_base": 0.1642,
+    "base_rate": 0.793,
+    "brier_skill": 0.0296,
+    "mean_prob": 0.7969,
+    "ece": 0.0224
+   },
+   "por_lado": {
+    "soporte": {
+     "n": 350,
+     "brier": 0.1449,
+     "brier_base": 0.1512,
+     "base_rate": 0.8143,
+     "brier_skill": 0.0417,
+     "mean_prob": 0.8418,
+     "ece": 0.0294
+    },
+    "resistencia": {
+     "n": 307,
+     "brier": 0.1787,
+     "brier_base": 0.1778,
+     "base_rate": 0.7687,
+     "brier_skill": -0.0049,
+     "mean_prob": 0.8349,
+     "ece": 0.067
+    }
+   },
+   "por_volatilidad": {
+    "normal": {
+     "n": 349,
+     "brier": 0.1694,
+     "brier_base": 0.172,
+     "base_rate": 0.7794,
+     "brier_skill": 0.0148,
+     "mean_prob": 0.8459,
+     "ece": 0.0666
+    },
+    "compresion": {
+     "n": 221,
+     "brier": 0.1527,
+     "brier_base": 0.1567,
+     "base_rate": 0.8054,
+     "brier_skill": 0.0259,
+     "mean_prob": 0.8265,
+     "ece": 0.0377
+    },
+    "expansion": {
+     "n": 87,
+     "brier": 0.1461,
+     "brier_base": 0.1501,
+     "base_rate": 0.8161,
+     "brier_skill": 0.0263,
+     "mean_prob": 0.8397,
+     "ece": 0.0538
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 240,
+     "brier": 0.1372,
+     "brier_base": 0.1416,
+     "base_rate": 0.8292,
+     "brier_skill": 0.0314,
+     "mean_prob": 0.8479,
+     "ece": 0.0322
+    },
+    "Londres": {
+     "n": 105,
+     "brier": 0.1513,
+     "brier_base": 0.1542,
+     "base_rate": 0.8095,
+     "brier_skill": 0.0185,
+     "mean_prob": 0.812,
+     "ece": 0.0133
+    },
+    "NY": {
+     "n": 205,
+     "brier": 0.1779,
+     "brier_base": 0.1844,
+     "base_rate": 0.7561,
+     "brier_skill": 0.0351,
+     "mean_prob": 0.8268,
+     "ece": 0.0707
+    },
+    "noche": {
+     "n": 107,
+     "brier": 0.1895,
+     "brier_base": 0.1791,
+     "base_rate": 0.7664,
+     "brier_skill": -0.0584,
+     "mean_prob": 0.8663,
+     "ece": 0.1171
+    }
+   }
+  },
+  {
+   "fold": "2024-03-31..2024-06-29",
+   "train_n": 3131,
+   "test_n": 661,
+   "wf": {
+    "n": 661,
+    "brier": 0.1451,
+    "brier_base": 0.1466,
+    "base_rate": 0.8215,
+    "brier_skill": 0.0104,
+    "mean_prob": 0.8514,
+    "ece": 0.0299
+   },
+   "publicado_in_sample": {
+    "n": 661,
+    "brier": 0.1436,
+    "brier_base": 0.1466,
+    "base_rate": 0.8215,
+    "brier_skill": 0.0211,
+    "mean_prob": 0.8122,
+    "ece": 0.0093
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 328,
+     "brier": 0.1641,
+     "brier_base": 0.1625,
+     "base_rate": 0.7957,
+     "brier_skill": -0.0094,
+     "mean_prob": 0.8484,
+     "ece": 0.0544
+    },
+    "soporte": {
+     "n": 333,
+     "brier": 0.1265,
+     "brier_base": 0.1297,
+     "base_rate": 0.8468,
+     "brier_skill": 0.025,
+     "mean_prob": 0.8543,
+     "ece": 0.0075
+    }
+   },
+   "por_volatilidad": {
+    "compresion": {
+     "n": 258,
+     "brier": 0.134,
+     "brier_base": 0.1389,
+     "base_rate": 0.8333,
+     "brier_skill": 0.0352,
+     "mean_prob": 0.86,
+     "ece": 0.0266
+    },
+    "normal": {
+     "n": 323,
+     "brier": 0.1677,
+     "brier_base": 0.1644,
+     "base_rate": 0.7926,
+     "brier_skill": -0.0198,
+     "mean_prob": 0.8432,
+     "ece": 0.0543
+    },
+    "expansion": {
+     "n": 80,
+     "brier": 0.09,
+     "brier_base": 0.09,
+     "base_rate": 0.9,
+     "brier_skill": 0.0002,
+     "mean_prob": 0.8567,
+     "ece": 0.0433
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 227,
+     "brier": 0.1453,
+     "brier_base": 0.1452,
+     "base_rate": 0.8238,
+     "brier_skill": -0.0013,
+     "mean_prob": 0.8748,
+     "ece": 0.051
+    },
+    "Londres": {
+     "n": 241,
+     "brier": 0.166,
+     "brier_base": 0.1644,
+     "base_rate": 0.7925,
+     "brier_skill": -0.0094,
+     "mean_prob": 0.8285,
+     "ece": 0.0424
+    },
+    "NY": {
+     "n": 103,
+     "brier": 0.116,
+     "brier_base": 0.1174,
+     "base_rate": 0.8641,
+     "brier_skill": 0.0123,
+     "mean_prob": 0.8414,
+     "ece": 0.0239
+    },
+    "noche": {
+     "n": 90,
+     "brier": 0.122,
+     "brier_base": 0.1314,
+     "base_rate": 0.8444,
+     "brier_skill": 0.0711,
+     "mean_prob": 0.8651,
+     "ece": 0.0287
+    }
+   }
+  },
+  {
+   "fold": "2024-06-29..2024-09-27",
+   "train_n": 3003,
+   "test_n": 665,
+   "wf": {
+    "n": 665,
+    "brier": 0.1717,
+    "brier_base": 0.1722,
+    "base_rate": 0.7789,
+    "brier_skill": 0.0028,
+    "mean_prob": 0.8251,
+    "ece": 0.0524
+   },
+   "publicado_in_sample": {
+    "n": 665,
+    "brier": 0.1691,
+    "brier_base": 0.1722,
+    "base_rate": 0.7789,
+    "brier_skill": 0.018,
+    "mean_prob": 0.7946,
+    "ece": 0.0219
+   },
+   "por_lado": {
+    "soporte": {
+     "n": 344,
+     "brier": 0.1939,
+     "brier_base": 0.1918,
+     "base_rate": 0.7413,
+     "brier_skill": -0.011,
+     "mean_prob": 0.8278,
+     "ece": 0.0909
+    },
+    "resistencia": {
+     "n": 321,
+     "brier": 0.148,
+     "brier_base": 0.148,
+     "base_rate": 0.8193,
+     "brier_skill": 0.0006,
+     "mean_prob": 0.8221,
+     "ece": 0.0152
+    }
+   },
+   "por_volatilidad": {
+    "normal": {
+     "n": 307,
+     "brier": 0.1711,
+     "brier_base": 0.1706,
+     "base_rate": 0.7818,
+     "brier_skill": -0.0028,
+     "mean_prob": 0.8236,
+     "ece": 0.0475
+    },
+    "expansion": {
+     "n": 88,
+     "brier": 0.1227,
+     "brier_base": 0.1178,
+     "base_rate": 0.8636,
+     "brier_skill": -0.0415,
+     "mean_prob": 0.8309,
+     "ece": 0.0328
+    },
+    "compresion": {
+     "n": 270,
+     "brier": 0.1884,
+     "brier_base": 0.1884,
+     "base_rate": 0.7481,
+     "brier_skill": 0.0001,
+     "mean_prob": 0.8248,
+     "ece": 0.0858
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 217,
+     "brier": 0.174,
+     "brier_base": 0.1697,
+     "base_rate": 0.7834,
+     "brier_skill": -0.0253,
+     "mean_prob": 0.8408,
+     "ece": 0.0667
+    },
+    "Londres": {
+     "n": 241,
+     "brier": 0.1757,
+     "brier_base": 0.1827,
+     "base_rate": 0.7593,
+     "brier_skill": 0.0388,
+     "mean_prob": 0.8062,
+     "ece": 0.063
+    },
+    "NY": {
+     "n": 107,
+     "brier": 0.1638,
+     "brier_base": 0.1633,
+     "base_rate": 0.7944,
+     "brier_skill": -0.0027,
+     "mean_prob": 0.8147,
+     "ece": 0.0351
+    },
+    "noche": {
+     "n": 100,
+     "brier": 0.1658,
+     "brier_base": 0.16,
+     "base_rate": 0.8,
+     "brier_skill": -0.0363,
+     "mean_prob": 0.8475,
+     "ece": 0.0732
+    }
+   }
+  },
+  {
+   "fold": "2024-09-27..2024-12-26",
+   "train_n": 2785,
+   "test_n": 649,
+   "wf": {
+    "n": 649,
+    "brier": 0.1421,
+    "brier_base": 0.1448,
+    "base_rate": 0.8243,
+    "brier_skill": 0.019,
+    "mean_prob": 0.8146,
+    "ece": 0.0098
+   },
+   "publicado_in_sample": {
+    "n": 649,
+    "brier": 0.1427,
+    "brier_base": 0.1448,
+    "base_rate": 0.8243,
+    "brier_skill": 0.0142,
+    "mean_prob": 0.8038,
+    "ece": 0.0205
+   },
+   "por_lado": {
+    "soporte": {
+     "n": 356,
+     "brier": 0.1269,
+     "brier_base": 0.1287,
+     "base_rate": 0.8483,
+     "brier_skill": 0.0137,
+     "mean_prob": 0.8123,
+     "ece": 0.036
+    },
+    "resistencia": {
+     "n": 293,
+     "brier": 0.1604,
+     "brier_base": 0.1628,
+     "base_rate": 0.7952,
+     "brier_skill": 0.0147,
+     "mean_prob": 0.8174,
+     "ece": 0.0284
+    }
+   },
+   "por_volatilidad": {
+    "normal": {
+     "n": 305,
+     "brier": 0.1406,
+     "brier_base": 0.1414,
+     "base_rate": 0.8295,
+     "brier_skill": 0.0058,
+     "mean_prob": 0.8192,
+     "ece": 0.0316
+    },
+    "expansion": {
+     "n": 90,
+     "brier": 0.1602,
+     "brier_base": 0.16,
+     "base_rate": 0.8,
+     "brier_skill": -0.0012,
+     "mean_prob": 0.8134,
+     "ece": 0.0398
+    },
+    "compresion": {
+     "n": 254,
+     "brier": 0.1374,
+     "brier_base": 0.1432,
+     "base_rate": 0.8268,
+     "brier_skill": 0.041,
+     "mean_prob": 0.8094,
+     "ece": 0.0346
+    }
+   },
+   "por_sesion": {
+    "Londres": {
+     "n": 253,
+     "brier": 0.1899,
+     "brier_base": 0.1909,
+     "base_rate": 0.7431,
+     "brier_skill": 0.0051,
+     "mean_prob": 0.798,
+     "ece": 0.0549
+    },
+    "NY": {
+     "n": 102,
+     "brier": 0.1199,
+     "brier_base": 0.1184,
+     "base_rate": 0.8627,
+     "brier_skill": -0.0124,
+     "mean_prob": 0.8042,
+     "ece": 0.0586
+    },
+    "noche": {
+     "n": 92,
+     "brier": 0.1206,
+     "brier_base": 0.1134,
+     "base_rate": 0.8696,
+     "brier_skill": -0.063,
+     "mean_prob": 0.8366,
+     "ece": 0.0461
+    },
+    "Asia": {
+     "n": 202,
+     "brier": 0.1031,
+     "brier_base": 0.1009,
+     "base_rate": 0.8861,
+     "brier_skill": -0.0214,
+     "mean_prob": 0.8306,
+     "ece": 0.0555
+    }
+   }
+  },
+  {
+   "fold": "2024-12-26..2025-03-26",
+   "train_n": 2674,
+   "test_n": 673,
+   "wf": {
+    "n": 673,
+    "brier": 0.1631,
+    "brier_base": 0.1682,
+    "base_rate": 0.786,
+    "brier_skill": 0.0304,
+    "mean_prob": 0.8104,
+    "ece": 0.033
+   },
+   "publicado_in_sample": {
+    "n": 673,
+    "brier": 0.1621,
+    "brier_base": 0.1682,
+    "base_rate": 0.786,
+    "brier_skill": 0.0363,
+    "mean_prob": 0.7987,
+    "ece": 0.0386
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 323,
+     "brier": 0.153,
+     "brier_base": 0.1589,
+     "base_rate": 0.8019,
+     "brier_skill": 0.0369,
+     "mean_prob": 0.8111,
+     "ece": 0.0446
+    },
+    "soporte": {
+     "n": 350,
+     "brier": 0.1723,
+     "brier_base": 0.1763,
+     "base_rate": 0.7714,
+     "brier_skill": 0.0226,
+     "mean_prob": 0.8097,
+     "ece": 0.0383
+    }
+   },
+   "por_volatilidad": {
+    "normal": {
+     "n": 315,
+     "brier": 0.1663,
+     "brier_base": 0.1693,
+     "base_rate": 0.7841,
+     "brier_skill": 0.0178,
+     "mean_prob": 0.8189,
+     "ece": 0.0348
+    },
+    "compresion": {
+     "n": 240,
+     "brier": 0.1435,
+     "brier_base": 0.1523,
+     "base_rate": 0.8125,
+     "brier_skill": 0.0577,
+     "mean_prob": 0.8016,
+     "ece": 0.0757
+    },
+    "expansion": {
+     "n": 118,
+     "brier": 0.1943,
+     "brier_base": 0.1937,
+     "base_rate": 0.7373,
+     "brier_skill": -0.0029,
+     "mean_prob": 0.8055,
+     "ece": 0.0682
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 208,
+     "brier": 0.1125,
+     "brier_base": 0.113,
+     "base_rate": 0.8702,
+     "brier_skill": 0.0044,
+     "mean_prob": 0.8318,
+     "ece": 0.0384
+    },
+    "Londres": {
+     "n": 250,
+     "brier": 0.1898,
+     "brier_base": 0.1943,
+     "base_rate": 0.736,
+     "brier_skill": 0.0231,
+     "mean_prob": 0.7892,
+     "ece": 0.0795
+    },
+    "NY": {
+     "n": 118,
+     "brier": 0.1772,
+     "brier_base": 0.181,
+     "base_rate": 0.7627,
+     "brier_skill": 0.0207,
+     "mean_prob": 0.7989,
+     "ece": 0.0367
+    },
+    "noche": {
+     "n": 97,
+     "brier": 0.1854,
+     "brier_base": 0.1809,
+     "base_rate": 0.7629,
+     "brier_skill": -0.0252,
+     "mean_prob": 0.8331,
+     "ece": 0.0717
+    }
+   }
+  },
+  {
+   "fold": "2025-03-26..2025-06-24",
+   "train_n": 2671,
+   "test_n": 732,
+   "wf": {
+    "n": 732,
+    "brier": 0.1401,
+    "brier_base": 0.1434,
+    "base_rate": 0.8265,
+    "brier_skill": 0.0231,
+    "mean_prob": 0.8131,
+    "ece": 0.0188
+   },
+   "publicado_in_sample": {
+    "n": 732,
+    "brier": 0.1398,
+    "brier_base": 0.1434,
+    "base_rate": 0.8265,
+    "brier_skill": 0.0248,
+    "mean_prob": 0.8202,
+    "ece": 0.0104
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 385,
+     "brier": 0.1454,
+     "brier_base": 0.1504,
+     "base_rate": 0.8156,
+     "brier_skill": 0.0331,
+     "mean_prob": 0.8155,
+     "ece": 0.0319
+    },
+    "soporte": {
+     "n": 347,
+     "brier": 0.1341,
+     "brier_base": 0.1353,
+     "base_rate": 0.8386,
+     "brier_skill": 0.0089,
+     "mean_prob": 0.8105,
+     "ece": 0.0302
+    }
+   },
+   "por_volatilidad": {
+    "normal": {
+     "n": 386,
+     "brier": 0.1373,
+     "brier_base": 0.14,
+     "base_rate": 0.8316,
+     "brier_skill": 0.0193,
+     "mean_prob": 0.8154,
+     "ece": 0.028
+    },
+    "compresion": {
+     "n": 257,
+     "brier": 0.1408,
+     "brier_base": 0.1444,
+     "base_rate": 0.8249,
+     "brier_skill": 0.0255,
+     "mean_prob": 0.8127,
+     "ece": 0.0151
+    },
+    "expansion": {
+     "n": 89,
+     "brier": 0.15,
+     "brier_base": 0.1545,
+     "base_rate": 0.809,
+     "brier_skill": 0.0292,
+     "mean_prob": 0.8045,
+     "ece": 0.0525
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 231,
+     "brier": 0.109,
+     "brier_base": 0.1065,
+     "base_rate": 0.8788,
+     "brier_skill": -0.0228,
+     "mean_prob": 0.8409,
+     "ece": 0.0379
+    },
+    "Londres": {
+     "n": 262,
+     "brier": 0.15,
+     "brier_base": 0.1568,
+     "base_rate": 0.8053,
+     "brier_skill": 0.0433,
+     "mean_prob": 0.786,
+     "ece": 0.0342
+    },
+    "NY": {
+     "n": 121,
+     "brier": 0.1457,
+     "brier_base": 0.1488,
+     "base_rate": 0.8182,
+     "brier_skill": 0.0207,
+     "mean_prob": 0.7976,
+     "ece": 0.0262
+    },
+    "noche": {
+     "n": 118,
+     "brier": 0.1733,
+     "brier_base": 0.1718,
+     "base_rate": 0.7797,
+     "brier_skill": -0.0087,
+     "mean_prob": 0.8346,
+     "ece": 0.0549
+    }
+   }
+  },
+  {
+   "fold": "2025-06-24..2025-09-22",
+   "train_n": 2777,
+   "test_n": 834,
+   "wf": {
+    "n": 834,
+    "brier": 0.1015,
+    "brier_base": 0.1009,
+    "base_rate": 0.8861,
+    "brier_skill": -0.0055,
+    "mean_prob": 0.8281,
+    "ece": 0.0579
+   },
+   "publicado_in_sample": {
+    "n": 834,
+    "brier": 0.1016,
+    "brier_base": 0.1009,
+    "base_rate": 0.8861,
+    "brier_skill": -0.0066,
+    "mean_prob": 0.8361,
+    "ece": 0.05
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 417,
+     "brier": 0.1081,
+     "brier_base": 0.1092,
+     "base_rate": 0.8753,
+     "brier_skill": 0.0094,
+     "mean_prob": 0.83,
+     "ece": 0.0453
+    },
+    "soporte": {
+     "n": 417,
+     "brier": 0.0949,
+     "brier_base": 0.0925,
+     "base_rate": 0.8969,
+     "brier_skill": -0.0257,
+     "mean_prob": 0.8263,
+     "ece": 0.0706
+    }
+   },
+   "por_volatilidad": {
+    "compresion": {
+     "n": 304,
+     "brier": 0.0936,
+     "brier_base": 0.0916,
+     "base_rate": 0.898,
+     "brier_skill": -0.0224,
+     "mean_prob": 0.8338,
+     "ece": 0.0642
+    },
+    "normal": {
+     "n": 429,
+     "brier": 0.1091,
+     "brier_base": 0.11,
+     "base_rate": 0.8741,
+     "brier_skill": 0.0083,
+     "mean_prob": 0.8243,
+     "ece": 0.0498
+    },
+    "expansion": {
+     "n": 101,
+     "brier": 0.0928,
+     "brier_base": 0.0892,
+     "base_rate": 0.901,
+     "brier_skill": -0.0399,
+     "mean_prob": 0.8272,
+     "ece": 0.0738
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 273,
+     "brier": 0.0805,
+     "brier_base": 0.0772,
+     "base_rate": 0.9158,
+     "brier_skill": -0.0438,
+     "mean_prob": 0.8579,
+     "ece": 0.0579
+    },
+    "Londres": {
+     "n": 277,
+     "brier": 0.1329,
+     "brier_base": 0.1361,
+     "base_rate": 0.8375,
+     "brier_skill": 0.0235,
+     "mean_prob": 0.8008,
+     "ece": 0.0368
+    },
+    "NY": {
+     "n": 143,
+     "brier": 0.1072,
+     "brier_base": 0.1047,
+     "base_rate": 0.8811,
+     "brier_skill": -0.023,
+     "mean_prob": 0.8056,
+     "ece": 0.0755
+    },
+    "noche": {
+     "n": 141,
+     "brier": 0.0747,
+     "brier_base": 0.0659,
+     "base_rate": 0.9291,
+     "brier_skill": -0.1334,
+     "mean_prob": 0.8472,
+     "ece": 0.0819
+    }
+   }
+  },
+  {
+   "fold": "2025-09-22..2025-12-21",
+   "train_n": 2936,
+   "test_n": 710,
+   "wf": {
+    "n": 710,
+    "brier": 0.1534,
+    "brier_base": 0.1566,
+    "base_rate": 0.8056,
+    "brier_skill": 0.0204,
+    "mean_prob": 0.8285,
+    "ece": 0.0229
+   },
+   "publicado_in_sample": {
+    "n": 710,
+    "brier": 0.1518,
+    "brier_base": 0.1566,
+    "base_rate": 0.8056,
+    "brier_skill": 0.0306,
+    "mean_prob": 0.8108,
+    "ece": 0.0224
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 362,
+     "brier": 0.1426,
+     "brier_base": 0.1437,
+     "base_rate": 0.826,
+     "brier_skill": 0.008,
+     "mean_prob": 0.8253,
+     "ece": 0.0421
+    },
+    "soporte": {
+     "n": 348,
+     "brier": 0.1646,
+     "brier_base": 0.1691,
+     "base_rate": 0.7845,
+     "brier_skill": 0.0263,
+     "mean_prob": 0.8319,
+     "ece": 0.0489
+    }
+   },
+   "por_volatilidad": {
+    "normal": {
+     "n": 316,
+     "brier": 0.1327,
+     "brier_base": 0.1353,
+     "base_rate": 0.8386,
+     "brier_skill": 0.0197,
+     "mean_prob": 0.8322,
+     "ece": 0.0109
+    },
+    "expansion": {
+     "n": 129,
+     "brier": 0.1909,
+     "brier_base": 0.1826,
+     "base_rate": 0.7597,
+     "brier_skill": -0.0458,
+     "mean_prob": 0.808,
+     "ece": 0.0985
+    },
+    "compresion": {
+     "n": 265,
+     "brier": 0.1598,
+     "brier_base": 0.1667,
+     "base_rate": 0.7887,
+     "brier_skill": 0.041,
+     "mean_prob": 0.8342,
+     "ece": 0.0455
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 243,
+     "brier": 0.1362,
+     "brier_base": 0.1375,
+     "base_rate": 0.8354,
+     "brier_skill": 0.0099,
+     "mean_prob": 0.8657,
+     "ece": 0.0383
+    },
+    "Londres": {
+     "n": 254,
+     "brier": 0.1761,
+     "brier_base": 0.1804,
+     "base_rate": 0.7638,
+     "brier_skill": 0.0239,
+     "mean_prob": 0.7982,
+     "ece": 0.041
+    },
+    "NY": {
+     "n": 121,
+     "brier": 0.1368,
+     "brier_base": 0.138,
+     "base_rate": 0.8347,
+     "brier_skill": 0.0087,
+     "mean_prob": 0.7954,
+     "ece": 0.0393
+    },
+    "noche": {
+     "n": 92,
+     "brier": 0.1581,
+     "brier_base": 0.1574,
+     "base_rate": 0.8043,
+     "brier_skill": -0.0045,
+     "mean_prob": 0.8578,
+     "ece": 0.0688
+    }
+   }
+  },
+  {
+   "fold": "2025-12-21..2026-03-21",
+   "train_n": 2971,
+   "test_n": 662,
+   "wf": {
+    "n": 662,
+    "brier": 0.1432,
+    "brier_base": 0.1484,
+    "base_rate": 0.8187,
+    "brier_skill": 0.0348,
+    "mean_prob": 0.8205,
+    "ece": 0.034
+   },
+   "publicado_in_sample": {
+    "n": 662,
+    "brier": 0.143,
+    "brier_base": 0.1484,
+    "base_rate": 0.8187,
+    "brier_skill": 0.0364,
+    "mean_prob": 0.8097,
+    "ece": 0.0327
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 341,
+     "brier": 0.1339,
+     "brier_base": 0.1373,
+     "base_rate": 0.8358,
+     "brier_skill": 0.0245,
+     "mean_prob": 0.8144,
+     "ece": 0.0214
+    },
+    "soporte": {
+     "n": 321,
+     "brier": 0.1532,
+     "brier_base": 0.1596,
+     "base_rate": 0.8006,
+     "brier_skill": 0.0403,
+     "mean_prob": 0.827,
+     "ece": 0.0531
+    }
+   },
+   "por_volatilidad": {
+    "compresion": {
+     "n": 275,
+     "brier": 0.1644,
+     "brier_base": 0.1706,
+     "base_rate": 0.7818,
+     "brier_skill": 0.0361,
+     "mean_prob": 0.8275,
+     "ece": 0.0504
+    },
+    "normal": {
+     "n": 265,
+     "brier": 0.1285,
+     "brier_base": 0.1359,
+     "base_rate": 0.8377,
+     "brier_skill": 0.0548,
+     "mean_prob": 0.815,
+     "ece": 0.0453
+    },
+    "expansion": {
+     "n": 122,
+     "brier": 0.1276,
+     "brier_base": 0.1199,
+     "base_rate": 0.8607,
+     "brier_skill": -0.0638,
+     "mean_prob": 0.8167,
+     "ece": 0.044
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 238,
+     "brier": 0.1322,
+     "brier_base": 0.137,
+     "base_rate": 0.8361,
+     "brier_skill": 0.0353,
+     "mean_prob": 0.8466,
+     "ece": 0.028
+    },
+    "Londres": {
+     "n": 224,
+     "brier": 0.1792,
+     "brier_base": 0.1875,
+     "base_rate": 0.75,
+     "brier_skill": 0.0444,
+     "mean_prob": 0.7936,
+     "ece": 0.0982
+    },
+    "NY": {
+     "n": 109,
+     "brier": 0.1062,
+     "brier_base": 0.098,
+     "base_rate": 0.8899,
+     "brier_skill": -0.0845,
+     "mean_prob": 0.7992,
+     "ece": 0.0907
+    },
+    "noche": {
+     "n": 91,
+     "brier": 0.1281,
+     "brier_base": 0.1224,
+     "base_rate": 0.8571,
+     "brier_skill": -0.0462,
+     "mean_prob": 0.844,
+     "ece": 0.0659
+    }
+   }
+  },
+  {
+   "fold": "2026-03-21..2026-06-19",
+   "train_n": 2989,
+   "test_n": 761,
+   "wf": {
+    "n": 761,
+    "brier": 0.1546,
+    "brier_base": 0.1567,
+    "base_rate": 0.8055,
+    "brier_skill": 0.0132,
+    "mean_prob": 0.8383,
+    "ece": 0.0355
+   },
+   "publicado_in_sample": {
+    "n": 761,
+    "brier": 0.1537,
+    "brier_base": 0.1567,
+    "base_rate": 0.8055,
+    "brier_skill": 0.0191,
+    "mean_prob": 0.8206,
+    "ece": 0.019
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 368,
+     "brier": 0.1421,
+     "brier_base": 0.1437,
+     "base_rate": 0.8261,
+     "brier_skill": 0.0111,
+     "mean_prob": 0.8379,
+     "ece": 0.0198
+    },
+    "soporte": {
+     "n": 393,
+     "brier": 0.1663,
+     "brier_base": 0.1681,
+     "base_rate": 0.7863,
+     "brier_skill": 0.0103,
+     "mean_prob": 0.8387,
+     "ece": 0.0525
+    }
+   },
+   "por_volatilidad": {
+    "expansion": {
+     "n": 98,
+     "brier": 0.1709,
+     "brier_base": 0.1684,
+     "base_rate": 0.7857,
+     "brier_skill": -0.015,
+     "mean_prob": 0.8413,
+     "ece": 0.0556
+    },
+    "normal": {
+     "n": 408,
+     "brier": 0.1525,
+     "brier_base": 0.1546,
+     "base_rate": 0.8088,
+     "brier_skill": 0.0138,
+     "mean_prob": 0.8358,
+     "ece": 0.0332
+    },
+    "compresion": {
+     "n": 255,
+     "brier": 0.1517,
+     "brier_base": 0.1552,
+     "base_rate": 0.8078,
+     "brier_skill": 0.0227,
+     "mean_prob": 0.8413,
+     "ece": 0.0365
+    }
+   },
+   "por_sesion": {
+    "NY": {
+     "n": 114,
+     "brier": 0.1185,
+     "brier_base": 0.1207,
+     "base_rate": 0.8596,
+     "brier_skill": 0.0182,
+     "mean_prob": 0.8265,
+     "ece": 0.0534
+    },
+    "noche": {
+     "n": 124,
+     "brier": 0.1367,
+     "brier_base": 0.1353,
+     "base_rate": 0.8387,
+     "brier_skill": -0.0102,
+     "mean_prob": 0.8538,
+     "ece": 0.0151
+    },
+    "Asia": {
+     "n": 260,
+     "brier": 0.1482,
+     "brier_base": 0.1481,
+     "base_rate": 0.8192,
+     "brier_skill": -0.0006,
+     "mean_prob": 0.8602,
+     "ece": 0.041
+    },
+    "Londres": {
+     "n": 263,
+     "brier": 0.1851,
+     "brier_base": 0.1861,
+     "base_rate": 0.7529,
+     "brier_skill": 0.0054,
+     "mean_prob": 0.8145,
+     "ece": 0.0697
+    }
+   }
+  },
+  {
+   "fold": "2026-06-19..2026-09-17",
+   "train_n": 3015,
+   "test_n": 772,
+   "wf": {
+    "n": 772,
+    "brier": 0.128,
+    "brier_base": 0.1313,
+    "base_rate": 0.8446,
+    "brier_skill": 0.0251,
+    "mean_prob": 0.8428,
+    "ece": 0.0132
+   },
+   "publicado_in_sample": {
+    "n": 772,
+    "brier": 0.1283,
+    "brier_base": 0.1313,
+    "base_rate": 0.8446,
+    "brier_skill": 0.0228,
+    "mean_prob": 0.831,
+    "ece": 0.0136
+   },
+   "por_lado": {
+    "resistencia": {
+     "n": 366,
+     "brier": 0.1403,
+     "brier_base": 0.1425,
+     "base_rate": 0.8279,
+     "brier_skill": 0.0153,
+     "mean_prob": 0.841,
+     "ece": 0.0132
+    },
+    "soporte": {
+     "n": 406,
+     "brier": 0.1169,
+     "brier_base": 0.1207,
+     "base_rate": 0.8596,
+     "brier_skill": 0.0317,
+     "mean_prob": 0.8444,
+     "ece": 0.0345
+    }
+   },
+   "por_volatilidad": {
+    "compresion": {
+     "n": 279,
+     "brier": 0.1197,
+     "brier_base": 0.1254,
+     "base_rate": 0.853,
+     "brier_skill": 0.0455,
+     "mean_prob": 0.849,
+     "ece": 0.0259
+    },
+    "normal": {
+     "n": 403,
+     "brier": 0.1329,
+     "brier_base": 0.137,
+     "base_rate": 0.8362,
+     "brier_skill": 0.0296,
+     "mean_prob": 0.8388,
+     "ece": 0.0167
+    },
+    "expansion": {
+     "n": 90,
+     "brier": 0.1319,
+     "brier_base": 0.1236,
+     "base_rate": 0.8556,
+     "brier_skill": -0.0669,
+     "mean_prob": 0.8412,
+     "ece": 0.0414
+    }
+   },
+   "por_sesion": {
+    "Asia": {
+     "n": 278,
+     "brier": 0.1105,
+     "brier_base": 0.1127,
+     "base_rate": 0.8705,
+     "brier_skill": 0.02,
+     "mean_prob": 0.8656,
+     "ece": 0.0049
+    },
+    "Londres": {
+     "n": 267,
+     "brier": 0.1448,
+     "brier_base": 0.1522,
+     "base_rate": 0.8127,
+     "brier_skill": 0.0485,
+     "mean_prob": 0.8181,
+     "ece": 0.0287
+    },
+    "NY": {
+     "n": 104,
+     "brier": 0.0955,
+     "brier_base": 0.0946,
+     "base_rate": 0.8942,
+     "brier_skill": -0.0102,
+     "mean_prob": 0.8271,
+     "ece": 0.0671
+    },
+    "noche": {
+     "n": 123,
+     "brier": 0.1585,
+     "brier_base": 0.152,
+     "base_rate": 0.813,
+     "brier_skill": -0.0424,
+     "mean_prob": 0.858,
+     "ece": 0.045
+    }
+   }
+  }
+ ]
+}

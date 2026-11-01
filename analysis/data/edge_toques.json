@@ -1,17 +1,21 @@
 {
   "hipotesis": "H3",
-  "modelo": "toques-wf-1 (congelado, solo leido)",
-  "fecha": "2026-11-01T00:46:37.996660+00:00",
+  "fecha": "2026-11-01T20:33:49.863337+00:00",
   "parametros": {
-    "coste_pct_viaje": 0.14,
-    "atr_k": 0.25,
-    "tp_pct": 0.5,
-    "sl_pct": 0.3,
+    "ventana_dias": 30,
+    "p_alto": 0.95,
+    "p_bajo": 0.05,
+    "horizontes": [
+      "E1_h4",
+      "E2_gest",
+      "E3_h24"
+    ],
     "cooldown_h": 4,
+    "fee_pct": 0.05,
+    "slip_base_pct": 0.02,
+    "slip_k": 0.25,
     "bootstrap": 10000,
-    "semilla": 42,
-    "p_top": 0.858,
-    "muestras_replay": 11049
+    "semilla": 42
   },
   "variantes_probadas": 6,
   "p_corregido": 1.0,
@@ -262,5 +266,6 @@
       "costes_x2_media": -0.2774,
       "veredicto": "sin_edge"
     }
-  }
+  },
+  "veredicto": "sin_edge"
 }

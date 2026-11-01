@@ -1,0 +1,106 @@
+{
+  "generado": "2026-11-01T07:03:22.988505+00:00",
+  "bloques": {
+    "posicionamiento": [
+      {
+        "serie": "funding",
+        "valor": 0.0001,
+        "percentil": 1.0,
+        "lectura": "alto",
+        "n_ventana": 1201,
+        "ventana_dias": 400,
+        "cobertura_dias": 1666.3
+      },
+      {
+        "serie": "global_cuentas",
+        "valor": 2.5398,
+        "percentil": 0.9404,
+        "lectura": "normal",
+        "n_ventana": 8641,
+        "ventana_dias": 30,
+        "cobertura_dias": 31.0
+      },
+      {
+        "serie": "oi",
+        "valor": 96791.057,
+        "percentil": 0.8035,
+        "lectura": "normal",
+        "n_ventana": 8641,
+        "ventana_dias": 30,
+        "cobertura_dias": 31.0
+      },
+      {
+        "serie": "oi_valor",
+        "valor": 7525804734.0267,
+        "percentil": 0.119,
+        "lectura": "normal",
+        "n_ventana": 8641,
+        "ventana_dias": 30,
+        "cobertura_dias": 31.0
+      },
+      {
+        "serie": "taker",
+        "valor": 8.9457,
+        "percentil": 1.0,
+        "lectura": "alto",
+        "n_ventana": 8625,
+        "ventana_dias": 30,
+        "cobertura_dias": 31.0
+      },
+      {
+        "serie": "top_cuentas",
+        "valor": 2.6887,
+        "percentil": 0.9399,
+        "lectura": "normal",
+        "n_ventana": 8641,
+        "ventana_dias": 30,
+        "cobertura_dias": 31.0
+      },
+      {
+        "serie": "top_posiciones",
+        "valor": 1.6986,
+        "percentil": 0.5026,
+        "lectura": "normal",
+        "n_ventana": 8641,
+        "ventana_dias": 30,
+        "cobertura_dias": 31.0
+      }
+    ],
+    "sistema": {
+      "archivo": {
+        "funding": {
+          "filas": 5000
+        },
+        "global_cuentas": {
+          "filas": 8931
+        },
+        "oi": {
+          "filas": 8931
+        },
+        "taker": {
+          "filas": 8915
+        },
+        "top_cuentas": {
+          "filas": 8931
+        },
+        "top_posiciones": {
+          "filas": 8931
+        }
+      },
+      "validation": {
+        "corte": "2026-10-30T01:15:31.648331+00:00",
+        "muestras_efectivas": 84,
+        "skill_oos": 0.026,
+        "ece": 0.0144,
+        "psi": 0.2165,
+        "gate": "oos",
+        "estado": "muestra_media"
+      }
+    }
+  },
+  "resumen": {
+    "percentil_max": 1.0,
+    "percentil_min": 0.119,
+    "series": 7
+  }
+}

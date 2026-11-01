@@ -1,6 +1,6 @@
 {
   "hipotesis": "H6",
-  "fecha": "2026-11-01T01:50:16.705062+00:00",
+  "fecha": "2026-11-01T21:06:03.003351+00:00",
   "parametros": {
     "fee_pct": 0.05,
     "slip_base_pct": 0.02,
@@ -25,7 +25,6 @@
       "n": 1551,
       "media": -0.2073,
       "bruto_medio": 0.0101,
-      "funding_medio": -0.0004,
       "coste_medio": 0.217,
       "ic95": [
         -0.2904,
@@ -60,6 +59,7 @@
           "media": -0.0071
         }
       },
+      "funding_medio": -0.0004,
       "costes_x2_media": -0.4243,
       "veredicto": "sin_edge"
     },
@@ -67,7 +67,6 @@
       "n": 486,
       "media": -0.213,
       "bruto_medio": -0.0273,
-      "funding_medio": -0.0006,
       "coste_medio": 0.185,
       "ic95": [
         -0.3185,
@@ -102,6 +101,7 @@
           "media": -0.3119
         }
       },
+      "funding_medio": -0.0006,
       "costes_x2_media": -0.398,
       "veredicto": "sin_edge"
     },
@@ -109,7 +109,6 @@
       "n": 990,
       "media": -0.2248,
       "bruto_medio": -0.0048,
-      "funding_medio": 0.0014,
       "coste_medio": 0.2215,
       "ic95": [
         -0.3757,
@@ -144,6 +143,7 @@
           "media": -0.4248
         }
       },
+      "funding_medio": 0.0014,
       "costes_x2_media": -0.4462,
       "veredicto": "sin_edge"
     },
@@ -151,7 +151,6 @@
       "n": 325,
       "media": -0.0968,
       "bruto_medio": 0.0904,
-      "funding_medio": -0.0033,
       "coste_medio": 0.1839,
       "ic95": [
         -0.282,
@@ -186,6 +185,7 @@
           "media": -0.1349
         }
       },
+      "funding_medio": -0.0033,
       "costes_x2_media": -0.2807,
       "veredicto": "sin_edge"
     },
@@ -193,7 +193,6 @@
       "n": 576,
       "media": -0.3241,
       "bruto_medio": -0.1027,
-      "funding_medio": 0.0006,
       "coste_medio": 0.222,
       "ic95": [
         -0.6143,
@@ -228,6 +227,7 @@
           "media": 0.0804
         }
       },
+      "funding_medio": 0.0006,
       "costes_x2_media": -0.5461,
       "veredicto": "sin_edge"
     },
@@ -235,7 +235,6 @@
       "n": 219,
       "media": -0.1836,
       "bruto_medio": 0.0054,
-      "funding_medio": -0.0037,
       "coste_medio": 0.1854,
       "ic95": [
         -0.5575,
@@ -270,6 +269,7 @@
           "media": 0.4951
         }
       },
+      "funding_medio": -0.0037,
       "costes_x2_media": -0.369,
       "veredicto": "no_concluyente"
     },
@@ -277,7 +277,6 @@
       "n": 406,
       "media": -0.5539,
       "bruto_medio": -0.3348,
-      "funding_medio": 0.001,
       "coste_medio": 0.2201,
       "ic95": [
         -0.9608,
@@ -312,6 +311,7 @@
           "media": -0.7239
         }
       },
+      "funding_medio": 0.001,
       "costes_x2_media": -0.774,
       "veredicto": "sin_edge"
     },
@@ -319,7 +319,6 @@
       "n": 186,
       "media": -0.434,
       "bruto_medio": -0.2364,
-      "funding_medio": -0.0089,
       "coste_medio": 0.1887,
       "ic95": [
         -0.94,
@@ -354,6 +353,7 @@
           "media": 1.1313
         }
       },
+      "funding_medio": -0.0089,
       "costes_x2_media": -0.6227,
       "veredicto": "no_concluyente"
     }

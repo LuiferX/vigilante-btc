@@ -1,0 +1,62 @@
+{
+  "generado": "2026-11-01T21:57:29.583440+00:00",
+  "dias": 7,
+  "series": [
+    {
+      "serie": "funding",
+      "percentil_hoy": 1.0,
+      "percentil_hace_7d": 0.956,
+      "delta_pp": 4.4,
+      "sentido": "estable",
+      "cobertura_dias": 1666.3
+    },
+    {
+      "serie": "global_cuentas",
+      "percentil_hoy": 0.9404,
+      "percentil_hace_7d": 0.9491,
+      "delta_pp": -0.9,
+      "sentido": "estable",
+      "cobertura_dias": 31.0
+    },
+    {
+      "serie": "oi",
+      "percentil_hoy": 0.8035,
+      "percentil_hace_7d": 0.3894,
+      "delta_pp": 41.4,
+      "sentido": "subiendo",
+      "cobertura_dias": 31.0
+    },
+    {
+      "serie": "oi_valor",
+      "percentil_hoy": 0.119,
+      "percentil_hace_7d": 0.1112,
+      "delta_pp": 0.8,
+      "sentido": "estable",
+      "cobertura_dias": 31.0
+    },
+    {
+      "serie": "taker",
+      "percentil_hoy": 1.0,
+      "percentil_hace_7d": 0.1879,
+      "delta_pp": 81.2,
+      "sentido": "subiendo",
+      "cobertura_dias": 31.0
+    },
+    {
+      "serie": "top_cuentas",
+      "percentil_hoy": 0.9399,
+      "percentil_hace_7d": 0.9744,
+      "delta_pp": -3.5,
+      "sentido": "estable",
+      "cobertura_dias": 31.0
+    },
+    {
+      "serie": "top_posiciones",
+      "percentil_hoy": 0.5026,
+      "percentil_hace_7d": 0.5284,
+      "delta_pp": -2.6,
+      "sentido": "estable",
+      "cobertura_dias": 31.0
+    }
+  ]
+}

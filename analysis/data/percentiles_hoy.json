@@ -1,0 +1,24 @@
+{
+  "generado": "2026-11-01T17:56:53.532950+00:00",
+  "nota": "percentiles causales: sin look-ahead",
+  "series": {
+    "funding": {
+      "serie": "funding",
+      "ventana_dias": 400,
+      "corte": {
+        "t": "2026-11-01T00:00:00+00:00",
+        "valor": 0.0001,
+        "percentil": 1.0,
+        "n_ventana": 1201,
+        "min": -0.00015178,
+        "max": 0.0001,
+        "mediana": 3.593e-05,
+        "desde": "2025-09-27T00:00:00+00:00",
+        "hasta": "2026-11-01T00:00:00+00:00"
+      },
+      "lectura": "alto",
+      "n_total": 5000,
+      "cobertura_dias": 1666.3
+    }
+  }
+}
