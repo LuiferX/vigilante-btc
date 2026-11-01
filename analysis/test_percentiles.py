@@ -17,6 +17,7 @@ Uso: python -m unittest analysis.test_percentiles
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import sys
 import unittest
@@ -117,6 +118,33 @@ class TestCargaDeDatos(unittest.TestCase):
             for v in vs:
                 self.assertIsInstance(v, float)
             self.assertEqual(len(ts), len(vs))
+
+    def test_fuentes_alternativas_no_se_mezclan(self):
+        """El OI de Binance va en contratos y el de OKX en dolares: mezclarlos
+        corromperia el percentil. Las filas con `source` no-primaria se excluyen
+        salvo que se pidan explicitamente."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "oi.jsonl"), "w", encoding="utf-8") as fh:
+                # Binance: dos filas de 100.000 contratos
+                for t in (1, 2):
+                    fh.write(json.dumps({"source": "binance_openInterestHist",
+                                         "timestamp": t,
+                                         "sumOpenInterest": "100000"}) + "\n")
+                # OKX (bloqueo): viene en dolares, escala muy distinta
+                fh.write(json.dumps({"source": "okx_oi", "timestamp": 3,
+                                     "sumOpenInterest": "7500000000"}) + "\n")
+            orig = pc.ARCHIVO
+            try:
+                pc.ARCHIVO = d
+                ts, vs = pc.cargar("oi")
+                ts2, vs2 = pc.cargar("oi", incluir_alternas=True)
+            finally:
+                pc.ARCHIVO = orig
+            self.assertEqual(ts, [1, 2], "la fila de OKX no debe entrar")
+            self.assertEqual(ts2, [1, 2, 3], "pero se puede pedir a proposito")
+            self.assertEqual(vs[0], 100000.0)
+            self.assertEqual(vs2[2], 7500000000.0)
 
     def test_linea_corrupta_no_rompe_la_carga(self):
         # escribe un archivo temporal con lineas malas y verifica que solo
