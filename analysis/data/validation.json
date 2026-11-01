@@ -2,33 +2,33 @@
   "ok": true,
   "bot": "validation",
   "version": 1,
-  "checked_at": "2026-11-01T03:16:28.783157+00:00",
+  "checked_at": "2026-11-01T03:31:54.849285+00:00",
   "status": "muestra_media",
   "healthy": false,
   "sample_status": "muestra_media",
-  "headline": "Muestra media (98 efectivas): medicion en curso, sin certificar.",
+  "headline": "Muestra media (99 efectivas): medicion en curso, sin certificar.",
   "horizon_bars": 48,
   "horizon_hours": 4.0,
   "min_samples": 30,
   "target_samples": 100,
   "samples": {
-    "eval": 1563,
-    "effective": 98,
-    "resolved_levels": 1563,
-    "levels_with_hold": 1589,
-    "events": 1057,
-    "resolved_events": 1041,
-    "independent_events": 65,
+    "eval": 1564,
+    "effective": 99,
+    "resolved_levels": 1564,
+    "levels_with_hold": 1590,
+    "events": 1058,
+    "resolved_events": 1042,
+    "independent_events": 66,
     "coverage": 0.9849,
     "avg_levels_per_event": 1.5,
-    "span_hours": 266.0,
+    "span_hours": 266.2,
     "effective_fallback": null
   },
   "metrics": {
-    "brier": 0.1302,
-    "brier_skill": 0.0083,
-    "base_rate": 0.8445,
-    "mean_prob": 0.8187,
+    "brier": 0.1301,
+    "brier_skill": 0.0084,
+    "base_rate": 0.8446,
+    "mean_prob": 0.8188,
     "calibration_error": 0.0572,
     "eval_status": "ok",
     "bins": [
@@ -64,25 +64,25 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 1122,
-        "pred": 0.843,
-        "real": 0.885,
+        "n": 1123,
+        "pred": 0.8431,
+        "real": 0.8851,
         "real_ci95": [
-          0.865,
-          0.9024
+          0.8652,
+          0.9025
         ]
       }
     ],
     "high_score": {
-      "n": 1122,
-      "brier": 0.1017,
-      "base_rate": 0.885,
-      "mean_prob": 0.843,
-      "brier_base": 0.1018,
+      "n": 1123,
+      "brier": 0.1016,
+      "base_rate": 0.8851,
+      "mean_prob": 0.8431,
+      "brier_base": 0.1017,
       "brier_skill": 0.0005,
       "real_ci95": [
-        0.865,
-        0.9024
+        0.8652,
+        0.9025
       ],
       "lift_vs_base": 1.048
     },
@@ -100,15 +100,15 @@
         ]
       },
       "resistencia": {
-        "n": 702,
-        "brier": 0.1192,
-        "base_rate": 0.8561,
-        "mean_prob": 0.8216,
-        "brier_base": 0.1232,
-        "brier_skill": 0.0326,
+        "n": 703,
+        "brier": 0.119,
+        "base_rate": 0.8563,
+        "mean_prob": 0.8217,
+        "brier_base": 0.123,
+        "brier_skill": 0.0327,
         "real_ci95": [
-          0.8282,
-          0.8802
+          0.8285,
+          0.8803
         ]
       }
     },
@@ -149,7 +149,7 @@
   },
   "drift": {
     "status": "ok",
-    "psi": 0.0255,
+    "psi": 0.026,
     "watch_threshold": 0.1,
     "alert_threshold": 0.25,
     "live_bins": [
@@ -167,7 +167,7 @@
       },
       {
         "bin": "0.80-1.01",
-        "n": 216
+        "n": 217
       }
     ],
     "backtest_bins": [
@@ -188,20 +188,20 @@
         "n": 215
       }
     ],
-    "live_mean_prob": 0.8484,
+    "live_mean_prob": 0.8485,
     "backtest_mean_prob": 0.835,
-    "mean_shift": 0.0134,
+    "mean_shift": 0.0135,
     "detail": "PSI compara la distribucion de probabilidades vivas contra el backtest OOS. No mide resultados; detecta cambio de regimen."
   },
   "data": {
     "klines": {
       "ok": true,
-      "bars": 4692,
-      "unique_bars": 4692,
+      "bars": 4695,
+      "unique_bars": 4695,
       "duplicates": 0,
       "first": "2026-10-15T20:15:00+00:00",
-      "last": "2026-11-01T03:10:00+00:00",
-      "age_min": 6.48,
+      "last": "2026-11-01T03:25:00+00:00",
+      "age_min": 6.91,
       "coverage_24h": 1.0,
       "expected_24h": 288,
       "missing_24h": 0,
@@ -212,7 +212,7 @@
       "available": true,
       "ok": true,
       "kline_ok": true,
-      "run_at": "2026-11-01T03:16:23.360339+00:00",
+      "run_at": "2026-11-01T03:31:48.406992+00:00",
       "failed_jobs": [
         "top_ls_account.jsonl",
         "top_ls_position.jsonl"
@@ -232,8 +232,8 @@
     }
   },
   "warnings": [
-    "Muestra efectiva 98 < 100; falta recorrido para validar.",
-    "Muestras nominales 1563; efectivas 98 por solapamiento de 4h.",
+    "Muestra efectiva 99 < 100; falta recorrido para validar.",
+    "Muestras nominales 1564; efectivas 99 por solapamiento de 4h.",
     "Calibracion 0.0572 > 0.05; revisar bins."
   ],
   "limits": [
@@ -242,7 +242,7 @@
     "100+ muestras y Brier skill positivo son el minimo para hablar de validacion.",
     "No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."
   ],
-  "data_hash": "53fa297ee8d1529b",
-  "code_sha": "30a5107bd08587f52f578beff339a901e44902a1",
+  "data_hash": "5481c1b0552fe8dd",
+  "code_sha": "6dfb15a56ad3a6416f84d34fb06ad99b46414f14",
   "disclaimer": "Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."
 }
