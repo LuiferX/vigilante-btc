@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIGILANTE // MONITOR — toques-wf-1</title>
+<style>
+  :root{
+    --bg:#030304; --bg2:#060709; --panel:#0a0c10; --panel2:#0d1015;
+    --line:#1c2029; --line2:#2a2f3a;
+    --txt:#e8eaed; --dim:#9aa1ad; --faint:#5b6270;
+    --neon:#39ff14; --cy:#22d3ee; --red:#ff2d55; --amb:#fbbf24;
+    --mono:"JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt); font-family:var(--mono);
+    font-size:13px; line-height:1.5; min-height:100vh;
+    background-image:
+      linear-gradient(rgba(57,255,20,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57,255,20,.028) 1px, transparent 1px);
+    background-size:44px 44px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+  a{color:var(--cy);text-decoration:none}
+  /* ---------- header ---------- */
+  header{
+    border:1px solid var(--line); background:linear-gradient(180deg,var(--panel),var(--bg2));
+    padding:16px 18px; margin-bottom:14px; position:relative; overflow:hidden;
+  }
+  header::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(255,255,255,.014) 2px 4px)}
+  .hrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+  .brand{font-size:17px;font-weight:700;letter-spacing:.14em;color:#fff;
+    text-shadow:0 0 12px rgba(57,255,20,.55)}
+  .brand b{color:var(--neon);font-weight:700}
+  .sub{color:var(--faint);font-size:11px;letter-spacing:.08em}
+  .spacer{flex:1}
+  .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);
+    padding:4px 11px;font-size:11px;letter-spacing:.08em;color:var(--dim);background:#0c0f14}
+  .pill.ok{color:var(--neon);border-color:rgba(57,255,20,.4);text-shadow:0 0 8px rgba(57,255,20,.5)}
+  .pill.warn{color:var(--amb);border-color:rgba(251,191,36,.4);text-shadow:0 0 8px rgba(251,191,36,.4)}
+  .pill.bad{color:var(--red);border-color:rgba(255,45,85,.45);text-shadow:0 0 8px rgba(255,45,85,.45)}
+  .pill b{color:inherit;font-weight:700}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--neon);
+    box-shadow:0 0 8px var(--neon);animation:pulse 1.8s infinite}
+  .dot.off{background:var(--faint);box-shadow:none;animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  /* ---------- grid / cards ---------- */
+  .grid{display:grid;gap:12px}
+  .k6{grid-template-columns:repeat(6,1fr)} .k3{grid-template-columns:repeat(3,1fr)}
+  .k2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:980px){.k6{grid-template-columns:repeat(3,1fr)}.k3,.k2{grid-template-columns:1fr}}
+  @media(max-width:560px){.k6{grid-template-columns:repeat(2,1fr)}}
+  .card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    padding:14px 15px;position:relative}
+  .card::after,.card::before{content:"";position:absolute;width:9px;height:9px;border:1px solid var(--neon);opacity:.55}
+  .card::before{top:-1px;left:-1px;border-right:none;border-bottom:none}
+  .card::after{bottom:-1px;right:-1px;border-left:none;border-top:none}
+  .card h3{font-size:10px;letter-spacing:.18em;color:var(--faint);font-weight:600;
+    text-transform:uppercase;margin-bottom:8px}
+  .big{font-size:26px;font-weight:700;letter-spacing:.02em;color:#fff}
+  .big.good{color:var(--neon);text-shadow:0 0 14px rgba(57,255,20,.5)}
+  .big.bad{color:var(--red);text-shadow:0 0 14px rgba(255,45,85,.45)}
+  .big.warn{color:var(--amb);text-shadow:0 0 14px rgba(251,191,36,.4)}
+  .note{font-size:11px;color:var(--faint);margin-top:5px}
+  .note b{color:var(--dim);font-weight:600}
+  .sec-title{font-size:11px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;
+    margin:26px 0 11px;display:flex;align-items:center;gap:10px}
+  .sec-title::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+  /* ---------- bars ---------- */
+  .folds{display:flex;align-items:flex-end;gap:6px;height:96px;padding-top:8px}
+  .fcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;height:100%}
+  .fbar{width:100%;background:linear-gradient(180deg,rgba(57,255,20,.85),rgba(57,255,20,.15));
+    box-shadow:0 0 10px rgba(57,255,20,.25) , inset 0 0 0 1px rgba(57,255,20,.4);min-height:2px}
+  .fbar.neg{background:linear-gradient(180deg,rgba(255,45,85,.9),rgba(255,45,85,.12));
+    box-shadow:0 0 10px rgba(255,45,85,.25), inset 0 0 0 1px rgba(255,45,85,.4)}
+  .fval{font-size:9px;color:var(--dim)}
+  .fidx{font-size:9px;color:var(--faint)}
+  /* ---------- table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th{color:var(--faint);font-weight:600;text-align:left;padding:6px 8px;
+    border-bottom:1px solid var(--line2);letter-spacing:.1em;font-size:10px;text-transform:uppercase}
+  td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--dim)}
+  td.num{color:var(--txt);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .pos{color:var(--neon)} .negv{color:var(--red)} .warnv{color:var(--amb)}
+  /* ---------- edge ---------- */
+  .edgebar{margin:9px 0}
+  .edgebar .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
+  .track{height:16px;background:#0e1116;border:1px solid var(--line);position:relative;overflow:hidden}
+  .fill{height:100%;background:linear-gradient(90deg,rgba(34,211,238,.25),rgba(34,211,238,.75));
+    box-shadow:0 0 12px rgba(34,211,238,.35)}
+  .fill.base{background:linear-gradient(90deg,rgba(154,161,173,.18),rgba(154,161,173,.5))}
+  .fill.model{background:linear-gradient(90deg,rgba(57,255,20,.3),rgba(57,255,20,.8));
+    box-shadow:0 0 12px rgba(57,255,20,.4)}
+  .fill.live{background:linear-gradient(90deg,rgba(255,45,85,.3),rgba(255,45,85,.8));
+    box-shadow:0 0 12px rgba(255,45,85,.4)}
+  /* ---------- sparkline ---------- */
+  .spark{width:100%;height:74px;display:block}
+  /* ---------- coeffs / modelo ---------- */
+  .coef{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12px}
+  .coef:last-child{border-bottom:none}
+  .coef .fn{color:var(--dim)} .coef .fv{color:var(--neon);font-variant-numeric:tabular-nums}
+  .coef .fv.off{color:var(--faint)}
+  .chk{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line);font-size:11.5px;color:var(--dim)}
+  .chk:last-child{border-bottom:none}
+  .chk .st{flex:0 0 auto;font-size:11px}
+  .st.done{color:var(--neon)} .st.pend{color:var(--amb)} .st.info{color:var(--cy)}
+  footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;
+    font-size:10.5px;color:var(--faint);letter-spacing:.04em}
+  .warns li{margin:4px 0 4px 16px;color:var(--amb)}
+  .lims li{margin:4px 0 4px 16px;color:var(--dim)}
+  .mono-dim{color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="hrow">
+      <div>
+        <div class="brand">VIGILANTE<b>//</b>MONITOR</div>
+        <div class="sub">modelo de aguante de nivel 4h &middot; solo lectura &middot; sin órdenes</div>
+      </div>
+      <div class="spacer"></div>
+      <span class="pill" id="pill-fresh"><span class="dot off" id="freshdot"></span><span id="freshtxt">snapshot</span></span>
+      <span class="pill" id="pill-modelo">modelo <b id="mver">—</b></span>
+      <span class="pill ok" id="pill-freeze">congelado <b id="mfreeze">—</b></span>
+    </div>
+    <div class="hrow" style="margin-top:10px">
+      <span class="pill" id="pill-gate">gate <b id="gatev">—</b></span>
+      <span class="pill" id="pill-psi">deriva psi <b id="psiv">—</b></span>
+      <span class="pill" id="pill-oos">oos <b id="oosv">—</b></span>
+      <span class="pill" id="pill-live">vivo <b id="livev">—</b></span>
+      <span class="spacer"></span>
+      <span class="pill" id="pill-paper">papel <b id="paperv">—</b></span>
+      <span class="note mono-dim" id="checked">—</span>
+    </div>
+  </header>
+
+  <!-- ============ KPI ============ -->
+  <div class="grid k6">
+    <div class="card"><h3>skill OOS (validado)</h3><div class="big good" id="k-oos-skill">—</div>
+      <div class="note" id="k-oos-n">—</div></div>
+    <div class="card"><h3>calibración ECE (OOS)</h3><div class="big good" id="k-ece">—</div>
+      <div class="note">objetivo ≤ 0.08</div></div>
+    <div class="card"><h3>skill vivo (ventana)</h3><div class="big" id="k-live-skill">—</div>
+      <div class="note" id="k-live-n">—</div></div>
+    <div class="card"><h3>deriva PSI</h3><div class="big" id="k-psi">—</div>
+      <div class="note" id="k-psi-n">alerta &gt; 0.25</div></div>
+    <div class="card"><h3>tasa base (sin modelo)</h3><div class="big" id="k-base">—</div>
+      <div class="note">el nivel aguanta solo</div></div>
+    <div class="card"><h3>brier OOS</h3><div class="big" id="k-brier">—</div>
+      <div class="note" id="k-brier-n">—</div></div>
+  </div>
+
+  <!-- ============ EDGE ============ -->
+  <div class="sec-title">el edge, explicado sin adornos</div>
+  <div class="grid k2">
+    <div class="card">
+      <h3>error Brier: más bajo es mejor</h3>
+      <div id="edgebars"></div>
+      <div class="note" id="edge-txt">—</div>
+    </div>
+    <div class="card">
+      <h3>qué significa</h3>
+      <div class="note" style="font-size:12px;color:var(--dim)" id="edge-explain">—</div>
+    </div>
+  </div>
+
+  <!-- ============ WALK-FORWARD ============ -->
+  <div class="sec-title">walk-forward histórico · 11 folds · 7.757 muestras OOS</div>
+  <div class="grid k2">
+    <div class="card">
+      <h3>brier skill por fold (validación temporal)</h3>
+      <div class="folds" id="folds"></div>
+      <div class="note" id="wf-note">—</div>
+    </div>
+    <div class="card">
+      <h3>holdout 2026-10 (nunca visto en entrenamiento)</h3>
+      <table><tbody id="holdout"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ============ CALIBRACION ============ -->
+  <div class="sec-title">calibración viva · probabilidad dicha vs realidad</div>
+  <div class="grid k2">
+    <div class="card">
+      <h3>bins de probabilidad</h3>
+      <table>
+        <thead><tr><th>bin</th><th>n</th><th>dice</th><th>real</th><th>IC 95%</th></tr></thead>
+        <tbody id="bins"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>por lado del nivel</h3>
+      <table>
+        <thead><tr><th>lado</th><th>n</th><th>skill</th><th>real</th></tr></thead>
+        <tbody id="byside"></tbody>
+      </table>
+      <div class="note" id="byside-note"></div>
+    </div>
+  </div>
+
+  <!-- ============ PROBABILIDAD VIVA ============ -->
+  <div class="sec-title">probabilidad viva (hold_prob)</div>
+  <div class="grid k2">
+    <div class="card">
+      <h3>últimas decisiones</h3>
+      <svg class="spark" id="spark" viewBox="0 0 600 74" preserveAspectRatio="none"></svg>
+      <div class="note" id="spark-note">—</div>
+    </div>
+    <div class="card">
+      <h3>modelo (congelado)</h3>
+      <div class="coef"><span class="fn">versión</span><span class="fv" id="c-ver">—</span></div>
+      <div class="coef"><span class="fn">target</span><span class="fv off" id="c-target">—</span></div>
+      <div class="coef"><span class="fn">entrenado hasta</span><span class="fv off" id="c-trained">—</span></div>
+      <div class="coef"><span class="fn">hora (sin/cos)</span><span class="fv" id="c-hourc">—</span></div>
+      <div class="coef"><span class="fn">día de semana</span><span class="fv" id="c-dow">—</span></div>
+      <div class="coef"><span class="fn">volatilidad 24h (x_atr288)</span><span class="fv" id="c-atr288">—</span></div>
+      <div class="coef"><span class="fn">intercepto</span><span class="fv off" id="c-intercept">—</span></div>
+      <div class="note">6 features podadas a 0 por L1: el modelo solo mira hora, día y volatilidad.</div>
+    </div>
+  </div>
+
+  <!-- ============ CONGELAMIENTO ============ -->
+  <div class="sec-title">congelamiento · criterios para el próximo modelo</div>
+  <div class="grid k2">
+    <div class="card">
+      <h3>estado del sello</h3>
+      <div class="coef"><span class="fn">congelado desde</span><span class="fv" id="f-fecha">—</span></div>
+      <div class="coef"><span class="fn">hasta</span><span class="fv off" id="f-hasta">que se cumplan los 4 criterios</span></div>
+      <div class="note" id="f-nota"></div>
+    </div>
+    <div class="card">
+      <h3>criterios de des-congelamiento (pre-registrados)</h3>
+      <div id="criteria"></div>
+    </div>
+  </div>
+
+  <!-- ============ PAPER TRADING (invisible, solo lectura) ============ -->
+  <div class="sec-title">paper trading invisible · banco virtual · sin órdenes</div>
+  <div class="grid k6">
+    <div class="card"><h3>cerradas</h3><div class="big" id="p-ops">—</div>
+      <div class="note" id="p-ops-n">—</div></div>
+    <div class="card"><h3>win rate</h3><div class="big" id="p-wr">—</div>
+      <div class="note" id="p-wr-n">—</div></div>
+    <div class="card"><h3>R total</h3><div class="big" id="p-r">—</div>
+      <div class="note" id="p-r-n">—</div></div>
+    <div class="card"><h3>PnL cerradas</h3><div class="big" id="p-pnl">—</div>
+      <div class="note" id="p-pnl-n">—</div></div>
+    <div class="card"><h3>sharpe (por op)</h3><div class="big" id="p-sharpe">—</div>
+      <div class="note">media/desvío · no anualizado</div></div>
+    <div class="card"><h3>máx drawdown</h3><div class="big" id="p-dd">—</div>
+      <div class="note" id="p-dd-n">—</div></div>
+  </div>
+  <div class="grid k2" style="margin-top:12px">
+    <div class="card">
+      <h3>curva de PnL acumulado</h3>
+      <svg class="spark" id="p-spark" viewBox="0 0 600 74" preserveAspectRatio="none"></svg>
+      <div class="note" id="p-spark-n">—</div>
+    </div>
+    <div class="card">
+      <h3>por lado (largo / corto)</h3>
+      <table>
+        <thead><tr><th>lado</th><th>n</th><th>ganadas</th><th>R</th><th>PnL</th></tr></thead>
+        <tbody id="p-lado"></tbody>
+      </table>
+      <div class="note" id="p-lado-n">—</div>
+    </div>
+  </div>
+  <div class="grid k2" style="margin-top:12px">
+    <div class="card">
+      <h3>por cierre (TP / SL / LIQ)</h3>
+      <table>
+        <thead><tr><th>cierre</th><th>n</th><th>R</th><th>PnL</th></tr></thead>
+        <tbody id="p-res"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>por periodo</h3>
+      <table>
+        <thead><tr><th>grupo</th><th>n</th><th>R</th><th>PnL</th></tr></thead>
+        <tbody id="p-periodo"></tbody>
+      </table>
+      <div class="note" id="p-notas">—</div>
+    </div>
+  </div>
+
+  <!-- ============ AVISOS / LIMITES ============ -->
+  <div class="sec-title">avisos y límites</div>
+  <div class="card">
+    <ul class="warns" id="warns"></ul>
+    <ul class="lims" id="lims" style="margin-top:8px"></ul>
+    <div class="note" style="margin-top:10px" id="disclaimer"></div>
+  </div>
+
+  <footer>
+    VIGILANTE // MONITOR · datos: <span class="mono-dim">analysis/data/validation.json</span> +
+    <span class="mono-dim">modelo_toques.json</span> +
+    <span class="mono-dim">analysis/data/paper_summary.json</span> · refresco automático cada 2 min ·
+    bot solo-lectura: no ejecuta órdenes · <span id="codesha"></span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ---- snapshot embebido (funciona abriendo el archivo desde disco) ---- */
+const SNAP_VAL = {"ok":true,"bot":"validation","version":1,"checked_at":"2026-10-24T05:31:42.290351+00:00","status":"muestra_chica","healthy":false,"sample_status":"muestra_chica","headline":"Muestra chica (29 efectivas): ruido, no cambiar el modelo.","horizon_bars":48,"horizon_hours":4.0,"min_samples":30,"target_samples":100,"samples":{"eval":447,"effective":29,"resolved_levels":447,"levels_with_hold":474,"events":294,"resolved_events":278,"independent_events":18,"coverage":0.9456,"avg_levels_per_event":1.61,"span_hours":76.2,"effective_fallback":null},"metrics":{"brier":0.1538,"brier_skill":-0.0785,"base_rate":0.8277,"mean_prob":0.7815,"calibration_error":0.0614,"eval_status":"ok","bins":[{"bin":"0.00-0.60","n":8,"pred":0.5732,"real":1.0,"real_ci95":[0.6756,1.0]},{"bin":"0.60-0.70","n":55,"pred":0.6662,"real":0.9273,"real_ci95":[0.8274,0.9714]},{"bin":"0.70-0.80","n":162,"pred":0.7576,"real":0.7963,"real_ci95":[0.7278,0.8511]},{"bin":"0.80-1.01","n":222,"pred":0.8351,"real":0.8198,"real_ci95":[0.764,0.8648]}],"high_score":{"n":222,"brier":0.1466,"base_rate":0.8198,"mean_prob":0.8351,"brier_base":0.1477,"brier_skill":0.0078,"real_ci95":[0.764,0.8648],"lift_vs_base":0.9905},"by_side":{"soporte":{"n":198,"brier":0.2068,"base_rate":0.7475,"mean_prob":0.7718,"brier_base":0.1888,"brier_skill":-0.0957,"real_ci95":[0.6826,0.8029]},"resistencia":{"n":249,"brier":0.1116,"base_rate":0.8916,"mean_prob":0.7893,"brier_base":0.0967,"brier_skill":-0.1544,"real_ci95":[0.8468,0.9244]}},"coverage":0.9456},"backtest":{"samples":195,"decisions":127,"status":"ok","brier":0.1267,"brier_skill":0.0264,"base_rate":0.8462,"start":"2026-10-01T00:00:00+00:00","end":null,"trained_until":"2026-09-30 22:55:00+00:00"},"oos":{"available":true,"samples":195,"decisions":127,"effective":195,"brier":0.1267,"brier_skill":0.0264,"base_rate":0.8462,"mean_prob":0.8362,"ece":0.01,"step_bars":48,"horizon_bars":48,"solape_descontado":false,"start":"2026-10-01T00:00:00+00:00","end":null,"trained_until":"2026-09-30 22:55:00+00:00"},"gate":{"ok":true,"canal":"oos","detalle":"oos: 100+ efectivas, skill>0, ECE<=0.08"},"drift":{"status":"watch","psi":0.2283,"watch_threshold":0.1,"alert_threshold":0.25,"live_bins":[{"bin":"0.00-0.60","n":0},{"bin":"0.60-0.70","n":22},{"bin":"0.70-0.80","n":76},{"bin":"0.80-1.01","n":234}],"backtest_bins":[{"bin":"0.00-0.60","n":0},{"bin":"0.60-0.70","n":0},{"bin":"0.70-0.80","n":39},{"bin":"0.80-1.01","n":156}],"live_mean_prob":0.8087,"backtest_mean_prob":0.8362,"mean_shift":-0.0275,"detail":"PSI compara la distribucion de probabilidades vivas contra el backtest OOS. No mide resultados; detecta cambio de regimen."},"data":{"klines":{"ok":true,"bars":2415,"unique_bars":2415,"duplicates":0,"first":"2026-10-15T20:15:00+00:00","last":"2026-10-24T05:25:00+00:00","age_min":6.7,"coverage_24h":1.0,"expected_24h":288,"missing_24h":0,"max_gap_min":5.0,"max_age_min":30.0},"collector":{"available":true,"ok":true,"kline_ok":true,"run_at":"2026-10-24T05:31:36.134753+00:00","failed_jobs":["top_ls_account.jsonl","top_ls_position.jsonl"]}},"model":{"version":"toques-wf-1","target":"hold_4h_0.5pct","trained_until":"2026-09-30 22:55:00+00:00","holdout_2026":{"auc":null,"brier":0.1237,"skill":0.0093,"base":0.8538,"n":212}},"warnings":["Muestra efectiva 29 < 30; el resultado es ruido.","Muestras nominales 447; efectivas 29 por solapamiento de 4h.","Brier skill negativo: el motor no supera la tasa base en esta muestra.","Calibracion 0.0614 > 0.05; revisar bins."],"limits":["Mide aguante de nivel a 4h, no win rate ni ganancia.","La muestra efectiva descuenta el solapamiento de decisiones cada 15 min.","100+ muestras y Brier skill positivo son el minimo para hablar de validacion.","No cambia el modelo, no ejecuta ordenes y no usa IA para decidir."],"data_hash":"bd9278a7c4d3e398","code_sha":"5ec94c7e00d705854d650141def3340c9a34f249","disclaimer":"Auditoria interna de calibracion. No es certificacion externa ni garantia de rentabilidad. Muestra chica = ruido."};
+const SNAP_MODEL = {"version":"toques-wf-1","target":"hold_4h_0.5pct","trained_until":"2026-09-30 22:55:00+00:00","holdout_2026":{"auc":null,"brier":0.1237,"skill":0.0093,"base":0.8538,"n":212},"wf":{"folds":11,"muestras_oos":7757,"skill_medio":0.0168,"racha_positiva":6,"skill_folds":[0.0111,0.0104,0.0028,0.019,0.0304,0.0231,-0.0055,0.0204,0.0348,0.0132,0.0251]},"features":["dist","atr","ema200","rng","hourc","dow","x_atr48","x_atr144","x_atr288"],"mean":[-0.00014471902899527983,0.0013422890357383682,-0.00015422267700606877,0.0015690369453809844,0.0011800404585300068,-0.08165292068442347,0.0013385479332434255,0.0014126025893459204,0.0014580719082939986],"scale":[0.006663299240638484,0.0009287107880874037,0.007077131053340157,0.0013562768488327192,0.7156957839129136,0.7213757356393746,0.0007378356425407469,0.0006942695553991874,0.0006551650795141382],"coef":[-0.0,0.0,-0.0,-0.0,0.09829794261377577,-0.19040384269895175,0.0,-0.0,-0.2073024131403363],"intercept":1.5426070329136758,"congelado":{"congelado":true,"fecha_congelacion":"2026-10-24","descongelar_si":["PSI estable < 0.25 durante 1 semana completa con este modelo en produccion",">= 300 muestras efectivas nuevas posteriores a la congelacion (~5-6 semanas)","Hipotesis registrada en EXPERIMENTOS.md ANTES de entrenar","El candidato supera a toques-wf-1 en el MISMO walk-forward (mismos folds, mismo embargo)"],"excepciones_inmediatas":["Bug en features o scoring (correccion > congelacion)","Cambio estructural en la fuente de datos que altere la semantica de las features"]}};   // modelo_toques.json
+const SNAP_PROBS = [0.8553153005163808,0.8553153005163808,0.85645384644782,0.85645384644782,0.8575660620429968,0.8575660620429968,0.8585099095679389,0.8585099095679389,0.8593124053592427,0.8593124053592427,0.8602377721495832,0.8602377721495832,0.8615347914099915,0.8615347914099915,0.8623754589245239,0.8623754589245239,0.8631667381654529,0.8631667381654529,0.8637311672640047,0.8637311672640047,0.864367237507396,0.864367237507396,0.8646084577765114,0.8646084577765114,0.8649746072108018,0.8639768693352465,0.8634080184335171,0.8632599045897522,0.8633108762369424,0.8631961421529664,0.8791318020052518,0.8787981820373388,0.8786957389131955,0.8786039947182887,0.8784409395858448,0.8783852698900285,0.8784398090394062,0.8786563616699208,0.8784092600754773,0.8784092600754773,0.8780798907173665,0.8780798907173665,0.8781155051452256,0.8776636540120819,0.8768979367225717,0.8764220601845679,0.8764220601845679,0.8757384904688453,0.8757384904688453,0.8750214331763836,0.8750214331763836,0.8739421458833831,0.8739421458833831,0.8731546379875786,0.8731546379875786,0.8724424572822482,0.8724424572822482,0.8715975587367408,0.8715975587367408,0.8713990209217347,0.8713990209217347,0.8701898123140777,0.8701898123140777];   // últimos hold_prob
+const SNAP_AT = "2026-10-24T05:25:00+00:00";
+const SNAP_PAPER = {"bot":"paper_report","version":1,"generado":"2026-10-28T04:13:02+00:00","fuente":{"tipo":"github","detalle":"github:https://raw.githubusercontent.com/LuiferX/vigilante-btc/estado/estado.json","clave_cerradas":"paper_cerradas"},"sin_datos":false,"resumen":{"n":11,"ganadas":5,"perdidas":5,"neutras":1,"win_rate":45.5,"pnl_total":-34.6,"pnl_medio":-3.15,"pnl_mejor":1.28,"pnl_peor":-25.67,"r_total":-27.72,"r_medio":-2.52,"r_mejor":0.99,"r_peor":-25.67,"sharpe":-0.34,"sharpe_n":11,"profit_factor":0.09,"racha":1,"racha_txt":"1 ganada","max_dd_curva_usdt":10.21,"curva_pnl":[-25.67,-26.41,-27.15,-26.95,-26.95,-26.23,-26.97,-26.79,-25.87,-35.88,-34.6],"banco":992.19,"banco_inicio_estimado":1026.79,"max_dd_banco_pct":"n/d","max_dd_curva_pct":1.02},"abiertas":0,"por_lado":{"LONG":{"n":2,"ganadas":1,"perdidas":1,"neutras":0,"win_rate":50.0,"pnl_total":-9.09,"pnl_medio":-4.54,"pnl_mejor":0.92,"pnl_peor":-10.01,"r_total":-0.91,"r_medio":-0.455,"r_mejor":0.09,"r_peor":-1.0,"sharpe":"n/d","sharpe_n":2,"profit_factor":0.09,"racha":1,"racha_txt":"1 perdida","max_dd_curva_usdt":10.01},"SHORT":{"n":9,"ganadas":4,"perdidas":4,"neutras":1,"win_rate":44.4,"pnl_total":-25.51,"pnl_medio":-2.83,"pnl_mejor":1.28,"pnl_peor":-25.67,"r_total":-26.81,"r_medio":-2.979,"r_mejor":0.99,"r_peor":-25.67,"sharpe":-0.37,"sharpe_n":9,"profit_factor":0.09,"racha":2,"racha_txt":"2 ganadas","max_dd_curva_usdt":1.48}},"por_res":{"LIQ":{"n":1,"ganadas":0,"perdidas":1,"neutras":0,"win_rate":0.0,"pnl_total":-25.67,"pnl_medio":-25.67,"pnl_mejor":-25.67,"pnl_peor":-25.67,"r_total":-25.67,"r_medio":-25.67,"r_mejor":-25.67,"r_peor":-25.67,"sharpe":"n/d","sharpe_n":1,"profit_factor":0.0,"racha":1,"racha_txt":"1 perdida","max_dd_curva_usdt":0.0},"SL":{"n":4,"ganadas":0,"perdidas":4,"neutras":0,"win_rate":0.0,"pnl_total":-12.23,"pnl_medio":-3.06,"pnl_mejor":-0.74,"pnl_peor":-10.01,"r_total":-4.0,"r_medio":-1.0,"r_mejor":-1.0,"r_peor":-1.0,"sharpe":"n/d","sharpe_n":4,"profit_factor":0.0,"racha":4,"racha_txt":"4 perdidas","max_dd_curva_usdt":11.49},"TP":{"n":6,"ganadas":5,"perdidas":0,"neutras":1,"win_rate":83.3,"pnl_total":3.3,"pnl_medio":0.55,"pnl_mejor":1.28,"pnl_peor":0.0,"r_total":1.95,"r_medio":0.325,"r_mejor":0.99,"r_peor":0.0,"sharpe":0.93,"sharpe_n":6,"profit_factor":"n/d","racha":4,"racha_txt":"4 ganadas","max_dd_curva_usdt":0.0}},"por_mes":{"2026-10":{"n":11,"ganadas":5,"perdidas":5,"neutras":1,"win_rate":45.5,"pnl_total":-34.6,"pnl_medio":-3.15,"pnl_mejor":1.28,"pnl_peor":-25.67,"r_total":-27.72,"r_medio":-2.52,"r_mejor":0.99,"r_peor":-25.67,"sharpe":-0.34,"sharpe_n":11,"profit_factor":0.09,"racha":1,"racha_txt":"1 ganada","max_dd_curva_usdt":10.21}},"por_semana":{"2026-W42":{"n":8,"ganadas":3,"perdidas":4,"neutras":1,"win_rate":37.5,"pnl_total":-26.79,"pnl_medio":-3.35,"pnl_mejor":0.72,"pnl_peor":-25.67,"r_total":-26.87,"r_medio":-3.359,"r_mejor":0.99,"r_peor":-25.67,"sharpe":-0.4,"sharpe_n":8,"profit_factor":0.04,"racha":1,"racha_txt":"1 ganada","max_dd_curva_usdt":1.48},"2026-W43":{"n":2,"ganadas":1,"perdidas":1,"neutras":0,"win_rate":50.0,"pnl_total":-9.09,"pnl_medio":-4.54,"pnl_mejor":0.92,"pnl_peor":-10.01,"r_total":-0.91,"r_medio":-0.455,"r_mejor":0.09,"r_peor":-1.0,"sharpe":"n/d","sharpe_n":2,"profit_factor":0.09,"racha":1,"racha_txt":"1 perdida","max_dd_curva_usdt":10.01},"2026-W44":{"n":1,"ganadas":1,"perdidas":0,"neutras":0,"win_rate":100.0,"pnl_total":1.28,"pnl_medio":1.28,"pnl_mejor":1.28,"pnl_peor":1.28,"r_total":0.06,"r_medio":0.06,"r_mejor":0.06,"r_peor":0.06,"sharpe":"n/d","sharpe_n":1,"profit_factor":"n/d","racha":1,"racha_txt":"1 ganada","max_dd_curva_usdt":0.0}},"notas":["Fuente: rama estado de GitHub (publica, solo lectura, sin token).","duplicados exactos detectados: 1 (mismo dir/res/pnl/r/fecha). Se cuentan todas: no se deduplican en silencio porque no se puede saber si es doble registro.","Muestra chica (11 operaciones): esto es descripcion, no una evaluacion de edge.","banco_pico no esta en el estado (el reset REBORN lo borra): el drawdown del banco es n/d; se informa el de la curva de PnL.","El drawdown en % de la curva es una estimacion: supone banco = inicio + PnL de papel y que no hubo reset REBORN."],"disclaimer":"Paper trading invisible: banco virtual, sin ordenes reales y sin dinero. Las cifras salen solo de las operaciones cerradas guardadas en el estado. Lo que no existe se marca 'n/d'. Con pocas operaciones esto es muestra, no edge.","nd":"n/d"};   // paper_summary.json (snapshot embebido)
+
+const $ = id => document.getElementById(id);
+const fmt = (x,d=4) => (x===null||x===undefined||isNaN(x)) ? "—" : Number(x).toFixed(d);
+const pct = (x,d=2) => fmt(100*x,d)+"%";
+const sgn = (x,d=2) => (x>0?"+":"")+fmt(100*x,d)+"%";
+
+/* ---------- render ---------- */
+function render(V, M, probs, isLive){
+  $("freshtxt").textContent = isLive ? "en vivo" : "snapshot "+SNAP_AT.slice(0,16).replace("T"," ");
+  $("freshdot").className = "dot" + (isLive ? "" : " off");
+
+  const oos = V.oos||{}, bt = V.backtest||{}, met = V.metrics||{},
+        smp = V.samples||{}, gate = V.gate||{}, dr = V.drift||{}, mdl = V.model||{};
+  const cg = (M && M.congelado) || {};
+
+  $("mver").textContent = mdl.version || (M&&M.version) || "—";
+  $("mfreeze").textContent = cg.fecha_congelacion || "—";
+  $("checked").textContent = "checked_at " + (V.checked_at||"—").replace("T"," ").slice(0,19) + "Z";
+
+  // gate
+  const gok = !!gate.ok;
+  $("gatev").textContent = gok ? "ABIERTO ("+gate.canal+")" : "CERRADO";
+  $("pill-gate").className = "pill " + (gok?"ok":"warn");
+  // psi
+  const alert = (dr.alert_threshold||0.25);
+  const psi = dr.psi;
+  $("psiv").textContent = fmt(psi,4)+" "+dr.status;
+  $("pill-psi").className = "pill " + (psi>alert?"bad":(psi>(dr.watch_threshold||0.1)?"warn":"ok"));
+  // oos / live pills
+  $("oosv").textContent = "skill "+sgn(oos.brier_skill)+" · n="+(oos.effective);
+  $("livev").textContent = "skill "+sgn(met.brier_skill)+" · n="+smp.effective;
+
+  // KPIs
+  $("k-oos-skill").textContent = sgn(oos.brier_skill);
+  $("k-oos-n").innerHTML = "<b>"+oos.effective+"</b> efectivas de "+oos.samples+" · "+oos.decisions+" decisiones";
+  $("k-ece").textContent = fmt(oos.ece,3);
+  const lsk = met.brier_skill, ln = smp.effective;
+  const kls = $("k-live-skill");
+  kls.textContent = sgn(lsk);
+  kls.className = "big " + (lsk<0?"bad":"good");
+  $("k-live-n").innerHTML = "n=<b>"+ln+"</b> efectivas · "+(ln<30?"muestra chica = ruido":"muestra suficiente");
+  $("k-psi").textContent = fmt(psi,3);
+  $("k-psi").className = "big " + (psi>alert?"bad":"warn");
+  $("k-psi-n").innerHTML = dr.status+" · alerta &gt; "+fmt(alert,2)+" · watch &gt; "+fmt(dr.watch_threshold||0.1,2);
+  $("k-base").textContent = pct(oos.base_rate,1);
+  const bb = oos.brier/(1-(oos.brier_skill||0));
+  $("k-brier").textContent = fmt(oos.brier,4);
+  $("k-brier-n").innerHTML = "vs base <b>"+fmt(bb,4)+"</b> · error −"+pct(oos.brier_skill,1)+" relativo";
+
+  // ---- edge bars ----
+  const eb = $("edgebars");
+  const rows = [
+    ["modelo (OOS "+oos.effective+" muestras)", oos.brier, "model"],
+    ["tasa base (sin modelo)", bb, "base"],
+    ["modelo (ventana viva, n="+ln+")", met.brier, (met.brier_skill||0)<0?"live":"model"],
+  ];
+  const mx = Math.max(oos.brier, bb, met.brier||0)*1.12;
+  eb.innerHTML = rows.map(r =>
+    '<div class="edgebar"><div class="lbl"><span>'+r[0]+'</span><span class="num">'+fmt(r[1],4)+'</span></div>'+
+    '<div class="track"><div class="fill '+r[2]+'" style="width:'+(100*r[1]/mx).toFixed(1)+'%"></div></div></div>').join("");
+  $("edge-txt").innerHTML = "Brier skill OOS <b class=\"pos\">"+sgn(oos.brier_skill)+
+    "</b>: el modelo reduce el error un "+pct(oos.brier_skill,1)+" frente a acertar siempre la tasa base ("+
+    pct(oos.base_rate,1)+"). Poco, medido y honesto.";
+  $("edge-explain").innerHTML =
+    "La tasa base acierta <b>"+pct(oos.base_rate,1)+"</b> de las veces sin mirar nada: "+
+    "los niveles suelen aguantar. El edge del modelo está en el error que queda, no en el acierto. "+
+    "En la ventana viva actual (n="+ln+", muestra chica) la skill es <b class=\""+
+    (lsk<0?"negv":"pos")+"\">"+sgn(lsk)+"</b>: con 30-100 muestras eso es ruido estadístico, "+
+    "no un fallo del modelo. La validación se sostiene sobre las "+oos.effective+
+    " muestras OOS, que son las que abrieron el gate.";
+
+  // ---- folds ----
+  const wf = (M && M.wf) || {};
+  const sf = wf.skill_folds || [];
+  const fmx = Math.max.apply(null, sf.concat([0.01]));
+  const fmin = Math.min.apply(null, sf.concat([0]));
+  $("folds").innerHTML = sf.map((v,i) => {
+    const h = Math.max(2, Math.abs(v)/(fmx-fmin||1)*100);
+    const pos = v>=0;
+    return '<div class="fcol"><span class="fval">'+(pos?"+":"")+fmt(100*v,1)+'</span>'+
+           '<div class="fbar'+(pos?"":" neg")+'" style="height:'+h.toFixed(0)+'%"></div>'+
+           '<span class="fidx">f'+(i+1)+'</span></div>';
+  }).join("");
+  const npos = sf.filter(v=>v>0).length;
+  $("wf-note").innerHTML = "media <b class=\"pos\">"+sgn(wf.skill_medio)+"</b> · "+
+    npos+"/"+sf.length+" folds positivos · "+ (wf.muestras_oos||"—") +
+    " muestras OOS · cada fold entrena con el pasado y evalúa el futuro (embargo 24h)";
+
+  // ---- holdout ----
+  const ho = mdl.holdout_2026 || (M&&M.holdout_2026) || {};
+  $("holdout").innerHTML = [
+    ["brier modelo", fmt(ho.brier,4), ""],
+    ["skill vs base", sgn(ho.skill), ho.skill>0?"pos":"negv"],
+    ["tasa base", pct(ho.base,1), ""],
+    ["muestras", ho.n, ""],
+  ].map(r => '<tr><td>'+r[0]+'</td><td class="num '+r[2]+'">'+r[1]+'</td></tr>').join("");
+
+  // ---- bins ----
+  $("bins").innerHTML = (met.bins||[]).map(b =>
+    "<tr><td class='num'>"+b.bin+"</td><td class='num'>"+b.n+"</td><td class='num'>"+
+    fmt(b.pred,3)+"</td><td class='num'>"+fmt(b.real,3)+"</td><td class='num mono-dim'>["+
+    fmt(b.real_ci95[0],2)+"–"+fmt(b.real_ci95[1],2)+"]</td></tr>").join("");
+  const bs = met.by_side||{};
+  $("byside").innerHTML = Object.keys(bs).map(k => {
+    const s = bs[k];
+    return "<tr><td class='num'>"+k+"</td><td class='num'>"+s.n+"</td><td class='num "+
+      (s.brier_skill>0?"pos":"negv")+"'>"+sgn(s.brier_skill)+"</td><td class='num'>"+pct(s.base_rate,1)+"</td></tr>";
+  }).join("");
+  $("byside-note").innerHTML = "skill negativa en ambos lados sobre la ventana viva (n pequeña). "+
+    "En OOS completo el signo es positivo.";
+
+  // ---- spark ----
+  drawSpark(probs||[]);
+  $("spark-note").innerHTML = ((probs&&probs.length)||0)+" decisiones · media viva "+
+    fmt(dr.live_mean_prob,3)+" vs backtest "+fmt(dr.backtest_mean_prob,3)+
+    " · desplazamiento "+(dr.mean_shift>0?"+":"")+fmt(dr.mean_shift,3)+" (el régimen habla más bajo)";
+
+  // ---- modelo ----
+  const cf = (M&&M.coef)||[], ft = (M&&M.features)||[];
+  const gi = n => { const i = ft.indexOf(n); return i>=0 ? cf[i] : null; };
+  $("c-ver").textContent = (M&&M.version)||"—";
+  $("c-target").textContent = (M&&M.target)||"—";
+  $("c-trained").textContent = ((M&&M.trained_until)||"—").replace("T"," ").slice(0,16);
+  const setC = (id,v) => { const el=$(id); if(v===null){el.textContent="—";el.className="fv off";}
+    else{el.textContent=(v===0?"0.0000":(v>0?"+":"")+fmt(v,4)); el.className="fv"+(v===0?" off":"");} };
+  setC("c-hourc", gi("hourc")); setC("c-dow", gi("dow")); setC("c-atr288", gi("x_atr288"));
+  $("c-intercept").textContent = "+" + fmt((M&&M.intercept),4);
+
+  // ---- congelamiento ----
+  $("f-fecha").textContent = cg.fecha_congelacion || "—";
+  $("f-nota").innerHTML = "Sello <b>congelado: "+cg.congelado+
+    "</b> en las 3 copias del modelo (vigilante/toques.py, analysis/hold_model.py, modelo_toques.json).";
+  const n300 = oos.effective||0;
+  const psiOK = psi>0 && psi<alert;
+  const crit = [
+    ["PSI estable < "+fmt(alert,2)+" una semana completa", psiOK?"pend":"pend",
+      psiOK ? "PSI "+fmt(psi,3)+" en watch, aú nno una semana estable" : "PSI "+fmt(psi,3)],
+    ["≥ 300 muestras efectivas nuevas", n300>=300?"done":"pend", n300+" / 300"],
+    ["Hipótesis registrada en EXPERIMENTOS.md", "pend", "pre-registro antes de entrenar"],
+    ["Candidato supera en el MISMO walk-forward", "info", "control WF cada lunes (no publica)"],
+  ];
+  $("criteria").innerHTML = crit.map(c =>
+    '<div class="chk"><span class="st '+c[1]+'">'+(c[1]==="done"?"✔":c[1]==="pend"?"⏳":"ℹ")+
+    '</span><span>'+c[0]+' <b class="mono-dim">('+c[2]+')</b></span></div>').join("");
+
+  // ---- avisos / limites ----
+  $("warns").innerHTML = (V.warnings||[]).map(w => "<li>"+w+"</li>").join("");
+  $("lims").innerHTML = (V.limits||[]).map(w => "<li>"+w+"</li>").join("");
+  $("disclaimer").textContent = V.disclaimer || "";
+  $("codesha").textContent = "code "+(V.code_sha||"").slice(0,10);
+}
+
+function drawSpark(probs){
+  const svg = $("spark");
+  if(!probs.length){ svg.innerHTML=""; return; }
+  const W=600,H=74,pad=4;
+  const mn=Math.min.apply(null,probs), mx=Math.max.apply(null,probs);
+  const rng=(mx-mn)||0.01;
+  const pts = probs.map((p,i)=>{
+    const x = pad + i*(W-2*pad)/(probs.length-1||1);
+    const y = H-pad - (p-mn)/rng*(H-2*pad);
+    return [x,y];
+  });
+  const line = pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const area = pad+","+(H-pad)+" "+line+" "+(W-pad)+","+(H-pad);
+  svg.innerHTML =
+    '<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="rgba(57,255,20,.35)"/><stop offset="1" stop-color="rgba(57,255,20,0)"/>'+
+    '</linearGradient></defs>'+
+    '<polygon points="'+area+'" fill="url(#g1)"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="#39ff14" stroke-width="1.6" '+
+    'style="filter:drop-shadow(0 0 4px rgba(57,255,20,.7))"/>'+
+    '<text x="6" y="12" fill="#5b6270" font-size="9" font-family="monospace">máx '+mx.toFixed(3)+'</text>'+
+    '<text x="6" y="'+(H-6)+'" fill="#5b6270" font-size="9" font-family="monospace">mín '+mn.toFixed(3)+'</text>';
+}
+
+/* ---------- paper trading invisible (solo lectura) ---------- */
+/* Lo que no existe se muestra "n/d": nunca se inventa un numero. */
+const pnum = (v, d=2, signo=false) => {
+  if(typeof v !== "number" || isNaN(v)) return (v===null || v===undefined) ? "n/d" : String(v);
+  return (signo && v>0 ? "+" : "") + v.toFixed(d);
+};
+const pctTxt = v => (typeof v === "number" ? v.toFixed(1)+"%" : "n/d");
+const pcls = v => (typeof v === "number" && v>0 ? "good" : (typeof v === "number" && v<0 ? "bad" : ""));
+
+function drawCurva(curva){
+  const svg = $("p-spark");
+  if(!curva || !curva.length){ svg.innerHTML=""; return; }
+  const W=600,H=74,pad=6;
+  const mn=Math.min.apply(null,curva), mx=Math.max.apply(null,curva);
+  const rng=(mx-mn)||1;
+  const X=i=>(pad+i*(W-2*pad)/(curva.length-1||1)).toFixed(1);
+  const Y=v=>(H-pad-(v-mn)/rng*(H-2*pad)).toFixed(1);
+  const line=curva.map((v,i)=>X(i)+","+Y(v)).join(" ");
+  const area=pad+","+(H-pad)+" "+line+" "+(W-pad)+","+(H-pad);
+  const col = curva[curva.length-1] >= 0 ? "#39ff14" : "#ff2d55";
+  const cero = (mn<0 && mx>0) ? '<line x1="'+pad+'" y1="'+Y(0)+'" x2="'+(W-pad)+'" y2="'+Y(0)+
+    '" stroke="#2a2f3a" stroke-width="1" stroke-dasharray="3 3"/>' : "";
+  svg.innerHTML =
+    '<defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="'+col+'55"/><stop offset="1" stop-color="'+col+'00"/>'+
+    '</linearGradient></defs>'+
+    '<polygon points="'+area+'" fill="url(#g2)"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="'+col+'" stroke-width="1.6" '+
+    'style="filter:drop-shadow(0 0 4px '+col+'99)"/>'+cero+
+    '<text x="6" y="12" fill="#5b6270" font-size="9" font-family="monospace">máx '+mx.toFixed(2)+
+    ' USDT</text>'+
+    '<text x="6" y="'+(H-6)+'" fill="#5b6270" font-size="9" font-family="monospace">mín '+
+    mn.toFixed(2)+' USDT</text>';
+}
+
+function renderPaper(P){
+  const sinDatos = !P || !P.resumen || P.sin_datos;
+  const r = (P && P.resumen) || {};
+  $("p-ops").textContent = sinDatos ? "0" : pnum(r.n,0);
+  $("p-ops-n").innerHTML = sinDatos ? "sin operaciones cerradas aún" :
+    "<b>"+pnum(r.ganadas,0)+"</b> ganadas · "+pnum(r.perdidas,0)+" perdidas · "+
+    pnum(r.neutras,0)+" neutras";
+  $("p-wr").textContent = sinDatos ? "n/d" : pctTxt(r.win_rate);
+  $("p-wr-n").innerHTML = sinDatos ? "—" :
+    "banco "+pnum(r.banco,2)+" USDT · "+pnum(P.abiertas,0)+" abiertas ahora";
+  const R=$("p-r");
+  R.textContent = sinDatos ? "n/d" : pnum(r.r_total,2,true)+"R";
+  R.className = "big" + (sinDatos ? "" : " "+pcls(r.r_total));
+  $("p-r-n").innerHTML = sinDatos ? "—" :
+    "medio "+pnum(r.r_medio,2,true)+"R · mejor "+pnum(r.r_mejor,2,true)+"R · peor "+pnum(r.r_peor,2,true)+"R";
+  const PN=$("p-pnl");
+  PN.textContent = sinDatos ? "n/d" : pnum(r.pnl_total,2,true);
+  PN.className = "big" + (sinDatos ? "" : " "+pcls(r.pnl_total));
+  $("p-pnl-n").innerHTML = sinDatos ? "—" :
+    "profit factor "+pnum(r.profit_factor,2)+" · racha "+(r.racha_txt || "n/d");
+  const SH=$("p-sharpe");
+  SH.textContent = sinDatos ? "n/d" : pnum(r.sharpe,2,true);
+  SH.className = "big" + (sinDatos ? "" : " "+pcls(r.sharpe));
+  $("p-dd").textContent = sinDatos ? "n/d" :
+    (typeof r.max_dd_banco_pct === "number" ? r.max_dd_banco_pct.toFixed(2)+"%" : pnum(r.max_dd_curva_usdt,2));
+  $("p-dd-n").innerHTML = sinDatos ? "—" :
+    (typeof r.max_dd_banco_pct === "number"
+      ? "del banco · curva de PnL "+pnum(r.max_dd_curva_usdt,2)+" USDT"
+      : "banco n/d (falta banco_pico) · curva "+pctTxt(r.max_dd_curva_pct)+" pico→valle");
+  drawCurva(r.curva_pnl || []);
+  $("p-spark-n").innerHTML = ((r.curva_pnl||[]).length)+" cierres · PnL "+
+    pnum(r.pnl_total,2,true)+" USDT · curva = PnL acumulado de las cerradas, no la equity del banco";
+  const fila4 = (k,g) => "<tr><td class='num'>"+k+"</td><td class='num'>"+g.n+"</td><td class='num "+
+    (g.r_total>0?"pos":"negv")+"'>"+pnum(g.r_total,2,true)+"</td><td class='num "+
+    (g.pnl_total>0?"pos":"negv")+"'>"+pnum(g.pnl_total,2,true)+"</td></tr>";
+  const filaLado = (k,g) => "<tr><td class='num'>"+k+"</td><td class='num'>"+g.n+"</td><td class='num'>"+
+    pctTxt(g.win_rate)+"</td><td class='num "+(g.r_total>0?"pos":"negv")+"'>"+pnum(g.r_total,2,true)+
+    "</td><td class='num "+(g.pnl_total>0?"pos":"negv")+"'>"+pnum(g.pnl_total,2,true)+"</td></tr>";
+  const lados = Object.keys((P && P.por_lado) || {});
+  $("p-lado").innerHTML = lados.length ? lados.map(k => filaLado(k, P.por_lado[k])).join("") :
+    "<tr><td colspan='5' class='mono-dim'>n/d · sin dato de lado (dir) en las operaciones</td></tr>";
+  $("p-lado-n").textContent = lados.length ? "ganadas en % de las cerradas de ese lado" : "—";
+  const res = Object.keys((P && P.por_res) || {});
+  $("p-res").innerHTML = res.length ? res.map(k => fila4(k, P.por_res[k])).join("") :
+    "<tr><td colspan='4' class='mono-dim'>n/d</td></tr>";
+  const meses = Object.keys((P && P.por_mes) || {});
+  const semanas = Object.keys((P && P.por_semana) || {}).slice(-6);
+  const per = meses.slice(-3).map(k => ["mes "+k, P.por_mes[k]])
+    .concat(semanas.map(k => ["sem "+k, P.por_semana[k]]));
+  $("p-periodo").innerHTML = per.length ? per.map(x => fila4(x[0], x[1])).join("") :
+    "<tr><td colspan='4' class='mono-dim'>n/d</td></tr>";
+  $("p-notas").innerHTML = ((P && P.notas) || []).map(n => "<li>"+n+"</li>").join("") || "sin notas";
+  $("paperv").textContent = sinDatos ? "sin ops" : pnum(r.n,0)+" ops";
+  $("pill-paper").className = "pill" + (sinDatos || typeof r.pnl_total !== "number" ? "" : (r.pnl_total<0?" bad":" ok"));
+}
+
+/* ---------- carga: snapshot primero, luego intento en vivo ---------- */
+render(SNAP_VAL, SNAP_MODEL, SNAP_PROBS, false);
+renderPaper(SNAP_PAPER);
+
+/* Candidatos por fichero: 1) junto a la pagina (rama dashboard de Pages),
+   2) respecto al repo servido desde la raiz (docs/ + analysis/data/). */
+const RUTAS = {
+  val:   ["validation.json", "../analysis/data/validation.json"],
+  model: ["modelo_toques.json", "../modelo_toques.json"],
+  dec:   ["../analysis/data/decisions.jsonl", "decisions.jsonl"],
+  papel: ["paper_summary.json", "../analysis/data/paper_summary.json"],
+};
+async function primeroOK(rutas){
+  for(const r of rutas){
+    try{
+      const res = await fetch(r, {cache:"no-store"});
+      if(res.ok) return {ok:true, dato:res};
+    }catch(e){}
+  }
+  return {ok:false};
+}
+async function cargaViva(){
+  try{
+    const [rv, rm] = await Promise.all([primeroOK(RUTAS.val), primeroOK(RUTAS.model)]);
+    if(!rv.ok || !rm.ok) return false;
+    const V = await rv.dato.json(), M = await rm.dato.json();
+    // probs: del snapshot salvo que decisions.jsonl esté disponible
+    let probs = SNAP_PROBS;
+    try{
+      const rd = await primeroOK(RUTAS.dec);
+      if(rd.ok){
+        const txt = await rd.dato.text();
+        const filas = txt.trim().split("\n").slice(-40).map(l=>{try{return JSON.parse(l)}catch(e){return null}}).filter(Boolean);
+        const ps = [];
+        filas.forEach(r => (r.levels||[]).forEach(lv => { if(lv.hold_prob!=null) ps.push(lv.hold_prob); }));
+        if(ps.length) probs = ps.slice(-64);
+      }
+    }catch(e){}
+    render(V, M, probs, true);
+    // el resumen de papel es independiente: si falla, no rompe el monitor
+    try{
+      const rp = await primeroOK(RUTAS.papel);
+      if(rp.ok) renderPaper(await rp.dato.json());
+    }catch(e){}
+    return true;
+  }catch(e){}
+  return false;
+}
+cargaViva();
+setInterval(cargaViva, 120000);
+</script>
+</body>
+</html>
