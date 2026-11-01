@@ -610,6 +610,79 @@ costes mucho menores. Los siguientes pasos honestos son horizontes largos
 
 ---
 
+## H6 — HORIZONTES LARGOS 12/24/48/72 h (última palanca del marco) (2026-11-01)
+
+Autor: misión propia. Objetivo del operador: *horizontes largos*. Pre-registro
+commiteado **antes** de medir.
+
+### Motivación medida
+
+En H3 el único bruto positivo apareció en **24 h con convicción alta**
+(+0,0904 %) y el bruto de H1 crecía con el horizonte (0,02 % a 4 h → 0,10 % a
+24 h). El coste de ida y vuelta es fijo, así que el horizonte es la única
+variable con gradiente a favor observado. Queda probarla hasta donde lleguen
+los datos: 12, 24, 48 y 72 h.
+
+### Gate de datos (ya verificado)
+
+- Cobertura: **100 %** de las 11.049 muestras son medibles a 12 h, 24 h, 48 h y
+  72 h (las velas llegan 30 días más allá de la última muestra).
+- **Funding durante el hold** (mediano acumulado, positivo = paga el largo):
+  12 h → +0,0117 % · 24 h → +0,0186 % · 48 h → +0,0354 % · 72 h → +0,0519 %.
+  En H3 no se modeló el funding (hold de 4 h ≤ 1 pago, despreciable); aquí es
+  obligatorio: un hold de 72 h acumula 9 pagos.
+
+### Regla exacta
+
+- **Entrada**: open de la vela siguiente a `t`. **Dirección**: la del modelo
+  (`soporte`→largo, `resistencia`→corto). Nada de H3 cambia: solo el horizonte.
+- **Salida**: cierre a 144 / 288 / 576 / 864 velas (12 / 24 / 48 / 72 h).
+- **Coste**: fee 0,05 %×2 + slippage 0,02 %×2 + 0,25×ATR%×2 **+ funding
+  cobrado/pagado durante el hold** (convención: el largo cobra si funding < 0 y
+  paga si > 0; el corto lo contrario).
+- **Convicción (2)**: `todas` y `top` (`prob_modelo` ≥ 0,858).
+- **Independencia**: un trade a la vez + cooldown = horizonte + 4 h (así los
+  holds nunca se solapan).
+- **Variantes probadas: 8 celdas** (4 horizontes × 2 convicciones) →
+  Bonferroni α = 0,05/8 = **0,00625**.
+
+### Criterio de muerte (si falla UNO, no hay edge)
+
+```
+[ ] Expectativa neta > 0
+[ ] IC95% inferior > 0 (bootstrap 10.000, semilla fija)
+[ ] Positivo en ambas mitades temporales
+[ ] Positivo en >=2 regimenes de volatilidad
+[ ] Sobrevive costes x2
+[ ] n_independientes >= 300
+[ ] p_corregido < 0,05 (Bonferroni por 8 celdas)
+```
+
+### Expectativa declarada antes de medir (anti-hindsight)
+
+Predicción: **ninguna celda pasa los 7 criterios**, por tres razones medidas:
+
+1. el bruto de `todas` se ha mantenido en ~0 a 4 h **y** a 24 h (−0,0252 % y
+   −0,0048 % en H3): no hay gradiente que explotar en ese subconjunto;
+2. el bruto positivo de 24 h fue de +0,0904 % **y solo en `top`**; aunque el
+   gradiente siguiera, llegaríamos a +0,15-0,20 % a 72 h, justo lo que se come
+   el coste ampliado (0,18 % de peaje + hasta 0,05 % de funding);
+3. a mayor hold, mayor varianza: el IC95 se ensancha y "positiva en ambas
+   mitades" se vuelve más difícil.
+
+Apuesto a que **`top` seguirá siendo mejor que `todas`** (predicción de
+mecánica) y a que la mejor celda será `top:24h` o `top:48h`, pero **por debajo
+del umbral**. Si alguna pasa, sería `top:48h`.
+
+### Si saliera edge
+
+Se replicaría el horizonte en papel (`paper`). Un edge de horizonte **no**
+autoriza des-congelar `toques-wf-1` (los 4 criterios siguen vigentes), pero sí
+obligaría a replantear el target `hold_4h` del modelo: eso sería un
+**candidato nuevo**, con su propio pre-registro, no un retoque del campeón.
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
