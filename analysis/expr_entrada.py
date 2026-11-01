@@ -27,18 +27,12 @@ import bisect
 import datetime
 import json
 import os
-import random
 import sys
 
 UTC = datetime.timezone.utc
 AQUI = os.path.dirname(os.path.abspath(__file__))
-CACHE = os.path.join(AQUI, "data", "cache")
+sys.path.insert(0, AQUI)
 
-FEE_PCT = 0.05
-SLIP_BASE = 0.02
-SLIP_K = 0.25
-BOOT = 10000
-SEMILLA = 42
 COOLDOWN_H = 4
 TP_PCT = 0.5
 SL_PCT = 0.3
@@ -47,46 +41,32 @@ W_ESPERA = 24          # velas maximas esperando la entrada
 D_CONFIRM = 0.3        # % de movimiento favorable para confirmar
 D_PERFO = 0.2          # % de perforacion del nivel para el barrido
 D_RECUP = 0.05         # % de recuperacion del nivel tras el barrido
-P_TOP = 0.858
 
 ENTRADAS = ["base", "retardo", "confirm", "barrido"]
 SALIDAS = ["h4", "gest"]
 
 
+from laboratorio import (  # noqa: E402,F401
+    BOOT,
+    CACHE,
+    FEE_PCT,
+    P_TOP,
+    SEMILLA,
+    SLIP_BASE,
+    SLIP_K,
+    atr_pct,
+    bootstrap_ci,
+    cargar_klines,
+    cargar_muestras,
+    coste_viaje,
+    evaluar,
+    motor_secuencia,
+    veredicto,
+)
+
 # ------------------------------------------------------------------ datos --
-def cargar_muestras():
-    filas = []
-    with open(os.path.join(CACHE, "expr_muestras.jsonl"), encoding="utf-8") as fh:
-        for linea in fh:
-            r = json.loads(linea)
-            if r.get("_meta"):
-                continue
-            filas.append(r)
-    return filas
-
-
-def cargar_klines():
-    sys.path.insert(0, AQUI)
-    import hold_model as hm  # noqa: E402
-    kl = hm.load_klines_jsonl(os.path.join(CACHE, "klines_5m.jsonl"))
-    kl.sort(key=lambda v: v["t"])
-    return kl
-
-
-def atr_pct(kl, idx, n=14):
-    i0 = max(0, idx - n)
-    trs = []
-    prev = kl[i0]
-    for v in kl[i0:idx + 1]:
-        tr = max(v["h"] - v["l"], abs(v["h"] - prev["c"]), abs(v["l"] - prev["c"]))
-        trs.append(tr)
-        prev = v
-    if not trs:
-        return None
-    return (sum(trs) / len(trs)) / kl[idx]["c"] * 100.0
-
-
 # ------------------------------------------------------------- la entrada --
+
 def buscar_entrada(muestra, kl, tiempos, variante):
     """Devuelve (idx_entrada, precio) o None.
 
@@ -141,6 +121,7 @@ def resolver(muestra, kl, tiempos, variante, salida):
     ent = buscar_entrada(muestra, kl, tiempos, variante)
     if ent is None:
         return None
+    t = datetime.datetime.fromisoformat(muestra["t"].replace("Z", "+00:00"))
     j, entrada = ent
     largo = muestra["lado"] == "soporte"
     atrp = atr_pct(kl, j) or 0.05
@@ -180,83 +161,19 @@ def resolver(muestra, kl, tiempos, variante, salida):
         bruto = (entrada - salida_px) / entrada * 100.0
     return {"neto": bruto - coste, "bruto": bruto, "coste": coste, "t": t_ent,
             "atr_pct": atrp, "prob": muestra.get("prob_modelo"),
-            "vol": muestra.get("volatilidad"), "espera_barras": j - (bisect.bisect_right(
-                tiempos, datetime.datetime.fromisoformat(muestra["t"].replace("Z", "+00:00"))))}
+            "vol": muestra.get("volatilidad"),
+            "espera_barras": j - bisect.bisect_right(tiempos, t)}
 
 
 def secuencia_independiente(muestras, kl, tiempos, variante, salida):
-    sel = sorted(muestras, key=lambda m: m["t"])
-    rets, detalle = [], []
-    libre = None
-    for m in sel:
-        t = datetime.datetime.fromisoformat(m["t"].replace("Z", "+00:00"))
-        if libre is not None and t < libre:
-            continue
-        r = resolver(m, kl, tiempos, variante, salida)
-        if r is None:
-            continue
-        espera = r.pop("espera_barras")
-        horizonte = H4
-        fin = r["t"] + datetime.timedelta(minutes=5 * (espera + horizonte))
-        libre = fin + datetime.timedelta(hours=COOLDOWN_H)
-        rets.append(r["neto"])
-        detalle.append(r)
-    return rets, detalle
+    """Una operacion a la vez + cooldown (motor compartido).
 
-
-def bootstrap_ci(vals, alpha=0.05, boot=BOOT, semilla=SEMILLA):
-    rnd = random.Random(semilla)
-    n = len(vals)
-    if n == 0:
-        return (0.0, 0.0, 1.0)
-    medias = []
-    for _ in range(boot):
-        s = 0.0
-        for _ in range(n):
-            s += vals[rnd.randrange(n)]
-        medias.append(s / n)
-    medias.sort()
-    lo = medias[int(boot * alpha / 2)]
-    hi = medias[int(boot * (1 - alpha / 2))]
-    p = sum(1 for m in medias if m <= 0) / boot
-    return (lo, hi, p)
-
-
-def evaluar(rets, detalle):
-    if not rets:
-        return None
-    n = len(rets)
-    media = sum(rets) / n
-    lo, hi, p = bootstrap_ci(rets)
-    wins = sum(1 for r in rets if r > 0)
-    gp = sum(r for r in rets if r > 0)
-    gl = -sum(r for r in rets if r <= 0)
-    var = sum((r - media) ** 2 for r in rets) / (n - 1) if n > 1 else 0.0
-    eq, pico, mdd = 0.0, 0.0, 0.0
-    for r in rets:
-        eq += r
-        pico = max(pico, eq)
-        mdd = max(mdd, pico - eq)
-
-    def md(sel):
-        return round(sum(sel) / len(sel), 4) if sel else None
-
-    corte = detalle[len(detalle) // 2]["t"]
-    m1 = [d["neto"] for d in detalle if d["t"] < corte]
-    m2 = [d["neto"] for d in detalle if d["t"] >= corte]
-    regs = {k: {"n": len([d for d in detalle if d["vol"] == k]),
-                "media": md([d["neto"] for d in detalle if d["vol"] == k] or [])}
-            for k in ("compresion", "normal", "expansion")}
-    return {"n": n, "media": round(media, 4),
-            "bruto_medio": round(sum(d["bruto"] for d in detalle) / n, 4),
-            "coste_medio": round(sum(d["coste"] for d in detalle) / n, 4),
-            "ic95": [round(lo, 4), round(hi, 4)], "p_boot": round(p, 5),
-            "hit_rate": round(wins / n, 4),
-            "profit_factor": round(gp / gl, 3) if gl > 0 else None,
-            "equidad": round(eq, 2), "max_dd": round(mdd, 2),
-            "mitades": {"h1": {"n": len(m1), "media": md(m1)},
-                        "h2": {"n": len(m2), "media": md(m2)}},
-            "regimenes": regs}
+    El hold de este experimento incluye la espera a la confirmacion."""
+    return motor_secuencia(
+        muestras,
+        lambda m: resolver(m, kl, tiempos, variante, salida),
+        conviccion="todas", cooldown_h=COOLDOWN_H,
+        hold_fn=lambda r: r.get("espera_barras", 0) + H4)
 
 
 def main():
