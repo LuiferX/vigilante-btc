@@ -1,4 +1,4 @@
-# Informe de inteligencia — 2026-11-01 07:03 UTC
+# Informe de inteligencia â€” 2026-11-02 00:11 UTC
 
 > Este informe **no opera**: mide y publica. No contiene objetivos, stops ni planes de entrada.
 
@@ -14,7 +14,33 @@
 | top_cuentas | 2.6887 | 94.0 % | normal | 8641 | 30 d |
 | top_posiciones | 1.6986 | 50.3 % | normal | 8641 | 30 d |
 
-**Lectura cruzada:** el OI en contratos está en el percentil 80, pero el OI **en dólares** en el 12. Si el primero es alto y el segundo bajo, hay el mismo interés abierto sobre un precio menor: apalancamiento más frágil, no más grande.
+> **Caveat honesto:** cuando el Ãºltimo pago de funding es exactamente la tasa por defecto (+0,0001, que agrupa ~27 % de los pagos), el percentil marca 100 % **sin que sea un extremo real**. Es un empate masivo, no una seÃ±al. El motor ya descuenta esto en la investigaciÃ³n (H1); aquÃ­ se declara para que no se lea como 'funding en mÃ¡ximos'.
+
+**Lectura cruzada:** el OI en contratos estÃ¡ en el percentil 80, pero el OI **en dÃ³lares** en el 12. Si el primero es alto y el segundo bajo, hay el mismo interÃ©s abierto sobre un precio menor: apalancamiento mÃ¡s frÃ¡gil, no mÃ¡s grande.
+
+## 4. Estructura histÃ³rica (4 aÃ±os de velas 5m)
+
+Historia medida: **402629 velas**, 2023-01-01 â†’ 2026-10-30. Un *toque* es una visita distinta (entra, sale 0,3 % y vuelve â‰¥1 h despuÃ©s); *aguanta* = ningÃºn cierre 0,5 % mÃ¡s allÃ¡ en 4 h (el target del modelo).
+
+### Cerca del precio (los que de verdad importan hoy)
+
+| Nivel | Lado | Toques 4a | Aguanta | Rebote med. | Barrido med. | Distancia |
+|---|---|---:|---:|---:|---:|---:|
+| 77,459 | soporte | 202 | 19.3 % | 0.449 % | 0.645 % | -4.79 % |
+| 84,280 | resistencia | 250 | 17.2 % | 0.474 % | 0.677 % | +3.59 % |
+| 84,528 | resistencia | 202 | 16.3 % | 0.468 % | 0.743 % | +3.90 % |
+
+### Los mÃ¡s respetados de la historia
+
+| Nivel | Toques | Aguanta | Rebote | Barrido | Distancia |
+|---|---:|---:|---:|---:|---:|
+| 29,256 | 109 | 45.9 % | 0.383 % | 0.423 % | -64.0 % |
+| 29,428 | 87 | 35.6 % | 0.369 % | 0.473 % | -63.8 % |
+| 29,168 | 119 | 34.5 % | 0.437 % | 0.320 % | -64.1 % |
+| 26,050 | 119 | 34.5 % | 0.494 % | 0.471 % | -68.0 % |
+| 30,239 | 138 | 31.9 % | 0.450 % | 0.413 % | -62.8 % |
+
+**Lectura honesta:** en los niveles mÃ¡s probados, el rebote mediano y el barrido mediano son casi iguales (0.427 % vs 0.420 %). Las excursiones a ambos lados del nivel son simÃ©tricas: el precio no *respeta* estos niveles tanto como los atraviesa. Es la firma matemÃ¡tica de por quÃ© la investigaciÃ³n no encontrÃ³ edge aquÃ­.
 
 ## 5. Estado del sistema
 
@@ -28,9 +54,9 @@
 | top_posiciones | 8931 |
 
 - Muestra efectiva: **84**
-- Skill OOS: 0.026 · ECE 0.0144 · PSI 0.2165
-- Gate: `oos` · estado `muestra_media`
+- Skill OOS: 0.026 Â· ECE 0.0144 Â· PSI 0.2165
+- Gate: `oos` Â· estado `muestra_media`
 
 ---
 
-Marcador de edge (veredicto de la investigación, no opinión): en este marco (velas 5 m, hold 4-72 h, coste ~0,2 % por viaje) **no hay edge direccional demostrado** en ninguna de las seis familias medidas — H1 funding, H3 rebote afinado, H4 entrada rediseñada, H5 ruptura, H6 horizontes largos. Detalle y datos en `analysis/EXPERIMENTOS.md` y `docs/audit/`.
+Marcador de edge (veredicto de la investigaciÃ³n, no opiniÃ³n): en este marco (velas 5 m, hold 4-72 h, coste ~0,2 % por viaje) **no hay edge direccional demostrado** en ninguna de las seis familias medidas â€” H1 funding, H3 rebote afinado, H4 entrada rediseÃ±ada, H5 ruptura, H6 horizontes largos. Detalle y datos en `analysis/EXPERIMENTOS.md` y `docs/audit/`.

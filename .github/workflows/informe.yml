@@ -1,6 +1,6 @@
 name: Informe de inteligencia
 
-# Genera el informe diario a partir de los datos ya archivados (porcentiles +
+# Genera el informe diario a partir de los datos ya archivados (percentiles +
 # microestructura). No opera: solo mide y publica.
 #
 # Orden: primero baja el corte del dia (archivo_micro --diario), luego calcula
@@ -33,18 +33,22 @@ jobs:
       - name: Calcular percentiles causales
         run: python3 analysis/percentiles.py --todo
 
+      - name: Medir estructura historica (4 anos de velas)
+        run: python3 analysis/niveles_hist.py
+
       - name: Redactar el informe
         run: |
           python3 analysis/informe.py
           echo "--- informe.md ---"
-          head -40 analysis/data/informe.md
+          head -60 analysis/data/informe.md
 
       - name: Publicar (commit si hay cambios)
         run: |
           git config user.name  "vigilante-informe[bot]"
           git config user.email "vigilante-informe@users.noreply.github.com"
           git add analysis/data/informe.json analysis/data/informe.md \
-                  analysis/data/percentiles_hoy.json
+                  analysis/data/percentiles_hoy.json \
+                  analysis/data/niveles_hist.json
           if git diff --cached --quiet; then
             echo "sin cambios"
             exit 0

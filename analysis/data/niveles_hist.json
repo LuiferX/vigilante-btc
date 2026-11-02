@@ -1,0 +1,157 @@
+{
+  "generado": "2026-11-02T00:06:35.146204+00:00",
+  "historia": {
+    "velas": 402629,
+    "desde": "2023-01-01T00:00:00+00:00",
+    "hasta": "2026-10-30T01:40:00+00:00"
+  },
+  "precio": 81356.7,
+  "cerca_pct": 8.0,
+  "cerca": [
+    {
+      "nivel": 77459.48,
+      "toques": 202,
+      "primero": "2024-11-10T02:25:00+00:00",
+      "ultimo": "2026-10-30T00:15:00+00:00",
+      "rebote_mediano_pct": 0.4489,
+      "barrido_mediano_pct": 0.6448,
+      "aguante_pct": 19.3,
+      "aguante_n": 39,
+      "respeto": 0.7,
+      "distancia_pct": -4.79,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 84280.01,
+      "toques": 250,
+      "primero": "2024-11-11T15:35:00+00:00",
+      "ultimo": "2026-10-21T23:00:00+00:00",
+      "rebote_mediano_pct": 0.474,
+      "barrido_mediano_pct": 0.6767,
+      "aguante_pct": 17.2,
+      "aguante_n": 43,
+      "respeto": 0.7,
+      "distancia_pct": 3.593,
+      "lado": "resistencia"
+    },
+    {
+      "nivel": 84528.31,
+      "toques": 202,
+      "primero": "2024-11-11T16:00:00+00:00",
+      "ultimo": "2026-10-21T22:15:00+00:00",
+      "rebote_mediano_pct": 0.4681,
+      "barrido_mediano_pct": 0.7433,
+      "aguante_pct": 16.3,
+      "aguante_n": 33,
+      "respeto": 0.63,
+      "distancia_pct": 3.898,
+      "lado": "resistencia"
+    }
+  ],
+  "global": [
+    {
+      "nivel": 29255.86,
+      "toques": 109,
+      "primero": "2023-04-10T17:00:00+00:00",
+      "ultimo": "2023-10-20T05:45:00+00:00",
+      "rebote_mediano_pct": 0.3825,
+      "barrido_mediano_pct": 0.4229,
+      "aguante_pct": 45.9,
+      "aguante_n": 50,
+      "respeto": 0.9,
+      "distancia_pct": -64.04,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 29428.41,
+      "toques": 87,
+      "primero": "2023-04-10T22:00:00+00:00",
+      "ultimo": "2023-10-21T02:35:00+00:00",
+      "rebote_mediano_pct": 0.3688,
+      "barrido_mediano_pct": 0.4726,
+      "aguante_pct": 35.6,
+      "aguante_n": 31,
+      "respeto": 0.78,
+      "distancia_pct": -63.828,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 29167.94,
+      "toques": 119,
+      "primero": "2023-03-30T02:30:00+00:00",
+      "ultimo": "2023-10-20T05:20:00+00:00",
+      "rebote_mediano_pct": 0.4372,
+      "barrido_mediano_pct": 0.3202,
+      "aguante_pct": 34.5,
+      "aguante_n": 41,
+      "respeto": 1.37,
+      "distancia_pct": -64.148,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 26050.06,
+      "toques": 119,
+      "primero": "2023-03-14T12:50:00+00:00",
+      "ultimo": "2023-09-26T15:45:00+00:00",
+      "rebote_mediano_pct": 0.4943,
+      "barrido_mediano_pct": 0.4715,
+      "aguante_pct": 34.5,
+      "aguante_n": 41,
+      "respeto": 1.05,
+      "distancia_pct": -67.98,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 30238.76,
+      "toques": 138,
+      "primero": "2023-04-11T01:50:00+00:00",
+      "ultimo": "2023-10-23T02:20:00+00:00",
+      "rebote_mediano_pct": 0.4501,
+      "barrido_mediano_pct": 0.4126,
+      "aguante_pct": 31.9,
+      "aguante_n": 44,
+      "respeto": 1.09,
+      "distancia_pct": -62.832,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 29350.88,
+      "toques": 114,
+      "primero": "2023-04-10T17:30:00+00:00",
+      "ultimo": "2023-10-20T17:05:00+00:00",
+      "rebote_mediano_pct": 0.3829,
+      "barrido_mediano_pct": 0.5311,
+      "aguante_pct": 29.8,
+      "aguante_n": 34,
+      "respeto": 0.72,
+      "distancia_pct": -63.923,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 26865.22,
+      "toques": 147,
+      "primero": "2023-03-17T11:40:00+00:00",
+      "ultimo": "2023-10-14T04:55:00+00:00",
+      "rebote_mediano_pct": 0.4458,
+      "barrido_mediano_pct": 0.4289,
+      "aguante_pct": 25.2,
+      "aguante_n": 37,
+      "respeto": 1.04,
+      "distancia_pct": -66.978,
+      "lado": "soporte"
+    },
+    {
+      "nivel": 26547.63,
+      "toques": 136,
+      "primero": "2023-03-17T10:20:00+00:00",
+      "ultimo": "2023-10-12T17:30:00+00:00",
+      "rebote_mediano_pct": 0.495,
+      "barrido_mediano_pct": 0.5207,
+      "aguante_pct": 22.1,
+      "aguante_n": 30,
+      "respeto": 0.95,
+      "distancia_pct": -67.369,
+      "lado": "soporte"
+    }
+  ]
+}
