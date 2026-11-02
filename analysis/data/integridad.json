@@ -1,0 +1,29 @@
+{
+  "generado": "2026-11-02T05:30:47.774063+00:00",
+  "precios": {
+    "Binance": {
+      "precio": 78340.9,
+      "ts": 1793597444461,
+      "edad_seg": 2.0
+    },
+    "OKX": {
+      "precio": 78348.0,
+      "ts": 1793597448065,
+      "edad_seg": -1.6
+    },
+    "Bybit": {
+      "precio": 78312.2,
+      "ts": 1793597447774,
+      "edad_seg": -1.3
+    }
+  },
+  "veredicto": {
+    "nivel": "ok",
+    "detalle": "3 exchanges coinciden dentro de 0.5%",
+    "mediana": 78340.9,
+    "anomalias": [],
+    "stale": [],
+    "caidos": [],
+    "dispersion_pct": 0.046
+  }
+}

@@ -173,6 +173,7 @@ def redactar(rep: dict) -> str:
             )
             L.append("")
 
+    L.extend(seccion_integridad(rep))
     L.extend(seccion_sesiones(rep))
     L.extend(seccion_niveles_hist(rep))
     L.append("## 5. Estado del sistema")
@@ -353,6 +354,46 @@ def seccion_sesiones(rep: dict) -> list[str]:
     return L
 
 
+def bloque_integridad() -> dict | None:
+    """¿Los datos en los que se basa el informe son coherentes entre exchanges?"""
+    p = os.path.join(DATA, "integridad.json")
+    d = leer_json(p)
+    if not isinstance(d, dict) or not d.get("veredicto"):
+        return None
+    return d
+
+
+def seccion_integridad(rep: dict) -> list[str]:
+    b = rep["bloques"].get("integridad")
+    if not b:
+        return []
+    v = b.get("veredicto") or {}
+    L = []
+    L.append("## 2. Integridad de datos (3 exchanges)")
+    L.append("")
+    L.append("| Exchange | Precio | Edad (s) | Estado |")
+    L.append("|---|---:|---:|---|")
+    for k, p in (b.get("precios") or {}).items():
+        estado = "OK" if p.get("precio") else f"caído ({str(p.get('err', ''))[:28]})"
+        L.append(f"| {k} | {p.get('precio', '—')} | {p.get('edad_seg', '—')} | {estado} |")
+    L.append("")
+    L.append(f"**Veredicto: `{v.get('nivel')}`** — {v.get('detalle')}")
+    if v.get("dispersion_pct") is not None:
+        L.append("")
+        L.append(
+            f"Dispersión entre exchanges: **{v['dispersion_pct']} %** "
+            f"(umbral de anomalía: 0,5 %; flash crash: 2 % en 5 min)."
+        )
+    L.append("")
+    L.append(
+        "> Si dos exchanges discrepan más del 0,5 % o hay un flash crash, "
+        "el resto de las cifras de este informe deben leerse con reserva: "
+        "los datos que las alimentan no serían fiables."
+    )
+    L.append("")
+    return L
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--solo-imprimir", action="store_true")
@@ -365,6 +406,7 @@ def main() -> int:
             "sistema": bloque_sistema(),
             "niveles_hist": bloque_niveles_hist(),
             "sesiones": bloque_sesiones(),
+            "integridad": bloque_integridad(),
         },
     }
     # marcador corto para el informe
