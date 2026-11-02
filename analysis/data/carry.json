@@ -1,0 +1,87 @@
+{
+  "pagos": 5000,
+  "desde": "2022-04-09T16:00:00.001000+00:00",
+  "hasta": "2026-11-01T00:00:00+00:00",
+  "funding_medio_por_pago_pct": 0.00605,
+  "funding_mediano_por_pago_pct": 0.00582,
+  "anualizado_bruto_pct": 6.62,
+  "pct_pagos_positivos": 85.1,
+  "pagos_positivos": 4253,
+  "pagos_negativos": 747,
+  "mejor_pago_pct": 0.0881,
+  "peor_pago_pct": -0.1192,
+  "por_ano": {
+    "2022": {
+      "n": 799,
+      "medio_pct": 0.0033,
+      "anualizado_pct": 3.65,
+      "pct_pagos_positivos": 78.1
+    },
+    "2023": {
+      "n": 1095,
+      "medio_pct": 0.0072,
+      "anualizado_pct": 7.87,
+      "pct_pagos_positivos": 89.9
+    },
+    "2024": {
+      "n": 1098,
+      "medio_pct": 0.0109,
+      "anualizado_pct": 11.92,
+      "pct_pagos_positivos": 91.6
+    },
+    "2025": {
+      "n": 1095,
+      "medio_pct": 0.0047,
+      "anualizado_pct": 5.13,
+      "pct_pagos_positivos": 87.1
+    },
+    "2026": {
+      "n": 913,
+      "medio_pct": 0.0029,
+      "anualizado_pct": 3.13,
+      "pct_pagos_positivos": 75.0
+    }
+  },
+  "neto_por_hold": {
+    "7d": {
+      "bruto_pct": 0.127,
+      "coste_pct": 0.23,
+      "neto_pct": -0.103,
+      "anualizado_neto_pct": -5.37
+    },
+    "30d": {
+      "bruto_pct": 0.544,
+      "coste_pct": 0.23,
+      "neto_pct": 0.314,
+      "anualizado_neto_pct": 3.82
+    },
+    "90d": {
+      "bruto_pct": 1.632,
+      "coste_pct": 0.23,
+      "neto_pct": 1.402,
+      "anualizado_neto_pct": 5.69
+    }
+  },
+  "riesgo": {
+    "peor_7d": {
+      "inicio": "2022-11-09",
+      "fin": "2022-11-16",
+      "suma_pct": -0.366
+    },
+    "peor_30d": {
+      "inicio": "2026-04-09",
+      "fin": "2026-05-09",
+      "suma_pct": -0.297
+    },
+    "peor_90d": {
+      "inicio": "2026-02-06",
+      "fin": "2026-05-07",
+      "suma_pct": -0.39
+    },
+    "meses_negativos": 4,
+    "meses_totales": 56,
+    "peor_mes_pct": -0.177,
+    "mejor_mes_pct": 3.14,
+    "mediana_mes_pct": 0.458
+  }
+}
