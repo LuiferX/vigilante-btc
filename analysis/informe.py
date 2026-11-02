@@ -173,6 +173,7 @@ def redactar(rep: dict) -> str:
             )
             L.append("")
 
+    L.extend(seccion_sesiones(rep))
     L.extend(seccion_niveles_hist(rep))
     L.append("## 5. Estado del sistema")
     L.append("")
@@ -297,6 +298,61 @@ def seccion_niveles_hist(rep: dict) -> list[str]:
     return L
 
 
+def bloque_sesiones() -> dict | None:
+    """Perfil de sesiones (Tokio/Londres/NY) medido sobre 4 anos."""
+    p = os.path.join(DATA, "edge_sesiones.json")
+    d = leer_json(p)
+    if not isinstance(d, dict):
+        return None
+    des = d.get("descriptivo") or {}
+    if not des.get("perfil_sesiones"):
+        return None
+    return des
+
+
+def seccion_sesiones(rep: dict) -> list[str]:
+    b = rep["bloques"].get("sesiones")
+    if not b:
+        return []
+    perfil = b.get("perfil_sesiones") or {}
+    asia = b.get("rango_asiatico") or {}
+    if not perfil:
+        return []
+    L = []
+    L.append("## 3. Sesiones (Tokio / Londres / NY, 4 años de velas 5m)")
+    L.append("")
+    L.append(
+        "| Sesión (UTC) | Rango med. | Rango p90 | Hace el **máx** del día | "
+        "Hace el **mín** del día |"
+    )
+    L.append("|---|---:|---:|---:|---:|")
+    for nombre in ("Asia", "Londres", "solape", "NY", "noche"):
+        d = perfil.get(nombre)
+        if not d:
+            continue
+        L.append(
+            "| {} | {:.3f} % | {:.3f} % | {:.1f} % | {:.1f} % |".format(
+                nombre,
+                d["rango_mediano_pct"],
+                d["rango_p90_pct"],
+                d["hace_max_del_dia_pct"],
+                d["hace_min_del_dia_pct"],
+            )
+        )
+    L.append("")
+    if asia.get("rango_mediano_pct"):
+        L.append(
+            f"**Rango asiático (00-08 UTC):** mediana "
+            f"{asia['rango_mediano_pct']} % (p25 {asia['rango_p25_pct']} %, "
+            f"p75 {asia['rango_p75_pct']} %) sobre {asia.get('dias')} días. "
+            f"La sesión de Londres lo barre el **49 %** de los días; medido "
+            f"en H7, y **ninguno de los dos lados** (reversión ni "
+            f"continuación) paga el peaje de 0,23 %."
+        )
+        L.append("")
+    return L
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--solo-imprimir", action="store_true")
@@ -308,6 +364,7 @@ def main() -> int:
             "posicionamiento": bloque_posicionamiento(),
             "sistema": bloque_sistema(),
             "niveles_hist": bloque_niveles_hist(),
+            "sesiones": bloque_sesiones(),
         },
     }
     # marcador corto para el informe

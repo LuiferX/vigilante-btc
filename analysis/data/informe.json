@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-02T00:11:43.438772+00:00",
+  "generado": "2026-11-02T00:39:13.180142+00:00",
   "bloques": {
     "posicionamiento": [
       {
@@ -213,6 +213,56 @@
           "lado": "soporte"
         }
       ]
+    },
+    "sesiones": {
+      "perfil_sesiones": {
+        "Asia": {
+          "n": 134229,
+          "rango_mediano_pct": 0.1079,
+          "rango_p90_pct": 0.2684,
+          "cuerpo_mediano_pct": 0.0517,
+          "hace_max_del_dia_pct": 34.7,
+          "hace_min_del_dia_pct": 37.2
+        },
+        "Londres": {
+          "n": 92258,
+          "rango_mediano_pct": 0.1105,
+          "rango_p90_pct": 0.2731,
+          "cuerpo_mediano_pct": 0.0526,
+          "hace_max_del_dia_pct": 15.9,
+          "hace_min_del_dia_pct": 14.1
+        },
+        "NY": {
+          "n": 75492,
+          "rango_mediano_pct": 0.1467,
+          "rango_p90_pct": 0.3728,
+          "cuerpo_mediano_pct": 0.0663,
+          "hace_max_del_dia_pct": 15.5,
+          "hace_min_del_dia_pct": 17.9
+        },
+        "noche": {
+          "n": 50328,
+          "rango_mediano_pct": 0.1167,
+          "rango_p90_pct": 0.3107,
+          "cuerpo_mediano_pct": 0.0565,
+          "hace_max_del_dia_pct": 16.4,
+          "hace_min_del_dia_pct": 14.4
+        },
+        "solape": {
+          "n": 50322,
+          "rango_mediano_pct": 0.1987,
+          "rango_p90_pct": 0.4773,
+          "cuerpo_mediano_pct": 0.086,
+          "hace_max_del_dia_pct": 17.4,
+          "hace_min_del_dia_pct": 16.4
+        }
+      },
+      "rango_asiatico": {
+        "dias": 1398,
+        "rango_mediano_pct": 1.4092,
+        "rango_p25_pct": 0.9386,
+        "rango_p75_pct": 2.1195
+      }
     }
   },
   "resumen": {
