@@ -1,4 +1,4 @@
-# Informe de inteligencia â€” 2026-11-02 00:11 UTC
+# Informe de inteligencia â€” 2026-11-02 00:39 UTC
 
 > Este informe **no opera**: mide y publica. No contiene objetivos, stops ni planes de entrada.
 
@@ -17,6 +17,18 @@
 > **Caveat honesto:** cuando el Ãºltimo pago de funding es exactamente la tasa por defecto (+0,0001, que agrupa ~27 % de los pagos), el percentil marca 100 % **sin que sea un extremo real**. Es un empate masivo, no una seÃ±al. El motor ya descuenta esto en la investigaciÃ³n (H1); aquÃ­ se declara para que no se lea como 'funding en mÃ¡ximos'.
 
 **Lectura cruzada:** el OI en contratos estÃ¡ en el percentil 80, pero el OI **en dÃ³lares** en el 12. Si el primero es alto y el segundo bajo, hay el mismo interÃ©s abierto sobre un precio menor: apalancamiento mÃ¡s frÃ¡gil, no mÃ¡s grande.
+
+## 3. Sesiones (Tokio / Londres / NY, 4 años de velas 5m)
+
+| Sesión (UTC) | Rango med. | Rango p90 | Hace el **máx** del día | Hace el **mín** del día |
+|---|---:|---:|---:|---:|
+| Asia | 0.108 % | 0.268 % | 34.7 % | 37.2 % |
+| Londres | 0.111 % | 0.273 % | 15.9 % | 14.1 % |
+| solape | 0.199 % | 0.477 % | 17.4 % | 16.4 % |
+| NY | 0.147 % | 0.373 % | 15.5 % | 17.9 % |
+| noche | 0.117 % | 0.311 % | 16.4 % | 14.4 % |
+
+**Rango asiático (00-08 UTC):** mediana 1.4092 % (p25 0.9386 %, p75 2.1195 %) sobre 1398 días. La sesión de Londres lo barre el **49 %** de los días; medido en H7, y **ninguno de los dos lados** (reversión ni continuación) paga el peaje de 0,23 %.
 
 ## 4. Estructura histÃ³rica (4 aÃ±os de velas 5m)
 

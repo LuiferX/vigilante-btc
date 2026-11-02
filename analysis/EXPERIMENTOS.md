@@ -820,6 +820,58 @@ de corto plazo; a más horizonte, más deriva).
 Solo seañadiría al informe diario como contexto, nunca como señal de entrada:
 la regla del rearme es que el sistema no opera.
 
+### RESULTADO (2026-11-02)
+
+**H7: SIN EDGE en las 6 celdas. La predicción se cumplió, incluida la fina (el
+control es menos malo que la reversión).** Datos:
+`analysis/data/edge_sesiones.json`.
+
+**A) Descriptivo (hallazgos reales, no señales; 402.629 velas, 1.398 días):**
+
+| Sesión (UTC) | n velas | Rango med. | Rango p90 | Cuerpo med. | Hace el **máx** del día | Hace el **mín** del día |
+|---|---:|---:|---:|---:|---:|---:|
+| Asia (00-08) | 134.229 | 0,108 % | 0,268 % | 0,052 % | **34,7 %** | **37,2 %** |
+| Londres (08-13:30) | 92.258 | 0,111 % | 0,273 % | 0,053 % | 15,9 % | 14,1 % |
+| solape (13:30-16:30) | 50.322 | **0,199 %** | **0,477 %** | 0,086 % | 17,4 % | 16,4 % |
+| NY (16:30-21) | 75.492 | 0,147 % | 0,373 % | 0,066 % | 15,5 % | 17,9 % |
+| noche (21-24) | 50.328 | 0,117 % | 0,311 % | 0,057 % | 16,4 % | 14,4 % |
+
+- **Rango asiático** (00-08 UTC): mediana **1,41 %** (p25 0,94 %, p75 2,12 %) sobre
+  1.398 días. Es la caja que luego se barre.
+- **Asia hace el extremo del día el doble que ninguna otra** pese a ser la sesión
+  más tranquila en rango: el mercado deja el máximo o el mínimo de la jornada
+  mientras nadie mira, y luego Londres/NY lo testean. Es información, no ventaja.
+
+**B) Experimentos (barrido de Londres sobre el rango asiático):**
+
+| Celda | n indep. | Expectativa neta | IC95 | hit | Veredicto |
+|---|---:|---:|---|---:|---|
+| reversion 1h | 686 | −0,2453 % | [−0,2840, −0,2092] | 0,24 | **sin_edge** |
+| reversion 2h | 686 | −0,2491 % | [−0,2972, −0,2010] | 0,31 | sin_edge |
+| reversion 4h | 686 | −0,2298 % | [−0,3047, −0,1555] | 0,37 | sin_edge |
+| control 1h | 686 | −0,1951 % | [−0,2320, −0,1574] | 0,23 | sin_edge |
+| control 2h | 686 | −0,1914 % | [−0,2396, −0,1437] | 0,30 | sin_edge |
+| control 4h | 686 | −0,2107 % | [−0,2849, −0,1364] | 0,35 | sin_edge |
+
+- El fenómeno **es real y frecuente**: 686 eventos de barrido con confirmación
+  sobre 1.398 días (**49,1 %** de los días; 352 altos / 334 bajos). Londres
+  barre el rango asiático casi uno de cada dos días.
+- Pero **ninguno de los dos lados paga el peaje**: ni la reversion (−0,23 a
+  −0,25 %) ni la continuación (−0,19 a −0,21 %). El hit rate neto (0,23-0,37) es
+  el más bajo medido en toda la investigación: tras el barrido, el movimiento
+  posterior no supera el coste en ningún lado.
+- `p_corregido` = **1,00000**. Como predije, el control queda ligeramente menos
+  malo que la reversión (−0,1914 vs −0,2491 a 2 h), pero la diferencia está
+  dentro del ruido.
+
+### Consecuencia
+
+El bot **ahora sí sabe distinguir** el máximo y el mínimo de Tokio y de Londres
+(perfil de sesión con 4 años de datos) y **sabe qué hace Londres con el rango
+asiático** (lo barre el 49 % de los días). Lo que no tiene es una forma de
+ganar dinero con ello, y eso está medido, no supuesto. La sección descriptiva se
+publica en el informe diario; la experimental queda como evidencia.
+
 ---
 
 ## Auditoria de la red neuronal (2026-10-27)

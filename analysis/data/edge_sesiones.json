@@ -1,0 +1,327 @@
+{
+  "hipotesis": "H7",
+  "fecha": "2026-11-02T00:33:22.977148+00:00",
+  "parametros": {
+    "min_barrido": 0.0003,
+    "ventana_conf": 6,
+    "horizontes": [
+      "1h",
+      "2h",
+      "4h"
+    ],
+    "direcciones": [
+      "reversion",
+      "control"
+    ],
+    "cooldown_h": 1,
+    "bootstrap": 10000,
+    "semilla": 42,
+    "velas": 402629
+  },
+  "descriptivo": {
+    "perfil_sesiones": {
+      "Asia": {
+        "n": 134229,
+        "rango_mediano_pct": 0.1079,
+        "rango_p90_pct": 0.2684,
+        "cuerpo_mediano_pct": 0.0517,
+        "hace_max_del_dia_pct": 34.7,
+        "hace_min_del_dia_pct": 37.2
+      },
+      "Londres": {
+        "n": 92258,
+        "rango_mediano_pct": 0.1105,
+        "rango_p90_pct": 0.2731,
+        "cuerpo_mediano_pct": 0.0526,
+        "hace_max_del_dia_pct": 15.9,
+        "hace_min_del_dia_pct": 14.1
+      },
+      "NY": {
+        "n": 75492,
+        "rango_mediano_pct": 0.1467,
+        "rango_p90_pct": 0.3728,
+        "cuerpo_mediano_pct": 0.0663,
+        "hace_max_del_dia_pct": 15.5,
+        "hace_min_del_dia_pct": 17.9
+      },
+      "noche": {
+        "n": 50328,
+        "rango_mediano_pct": 0.1167,
+        "rango_p90_pct": 0.3107,
+        "cuerpo_mediano_pct": 0.0565,
+        "hace_max_del_dia_pct": 16.4,
+        "hace_min_del_dia_pct": 14.4
+      },
+      "solape": {
+        "n": 50322,
+        "rango_mediano_pct": 0.1987,
+        "rango_p90_pct": 0.4773,
+        "cuerpo_mediano_pct": 0.086,
+        "hace_max_del_dia_pct": 17.4,
+        "hace_min_del_dia_pct": 16.4
+      }
+    },
+    "rango_asiatico": {
+      "dias": 1398,
+      "rango_mediano_pct": 1.4092,
+      "rango_p25_pct": 0.9386,
+      "rango_p75_pct": 2.1195
+    }
+  },
+  "eventos": {
+    "n": 686,
+    "altos": 352,
+    "bajos": 334
+  },
+  "variantes_probadas": 6,
+  "p_corregido": 1.0,
+  "celdas": {
+    "reversion:1h": {
+      "n": 686,
+      "media": -0.2453,
+      "bruto_medio": -0.0251,
+      "coste_medio": 0.2202,
+      "ic95": [
+        -0.284,
+        -0.2092
+      ],
+      "p_boot": 1.0,
+      "hit_rate": 0.2405,
+      "profit_factor": 0.188,
+      "equidad": -168.31,
+      "max_dd": 168.56,
+      "mitades": {
+        "h1": {
+          "n": 343,
+          "media": -0.2459
+        },
+        "h2": {
+          "n": 343,
+          "media": -0.2448
+        }
+      },
+      "regimenes": {
+        "compresion": {
+          "n": 0,
+          "media": null
+        },
+        "normal": {
+          "n": 0,
+          "media": null
+        },
+        "expansion": {
+          "n": 0,
+          "media": null
+        }
+      },
+      "x2": -0.4656,
+      "veredicto": "sin_edge"
+    },
+    "reversion:2h": {
+      "n": 686,
+      "media": -0.2491,
+      "bruto_medio": -0.0289,
+      "coste_medio": 0.2202,
+      "ic95": [
+        -0.2972,
+        -0.201
+      ],
+      "p_boot": 1.0,
+      "hit_rate": 0.3105,
+      "profit_factor": 0.319,
+      "equidad": -170.88,
+      "max_dd": 171.37,
+      "mitades": {
+        "h1": {
+          "n": 343,
+          "media": -0.2361
+        },
+        "h2": {
+          "n": 343,
+          "media": -0.2621
+        }
+      },
+      "regimenes": {
+        "compresion": {
+          "n": 0,
+          "media": null
+        },
+        "normal": {
+          "n": 0,
+          "media": null
+        },
+        "expansion": {
+          "n": 0,
+          "media": null
+        }
+      },
+      "x2": -0.4693,
+      "veredicto": "sin_edge"
+    },
+    "reversion:4h": {
+      "n": 686,
+      "media": -0.2298,
+      "bruto_medio": -0.0095,
+      "coste_medio": 0.2202,
+      "ic95": [
+        -0.3047,
+        -0.1555
+      ],
+      "p_boot": 1.0,
+      "hit_rate": 0.3688,
+      "profit_factor": 0.502,
+      "equidad": -157.61,
+      "max_dd": 158.04,
+      "mitades": {
+        "h1": {
+          "n": 343,
+          "media": -0.2156
+        },
+        "h2": {
+          "n": 343,
+          "media": -0.2439
+        }
+      },
+      "regimenes": {
+        "compresion": {
+          "n": 0,
+          "media": null
+        },
+        "normal": {
+          "n": 0,
+          "media": null
+        },
+        "expansion": {
+          "n": 0,
+          "media": null
+        }
+      },
+      "x2": -0.45,
+      "veredicto": "sin_edge"
+    },
+    "control:1h": {
+      "n": 686,
+      "media": -0.1951,
+      "bruto_medio": 0.0251,
+      "coste_medio": 0.2202,
+      "ic95": [
+        -0.232,
+        -0.1574
+      ],
+      "p_boot": 1.0,
+      "hit_rate": 0.2303,
+      "profit_factor": 0.309,
+      "equidad": -133.84,
+      "max_dd": 133.84,
+      "mitades": {
+        "h1": {
+          "n": 343,
+          "media": -0.2037
+        },
+        "h2": {
+          "n": 343,
+          "media": -0.1865
+        }
+      },
+      "regimenes": {
+        "compresion": {
+          "n": 0,
+          "media": null
+        },
+        "normal": {
+          "n": 0,
+          "media": null
+        },
+        "expansion": {
+          "n": 0,
+          "media": null
+        }
+      },
+      "x2": -0.4153,
+      "veredicto": "sin_edge"
+    },
+    "control:2h": {
+      "n": 686,
+      "media": -0.1914,
+      "bruto_medio": 0.0289,
+      "coste_medio": 0.2202,
+      "ic95": [
+        -0.2396,
+        -0.1437
+      ],
+      "p_boot": 1.0,
+      "hit_rate": 0.3003,
+      "profit_factor": 0.438,
+      "equidad": -131.27,
+      "max_dd": 131.27,
+      "mitades": {
+        "h1": {
+          "n": 343,
+          "media": -0.2134
+        },
+        "h2": {
+          "n": 343,
+          "media": -0.1693
+        }
+      },
+      "regimenes": {
+        "compresion": {
+          "n": 0,
+          "media": null
+        },
+        "normal": {
+          "n": 0,
+          "media": null
+        },
+        "expansion": {
+          "n": 0,
+          "media": null
+        }
+      },
+      "x2": -0.4116,
+      "veredicto": "sin_edge"
+    },
+    "control:4h": {
+      "n": 686,
+      "media": -0.2107,
+      "bruto_medio": 0.0095,
+      "coste_medio": 0.2202,
+      "ic95": [
+        -0.2849,
+        -0.1364
+      ],
+      "p_boot": 1.0,
+      "hit_rate": 0.3542,
+      "profit_factor": 0.536,
+      "equidad": -144.54,
+      "max_dd": 145.31,
+      "mitades": {
+        "h1": {
+          "n": 343,
+          "media": -0.2339
+        },
+        "h2": {
+          "n": 343,
+          "media": -0.1875
+        }
+      },
+      "regimenes": {
+        "compresion": {
+          "n": 0,
+          "media": null
+        },
+        "normal": {
+          "n": 0,
+          "media": null
+        },
+        "expansion": {
+          "n": 0,
+          "media": null
+        }
+      },
+      "x2": -0.4309,
+      "veredicto": "sin_edge"
+    }
+  },
+  "veredicto": "sin_edge"
+}
