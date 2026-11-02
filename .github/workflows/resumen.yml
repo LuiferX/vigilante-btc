@@ -40,7 +40,8 @@ jobs:
         run: |
           git config user.name  "vigilante-resumen[bot]"
           git config user.email "vigilante-resumen@users.noreply.github.com"
-          git add analysis/data/resumen_semanal.json analysis/data/resumen_semanal.md
+          git add analysis/data/resumen_semanal.json analysis/data/resumen_semanal.md \
+                  analysis/data/percentiles_hist.jsonl
           if git diff --cached --quiet; then
             echo "sin cambios"
             exit 0
