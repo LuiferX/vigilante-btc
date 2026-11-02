@@ -31,7 +31,6 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import bisect
 import datetime
 import json
 import os
@@ -239,15 +238,6 @@ def top_historicos(kl, cuantos=8, min_toques=4, escanear=40, precio=None, cerca_
         fichas.append(f)
     fichas.sort(key=lambda f: (-f["aguante_pct"], -(f["respeto"] or 0), -f["toques"]))
     return fichas[:cuantos]
-
-
-def percentil_fuerza(kl, nivel, todas):
-    """Percentil de fuerza: cuantos niveles de la historia tienen menos toques."""
-    vals = sorted(f["toques"] for f in todas)
-    if not vals:
-        return None
-    t = nivel.get("toques", 0)
-    return round(bisect.bisect_left(vals, t) / len(vals), 3)
 
 
 def main() -> int:

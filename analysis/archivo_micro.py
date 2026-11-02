@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 archivo_micro.py - archivo DURABLE de microestructura (OI, taker, ballenas,
 funding).
@@ -42,22 +42,29 @@ _COLECTOR = os.path.join(os.path.dirname(AQUI), "collector")
 if _COLECTOR not in sys.path:
     sys.path.insert(0, _COLECTOR)
 UA = "vigilante-archivo/1.0 (+https://github.com/LuiferX/vigilante-btc)"
-PASO_MS = 5 * 60 * 1000          # las series son de 5 minutos
-LIMITE = 500                      # maximo por pagina de la API
-TOPE_DIAS = 30                    # tope duro de la API para OI/taker/ballenas
+PASO_MS = 5 * 60 * 1000  # las series son de 5 minutos
+LIMITE = 500  # maximo por pagina de la API
+TOPE_DIAS = 30  # tope duro de la API para OI/taker/ballenas
 
 # nombre -> (endpoint, clave de tiempo, campos a conservar)
 SERIES = {
-    "oi": ("openInterestHist", "timestamp",
-           ("sumOpenInterest", "sumOpenInterestValue")),
-    "taker": ("takerlongshortRatio", "timestamp",
-              ("buySellRatio", "buyVol", "sellVol")),
-    "top_cuentas": ("topLongShortAccountRatio", "timestamp",
-                    ("longShortRatio", "longAccount", "shortAccount")),
-    "top_posiciones": ("topLongShortPositionRatio", "timestamp",
-                       ("longShortRatio", "longPosition", "shortPosition")),
-    "global_cuentas": ("globalLongShortAccountRatio", "timestamp",
-                       ("longShortRatio", "longAccount", "shortAccount")),
+    "oi": ("openInterestHist", "timestamp", ("sumOpenInterest", "sumOpenInterestValue")),
+    "taker": ("takerlongshortRatio", "timestamp", ("buySellRatio", "buyVol", "sellVol")),
+    "top_cuentas": (
+        "topLongShortAccountRatio",
+        "timestamp",
+        ("longShortRatio", "longAccount", "shortAccount"),
+    ),
+    "top_posiciones": (
+        "topLongShortPositionRatio",
+        "timestamp",
+        ("longShortRatio", "longPosition", "shortPosition"),
+    ),
+    "global_cuentas": (
+        "globalLongShortAccountRatio",
+        "timestamp",
+        ("longShortRatio", "longAccount", "shortAccount"),
+    ),
 }
 
 
@@ -74,7 +81,7 @@ def _get_seguro(url: str):
         d = http_get_json(url)
     except urllib.error.HTTPError as e:
         if e.code in (400, 451):
-            return None                 # fuera del tope / bloqueado: no es error
+            return None  # fuera del tope / bloqueado: no es error
         raise
     return d if isinstance(d, list) else None
 
@@ -88,8 +95,13 @@ def dt_ms(v) -> datetime.datetime:
 
 
 # -------------------------------------------------------------- descarga ----
-def descargar_serie(endpoint: str, campo_tiempo: str, campos, dias: int,
-                    symbol: str = "BTCUSDT", pasm: int = PASO_MS):
+def descargar_serie(
+    endpoint: str,
+    campo_tiempo: str,
+    campos,
+    dias: int,
+    symbol: str = "BTCUSDT",
+):
     """Baja todo el histÃ³rico disponible (hasta `dias` o el tope de la API).
 
     Pagina hacia atras desde ahora. Devuelve lista de dicts normalizados.
@@ -99,9 +111,11 @@ def descargar_serie(endpoint: str, campo_tiempo: str, campos, dias: int,
     out: dict[int, dict] = {}
     end = ms(fin)
     paginas = 0
-    while paginas < 400:                        # techo de seguridad
-        url = (f"https://fapi.binance.com/futures/data/{endpoint}"
-               f"?symbol={symbol}&period=5m&limit={LIMITE}&endTime={end}")
+    while paginas < 400:  # techo de seguridad
+        url = (
+            f"https://fapi.binance.com/futures/data/{endpoint}"
+            f"?symbol={symbol}&period=5m&limit={LIMITE}&endTime={end}"
+        )
         raw = _get_seguro(url)
         if not raw:
             break
@@ -110,8 +124,7 @@ def descargar_serie(endpoint: str, campo_tiempo: str, campos, dias: int,
             t = r.get(campo_tiempo)
             if t is None:
                 continue
-            rec = {"source": f"binance_{endpoint}", "symbol": r.get("symbol"),
-                   campo_tiempo: t}
+            rec = {"source": f"binance_{endpoint}", "symbol": r.get("symbol"), campo_tiempo: t}
             for c in campos:
                 if c in r:
                     rec[c] = r[c]
@@ -120,11 +133,11 @@ def descargar_serie(endpoint: str, campo_tiempo: str, campos, dias: int,
         # la pagina es raw[0]. Usar raw[-1] (el mas nuevo) hacia que cada
         # pagina retrocediera 5 minutos en vez de 41 horas -> bucle infinito.
         oldest = int(raw[0][campo_tiempo])
-        if oldest >= end - 1:                   # la pagina no avanzo: cortar
+        if oldest >= end - 1:  # la pagina no avanzo: cortar
             break
         if dt_ms(oldest) <= inicio:
             break
-        end = oldest - 1                        # siguiente pagina hacia atras
+        end = oldest - 1  # siguiente pagina hacia atras
         time.sleep(0.15)
     return [out[k] for k in sorted(out)]
 
@@ -136,9 +149,11 @@ def descargar_funding(dias: int = 1500, symbol: str = "BTCUSDT"):
     out: dict[int, dict] = {}
     end = ms(fin)
     paginas = 0
-    while paginas < 400:                        # techo de seguridad
-        url = (f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol}"
-               f"&limit=1000&endTime={end}")
+    while paginas < 400:  # techo de seguridad
+        url = (
+            f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol}"
+            f"&limit=1000&endTime={end}"
+        )
         raw = _get_seguro(url)
         if not raw:
             break
@@ -147,12 +162,15 @@ def descargar_funding(dias: int = 1500, symbol: str = "BTCUSDT"):
             t = r.get("fundingTime")
             if t is None:
                 continue
-            out[int(t)] = {"source": "binance_fundingRate",
-                           "symbol": r.get("symbol"), "fundingTime": t,
-                           "fundingRate": r.get("fundingRate")}
+            out[int(t)] = {
+                "source": "binance_fundingRate",
+                "symbol": r.get("symbol"),
+                "fundingTime": t,
+                "fundingRate": r.get("fundingRate"),
+            }
         # mismo detalle que en descargar_serie: raw[0] es el mas viejo
         oldest = int(raw[0]["fundingTime"])
-        if oldest >= end - 1:                   # la pagina no avanzo: cortar
+        if oldest >= end - 1:  # la pagina no avanzo: cortar
             break
         if dt_ms(oldest) <= inicio:
             break
@@ -183,6 +201,7 @@ def descargar_alterno(nombre: str) -> list[dict]:
         return []
     try:
         import collector as co  # noqa: E402  (script hermano)
+
         fn = getattr(co, fn_nombre, None)
         if fn is None:
             return []
@@ -196,6 +215,7 @@ def descargar_funding_alterno() -> list[dict]:
     """Funding historico de OKX (hasta 100 pagos por llamada)."""
     try:
         import collector as co  # noqa: E402
+
         return co.fetch_funding_okx(100) or []
     except Exception as e:
         print(f"    (fallback funding: {type(e).__name__} {str(e)[:50]})")
@@ -205,22 +225,6 @@ def descargar_funding_alterno() -> list[dict]:
 # ------------------------------------------------------------ persistencia --
 def ruta_serie(nombre: str) -> str:
     return os.path.join(ARCHIVO, f"{nombre}.jsonl")
-
-
-def claves_existentes(path: str, campo: str) -> set:
-    vistos: set = set()
-    if not os.path.exists(path):
-        return vistos
-    with open(path, encoding="utf-8") as fh:
-        for linea in fh:
-            linea = linea.strip()
-            if not linea:
-                continue
-            try:
-                vistos.add(json.loads(linea).get(campo))
-            except Exception:
-                continue
-    return vistos
 
 
 def fusionar(nombre: str, nuevos: list[dict], campo: str) -> tuple[int, int]:
@@ -237,7 +241,7 @@ def fusionar(nombre: str, nuevos: list[dict], campo: str) -> tuple[int, int]:
     path = ruta_serie(nombre)
     os.makedirs(ARCHIVO, exist_ok=True)
     vistos: set = set()
-    buenos: list[tuple] = []          # (clave, linea)
+    buenos: list[tuple] = []  # (clave, linea)
     corruptas: list[str] = []
     if os.path.exists(path):
         with open(path, encoding="utf-8") as fh:
@@ -306,8 +310,10 @@ def estado() -> int:
         if primero is None:
             continue
         d0, d1 = dt_ms(primero), dt_ms(ultimo)
-        print(f"  {fname:22s} {n:7d} filas | {d0:%Y-%m-%d %H:%M} -> "
-              f"{d1:%Y-%m-%d %H:%M} | {(d1-d0).days} dias")
+        print(
+            f"  {fname:22s} {n:7d} filas | {d0:%Y-%m-%d %H:%M} -> "
+            f"{d1:%Y-%m-%d %H:%M} | {(d1-d0).days} dias"
+        )
     return 0
 
 
@@ -323,7 +329,7 @@ def recompactar() -> int:
     for fname in sorted(os.listdir(ARCHIVO)):
         if not fname.endswith(".jsonl"):
             continue
-        nombre = fname[:-len(".jsonl")]
+        nombre = fname[: -len(".jsonl")]
         p = os.path.join(ARCHIVO, fname)
         campo = "fundingTime" if nombre == "funding" else "timestamp"
         with open(p, encoding="utf-8") as fh:
@@ -336,7 +342,7 @@ def recompactar() -> int:
                     regs.append(json.loads(linea))
                 except Exception:
                     continue
-        agregados, previos = fusionar(nombre, regs, campo)
+        _, previos = fusionar(nombre, regs, campo)
         print(f"  {nombre:18s} {previos} filas -> ordenadas y sin duplicados")
     return 0
 
@@ -345,11 +351,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--todo", action="store_true")
     ap.add_argument("--serie", choices=sorted(SERIES))
-    ap.add_argument("--diario", action="store_true",
-                    help="modo CI: solo baja lo ultimo (2 dias de margen)")
+    ap.add_argument(
+        "--diario", action="store_true", help="modo CI: solo baja lo ultimo (2 dias de margen)"
+    )
     ap.add_argument("--estado", action="store_true")
-    ap.add_argument("--recompactar", action="store_true",
-                    help="reordena y deduplica lo que ya existe, sin red")
+    ap.add_argument(
+        "--recompactar", action="store_true", help="reordena y deduplica lo que ya existe, sin red"
+    )
     ap.add_argument("--dias", type=int, default=TOPE_DIAS)
     a = ap.parse_args()
 
@@ -374,8 +382,10 @@ def main() -> int:
         if regs:
             d0 = dt_ms(regs[0]["fundingTime"])
             d1 = dt_ms(regs[-1]["fundingTime"])
-            print(f"  funding [{origen:^18s}] +{agr:6d} nuevos ({prev} previos) | "
-                  f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}")
+            print(
+                f"  funding [{origen:^18s}] +{agr:6d} nuevos ({prev} previos) | "
+                f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}"
+            )
         else:
             print(f"  funding [{origen:^18s}] sin datos")
 
@@ -395,12 +405,13 @@ def main() -> int:
         agr, prev = fusionar(nombre, regs, campo)
         total += agr
         d0, d1 = dt_ms(regs[0][campo]), dt_ms(regs[-1][campo])
-        print(f"  {nombre:18s} [{origen:>18s}] +{agr:6d} nuevos ({prev} previos) | "
-              f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}")
+        print(
+            f"  {nombre:18s} [{origen:>18s}] +{agr:6d} nuevos ({prev} previos) | "
+            f"{d0:%Y-%m-%d} -> {d1:%Y-%m-%d}"
+        )
     print(f"OK -> {total} registros nuevos en {ARCHIVO}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
