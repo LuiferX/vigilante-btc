@@ -745,6 +745,83 @@ Consecuencias honestas para el bot:
 
 ---
 
+## H7 — SESIONES y RANGO ASIÁTICO (Tokio/Londres/NY) (2026-11-02)
+
+Autor: misión propia, a petición del operador (*"¿está experimentado en los
+horarios? ¿sabe diferenciar el máximo de Tokio y el mínimo de Londres?"*).
+Pre-registro commiteado **antes** de medir.
+
+### Contexto honesto
+
+El sistema **tiene** etiquetas de sesión (Asia 00-08, Londres 08-13:30,
+solape 13:30-16:30, NY 16:30-21, noche 21-24 UTC) en las 11.049 muestras del
+replay, y **ningún experimento las ha usado**: `laboratorio.evaluar()` corta por
+mitades y por régimen de volatilidad, nunca por sesión. Tampoco existe el
+concepto de *rango asiático* ni de *barrido de Londres* en el código: los
+niveles se calculan sobre las últimas 14 velas de cada marco. Este experimento
+midelo por primera vez.
+
+### Hipótesis (una frase)
+
+**H7:** tras el rango asiático, la sesión de Londres barre su extremo y el
+precio **revierte** hacia dentro del rango, con expectativa neta positiva a
+1-4 h.
+
+### Regla exacta (fijada antes de mirar resultados)
+
+- **Sesiones** (UTC): Asia [00:00, 08:00) · Londres [08:00, 13:30) ·
+  solape [13:30, 16:30) · NY [16:30, 21:00) · noche [21:00, 24:00).
+- **Rango asiático**: `high` y `low` de todas las velas 5m de la sesión Asia de
+  ese día UTC. Solo se usa una vez cerrada (cero look-ahead).
+- **Barrido (evento)**: dentro de la sesión Londres del mismo día, la primera
+  vela cuya **mecha** supere el extremo asiático ≥ **0,03 %**
+  (`high > high_asia*(1+0.0003)` → barrido alto; `low < low_asia*(1-0.0003)` →
+  barrido bajo), **y** cuyo cierre (o el de las 6 velas siguientes = 30 min)
+  vuelva a meterse **dentro** del rango asiático (confirmación de la trampa).
+  Si no confirma, no hay evento.
+- **Entrada**: open de la vela siguiente a la que confirma.
+- **Direcciones (2)**: `reversion` (corto tras barrido alto, largo tras barrido
+  bajo) y `control` (lo contrario: continuación).
+- **Salidas (3)**: cierre a 1 h, 2 h y 4 h (12 / 24 / 48 velas).
+- **Coste**: idéntico siempre (~0,23 % por viaje: fee + slippage + 0,25·ATR).
+- **Independencia**: un trade a la vez + cooldown 1 h. Como mucho 1 evento/día,
+  los eventos están separados por construcción.
+- **Variantes probadas: 6 celdas** (2 direcciones × 3 horizontes) →
+  Bonferroni α = 0,05/6 = **0,00833**.
+- Adicional **descriptivo** (fuera del Bonferroni): perfil por sesión (rango
+  mediano, cuerpo mediano, % de veces que cada sesión hace el máximo/mínimo del
+  día) y distribución de tamaños del rango asiático.
+
+### Criterio de muerte (si falla UNO, no hay edge)
+
+```
+[ ] Expectativa neta > 0
+[ ] IC95% inferior > 0 (bootstrap 10.000, semilla fija)
+[ ] Positivo en ambas mitades temporales
+[ ] Positivo en >=2 regimenes de volatilidad
+[ ] Sobrevive costes x2
+[ ] n_independientes >= 300
+[ ] p_corregido < 0,05 (Bonferroni por 6 celdas)
+```
+
+### Expectativa declarada antes de medir (anti-hindsight)
+
+Predicción: **sin_edge en las 6 celdas**, y espero además que el `control`
+(continuación) sea *ligeramente menos malo* que la reversion. Motivos: (1) H1
+ya midió que la direccionalidad a estas horizontes no paga 0,23 %; (2) el
+perfil de excursión medido en los niveles históricos es simétrico (rebote
+0,427 % vs barrido 0,420 %), así que no hay asimetría que explotar; (3) el
+evento, aunque real, produce un movimiento menor que el peaje.
+**Si alguna celda pasa, apuesto a `reversion:1h`** (el barrido es un fenómeno
+de corto plazo; a más horizonte, más deriva).
+
+### Si saliera edge
+
+Solo seañadiría al informe diario como contexto, nunca como señal de entrada:
+la regla del rearme es que el sistema no opera.
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
