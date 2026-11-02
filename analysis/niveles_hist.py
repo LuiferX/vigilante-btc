@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """niveles_hist.py - SUELOS Y TECHOS HISTORICOS de verdad.
 
@@ -51,13 +51,30 @@ K_PIVOTE = 5  # pivote fractal: maximo/minimo local de 5 velas a cada lado
 
 
 # ------------------------------------------------------------------ datos --
+class FaltaCache(RuntimeError):
+    """La cache de velas no esta (esta ignorada en git a proposito)."""
+
+
 def cargar_historial():
-    """4 anos de velas 5m, ordenadas."""
+    """4 anos de velas 5m, ordenadas.
+
+    OJO: la cache (klines_5m.jsonl, ~139 MB) esta IGNORADA en git a
+    proposito: se regenera con `python analysis/backfill.py --descargar`.
+    En los runners de GitHub no existe y sin ella este modulo no puede medir:
+    degrada con un aviso claro en vez de explotar, para no tumbar el workflow
+    del informe. La estructura historica corre donde SI hay cache (local).
+    """
+    p_cache = os.path.join(CACHE, "klines_5m.jsonl")
+    if not os.path.exists(p_cache):
+        raise FaltaCache(
+            "sin cache de velas (analysis/data/cache/, ignorada en git); "
+            "regenerar con: python analysis/backfill.py --descargar"
+        )
     sys.path.insert(0, AQUI)
     import hold_model as hm
 
-    kl = hm.load_klines_jsonl(os.path.join(CACHE, "klines_5m.jsonl"))
-    kl.sort(key=lambda v: v["t"])
+    kl = hm.load_klines_jsonl(p_cache)
+    kl.sort(key=lambda v: "t")
     return kl
 
 
@@ -242,7 +259,12 @@ def main() -> int:
     ap.add_argument("--min-toques", type=int, default=4)
     a = ap.parse_args()
 
-    kl = cargar_historial()
+    try:
+        kl = cargar_historial()
+    except FaltaCache as e:
+        print(f"  aviso: {e}")
+        print("  salto la estructura historica (el resto del informe sigue)")
+        return 0
     px = a.precio or precio_actual()
     corte = kl[-1]["t"]
     print(
