@@ -99,10 +99,10 @@ def _gate_desde_validacion(data):
         # ventana viva -aunque corta- dice lo contrario. Requiere muestras
         # vivas suficientes para que el veredicto no sea ruido (>= 30).
         vivo_efectivo = effective >= 30
-        vivo_contradice = (
-            vivo_efectivo and ((skill is not None and skill <= 0)
-                               or (ece is not None and ece > 0.08)
-                               or drift_status == "alert")
+        vivo_contradice = vivo_efectivo and (
+            (skill is not None and skill <= 0)
+            or (ece is not None and ece > 0.08)
+            or drift_status == "alert"
         )
         try:
             o_eff = int(oos.get("effective") or 0)
@@ -212,6 +212,12 @@ PRECISION_CERCA_PCT = float(os.environ.get("VIGILANTE_PRECISION_CERCA", "0.35"))
 
 
 PRECISION_DEDUP_HORAS = float(os.environ.get("VIGILANTE_PRECISION_DEDUP", "12"))
+
+# Tasa base REAL medida sobre las 11.049 muestras del replay (2023-2026): el
+# 83,9% de los niveles con 3+ toques aguantan 4h POR CONSTRUCCION del target
+# `hold_4h_0.5pct`. Se cita en el mensaje para que un "85%" no parezca un
+# hallazgo cuando es el punto de partida de todas.
+PRECISION_BASE_AGUANTE = 0.839
 
 
 PRECISION_EVAL_HORAS = 4.0  # mismo horizonte que el motor (48 velas de 5m)
@@ -349,18 +355,32 @@ def precision_nueva(est, nivel, ahora):
 
 
 def texto_alerta_precision(nivel, precio, evidencia=None):
-    """Mensaje del aviso de precision. Nunca suena a orden."""
+    """Mensaje del aviso. Descriptivo, no una orden.
+
+    REARME 2026-11-02: antes decia "NIVEL DEFENDIDO" con "aguante estimado
+    85 %", y el operador tenia razon: eso sonaba a hallazgo cuando es la
+    TASA BASE. Medido sobre 11.049 muestras del replay, el 83,9 % de los
+    niveles con 3+ toques aguantan 4h *por construccion del target*
+    (`hold_4h_0.5pct`): citar 85 % sin la base infla el numero. Y "aguanta"
+    no es "se mueve": la excursion mediana tras el toque ronda 0,45 %, por
+    debajo del coste de viaje (0,23 %), que es lo que midieron H1-H8.
+    """
     prob = nivel["prob"]
     lado = "soporte" if str(nivel["lado"]).lower().startswith("sop") else "resistencia"
-    L = [f"🧱 NIVEL DEFENDIDO · {lado} {fmt_miles(nivel['nivel'])}"]
+    base = PRECISION_BASE_AGUANTE
+    L = [f"📍 NIVEL ACTIVO — {lado} {fmt_miles(nivel['nivel'])}"]
     L.append(
-        f"Precio {fmt_miles(precio)} a {nivel['cerca']}% del nivel · "
-        f"aguante estimado {prob * 100:.0f}% (fallo ~{100 * (1 - prob):.0f}%)"
+        f"Precio {fmt_miles(precio)} a {nivel['cerca']}% · aguante 4h estimado "
+        f"{prob * 100:.0f}% (fallo ~{100 * (1 - prob):.0f}%)"
     )
     L.append(
-        f"Evidencia: {nivel['toques']} toques reales en 6h · calidad {nivel['calidad']}/10"
+        f"Contexto: la base SIN modelo es {base * 100:.0f}% — el modelo suma "
+        f"~{(prob - base) * 100:.0f} puntos sobre ese 84% que ya trae el target."
+    )
+    L.append(
+        f"Evidencia: {nivel['toques']} toques reales en 6h — calidad {nivel['calidad']}/10"
         + (
-            f" · confluencia {nivel['confluencia']} temporalidades"
+            f" — confluencia {nivel['confluencia']} temporalidades"
             if nivel.get("confluencia")
             else ""
         )
@@ -368,10 +388,13 @@ def texto_alerta_precision(nivel, precio, evidencia=None):
     if evidencia:
         L.append(
             f"Medido fuera de muestra: {evidencia['muestras']} casos desde "
-            f"{str(evidencia['inicio'])[:10]}, banda alta rindió {evidencia['real'] * 100:.0f}%"
+            f"{str(evidencia['inicio'])[:10]}, banda alta rindiendo {evidencia['real'] * 100:.0f}%"
         )
     L.append(
-        "Solo aviso, no es orden ni entrada: el aguante se anula con cierre 4h más allá del nivel."
+        "Aviso descriptivo, no es orden ni entrada. Dos advertencias medidas: "
+        "el aguante se anula con un cierre 4h más allá del nivel, y aguantar NO "
+        "es moverse — la excursión mediana tras el toque ronda 0,45 % frente a "
+        "0,23 % de coste de viaje (H1-H8: sin edge direccional demostrado)."
     )
     return "\n".join(L)
 
@@ -489,8 +512,7 @@ def aplicar_gate_alerta(enviar, motivo, tipo, gate, forzado=None, gestion=None):
         # P0-1.1 (auditoria 2026-10-29): antes, un gate no-dict (carga fallida)
         # dejaba PASAR la alerta direccional. Fail-closed: sin gate valido, se
         # silencia. Es el modo opuesto al de un bot que promete no mentir.
-        return (False, "silenciada por validacion: gate invalido (fail-closed)",
-                "nada", True)
+        return (False, "silenciada por validacion: gate invalido (fail-closed)", "nada", True)
     if gate.get("ok"):
         return enviar, motivo, tipo, False
     if not es_alerta_direccional(motivo):
