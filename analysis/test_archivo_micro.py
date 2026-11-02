@@ -71,7 +71,7 @@ class TestIdempotencia(unittest.TestCase):
         regs = [reg(T0 + i * PASO) for i in range(100)]
         a1, _ = am.fusionar("oi", regs, "timestamp")
         self.assertEqual(a1, 100)
-        a2, _ = am.fusionar("oi", regs, "timestamp")      # mismos registros
+        a2, _ = am.fusionar("oi", regs, "timestamp")  # mismos registros
         self.assertEqual(a2, 0)
         self.assertEqual(len(self._leer("oi")), 100)
 
@@ -81,7 +81,7 @@ class TestIdempotencia(unittest.TestCase):
         mezcla = regs[50:] + [reg(T0 + (100 + i) * PASO) for i in range(10)]
         agregados, previos = am.fusionar("oi", mezcla, "timestamp")
         self.assertEqual(previos, 100)
-        self.assertEqual(agregados, 10)                    # los 50 viejos ya estan
+        self.assertEqual(agregados, 10)  # los 50 viejos ya estan
         self.assertEqual(len(self._leer("oi")), 110)
 
     def test_preserva_el_orden_cronologico(self):
@@ -99,9 +99,9 @@ class TestIdempotencia(unittest.TestCase):
             fh.write("{linea rota, no es json\n")
             fh.write(json.dumps(reg(T0 + PASO)) + "\n")
         agregados, _ = am.fusionar("oi", [reg(T0 + 2 * PASO)], "timestamp")
-        self.assertEqual(agregados, 1)                     # sigue funcionando
+        self.assertEqual(agregados, 1)  # sigue funcionando
         filas = self._leer("oi")
-        self.assertEqual(len(filas), 3)                    # la rota se conserva
+        self.assertEqual(len(filas), 3)  # la rota se conserva
 
     def test_no_deja_tmp_al_terminar(self):
         am.fusionar("oi", [reg(T0)], "timestamp")
@@ -122,11 +122,13 @@ class TestDescarga(unittest.TestCase):
 
     def test_get_seguro_traga_el_400_del_tope(self):
         # una URL que la API rechaza (startTime imposible) -> HTTP 400 -> None
-        url = ("https://fapi.binance.com/futures/data/openInterestHist"
-               "?symbol=BTCUSDT&period=5m&limit=1&startTime=1")
+        url = (
+            "https://fapi.binance.com/futures/data/openInterestHist"
+            "?symbol=BTCUSDT&period=5m&limit=1&startTime=1"
+        )
         try:
             res = am._get_seguro(url)
-        except Exception as e:                      # sin red: no es fallo del codigo
+        except Exception as e:  # sin red: no es fallo del codigo
             self.skipTest(f"sin red: {e}")
         self.assertIsNone(res)
 
@@ -141,13 +143,13 @@ class TestDescarga(unittest.TestCase):
 
         def fake_get(url: str, timeout: int = 30):
             import urllib.parse
+
             q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
             end = int(q["endTime"][0])
             llamadas.append(end)
             # 500 filas ascendentes que TERMINAN en endTime (como Binance)
             base = end - (500 - 1) * PASO
-            return [{"timestamp": base + i * PASO, "symbol": "BTCUSDT"}
-                    for i in range(500)]
+            return [{"timestamp": base + i * PASO, "symbol": "BTCUSDT"} for i in range(500)]
 
         orig = am.http_get_json
         am.http_get_json = fake_get
@@ -158,12 +160,14 @@ class TestDescarga(unittest.TestCase):
 
         self.assertGreater(len(regs), 0)
         # 1 dia = 288 velas -> con paginas de 500 basta 1-2 llamadas, nunca mas
-        self.assertLessEqual(len(llamadas), 3,
-                             "la pagina debe saltar 41h hacia atras, no 5 minutos")
+        self.assertLessEqual(
+            len(llamadas), 3, "la pagina debe saltar 41h hacia atras, no 5 minutos"
+        )
         # cada peticion debe pedir un endTime MENOR que la anterior
         for a, b in zip(llamadas, llamadas[1:]):
-            self.assertLess(b, a - 400 * PASO,
-                            "la pagina apenas retrocedio: patron de bucle infinito")
+            self.assertLess(
+                b, a - 400 * PASO, "la pagina apenas retrocedio: patron de bucle infinito"
+            )
 
     def test_paginacion_no_se_cuelga_si_la_api_no_avanza(self):
         """Si la API devolviera siempre lo mismo, el techo de seguridad corta."""
@@ -187,12 +191,15 @@ class TestDescarga(unittest.TestCase):
 
         def fake_get(url: str, timeout: int = 30):
             import urllib.parse
+
             q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
             end = int(q["endTime"][0])
             llamadas.append(end)
             base = end - (1000 - 1) * 8 * 3600 * 1000
-            return [{"fundingTime": base + i * 8 * 3600 * 1000,
-                     "fundingRate": "0.0001"} for i in range(1000)]
+            return [
+                {"fundingTime": base + i * 8 * 3600 * 1000, "fundingRate": "0.0001"}
+                for i in range(1000)
+            ]
 
         orig = am.http_get_json
         am.http_get_json = fake_get
@@ -214,19 +221,17 @@ class TestDescarga(unittest.TestCase):
             self.skipTest(f"sin red: {e}")
         if not regs:
             bloqueado = am._get_seguro(
-                "https://fapi.binance.com/fapi/v1/fundingRate"
-                "?symbol=BTCUSDT&limit=1")
+                "https://fapi.binance.com/fapi/v1/fundingRate" "?symbol=BTCUSDT&limit=1"
+            )
             if bloqueado is None:
                 self.skipTest("Binance bloquea esta IP (451): entorno de CI")
-        self.assertGreater(len(regs), 1000,
-                           "400 dias de funding deben dar >1000 pagos")
+        self.assertGreater(len(regs), 1000, "400 dias de funding deben dar >1000 pagos")
 
     def test_hay_fallback_cuando_binance_bloquea(self):
         """El archivo no puede depender de una sola fuente: si Binance bloquea
         (451 desde GitHub Actions), el alterno OKX/Bybit debe existir."""
         for nombre in am.SERIES:
-            self.assertTrue(nombre in am.FALLBACK,
-                            f"{nombre} sin fuente alternativa documentada")
+            self.assertTrue(nombre in am.FALLBACK, f"{nombre} sin fuente alternativa documentada")
 
 
 class TestCoberturaReal(unittest.TestCase):
@@ -245,7 +250,13 @@ class TestCoberturaReal(unittest.TestCase):
         self.assertEqual(ts, sorted(ts), "debe estar ordenado (bisect lo exige)")
         d0 = am.dt_ms(min(ts))
         d1 = am.dt_ms(max(ts))
-        self.assertLessEqual((d1 - d0).days, 31, "el tope de la API es 30 dias")
+        # OJO: esta asercion decia "<= 31 dias" cuando el archivo solo tenia el
+        # backfill inicial de 30. El archivo CRECE a diario (workflow archivo.yml),
+        # asi que lo correcto es: cobertura >= 30 dias (el backfill) y un techo de
+        # seguridad amplio. El invariante real es orden + sin duplicados.
+        span = (d1 - d0).days
+        self.assertGreaterEqual(span, 29, "el backfill inicial debe cubrir ~30 dias")
+        self.assertLessEqual(span, 400, "techo de seguridad: nada de saltos imposibles")
         self.assertEqual(am.dt_ms(min(ts)), am.dt_ms(ts[0]), "min al principio")
 
 
