@@ -874,6 +874,74 @@ publica en el informe diario; la experimental queda como evidencia.
 
 ---
 
+## H8 — CARRY del perpetuos (la única palanca estructural) (2026-11-02)
+
+Autor: misión propia, tras siete refutaciones direccionales. Hipótesis
+pre-registrada **antes** de medir: *si el funding medio es positivo, la
+estructura cash & carry (spot comprado + perpetuo vendido) cobra el funding sin
+exposición al precio, y esa expectativa supera el coste de entrada/salida cuando
+el hold es de semanas o meses*.
+
+### Medición (4,6 años, 5.000 pagos de funding reales)
+
+| Métrica | Valor |
+|---|---|
+| Funding medio por pago (8 h) | 0,00605 % |
+| Funding **mediano** por pago | 0,00582 % |
+| **Anualizado bruto** del carry | **+6,62 %** |
+| Pagos positivos (cobra el corto) | **85,1 %** |
+| Mejor pago | +0,0881 % |
+| Peor pago | −0,1192 % |
+
+**Por año (estabilidad):**
+
+| Año | Anualizado | % pagos positivos |
+|---|---:|---:|
+| 2022 | +3,65 % | 78,1 % |
+| 2023 | +7,87 % | 89,9 % |
+| 2024 | **+11,92 %** | 91,6 % |
+| 2025 | +5,13 % | 87,1 % |
+| **2026** | **+3,13 %** | 75,0 % |
+
+**Neto tras coste de 0,23 % ida y vuelta (amortizado en el hold):**
+
+| Hold | Bruto | Coste | **Neto** | Anualizado neto |
+|---|---:|---:|---:|---:|
+| 7 d | 0,127 % | 0,23 % | **−0,103 %** | −5,37 % |
+| 30 d | 0,544 % | 0,23 % | **+0,314 %** | +3,82 % |
+| 90 d | 1,632 % | 0,23 % | **+1,402 %** | +5,69 % |
+
+**Riesgo real (la media no basta):** peor ventana rodante **−0,366 %** a 7 días,
+**−0,297 %** a 30 días y **−0,390 %** a 90 días (esta última entre febrero y mayo
+de 2026, es decir: **ahora mismo**). Meses negativos: 4 de 56 (7 %); peor mes
+−0,177 %, mediana +0,458 %.
+
+### Veredicto
+
+**H8: la ÚNICA estructura con expectativa neta positiva medida**, y es **estructural, no predictiva**: no hay señal, no hay dirección, no hay entrada que acertar. Se cobra un *yield*.
+
+Pero con tres advertencias que van en el veredicto:
+
+1. **Es pequeño y está decayendo.** 6,62 % bruto anualizado, ~3,8-5,7 % neto
+   según el hold. Y la tendencia por año es descendente: 11,92 % (2024) →
+   3,13 % (2026). Si la decadencia continúa, se acerca a cero.
+2. **Exige aguantar meses.** A 7 días la estructura PIERDE dinero (-0,103 %):
+   el coste de entrada solo se paga con tiempo. Y mientras la aguantás, el
+   funding puede invertirse (7 % de los meses fueron negativos).
+3. **Requiere operar de verdad**, que es justo lo que el operador pidió no hacer:
+   mantener spot + perp hedgeado, margen, riesgo de liquidación, costes de
+   transferencia. No es un bot que predice; es una posición que se administra.
+
+### Conclusión honesta sobre el "edge"
+
+Siete hipótesis de **predicción** dieron sin_edge. La **única** fuente de
+expectativa positiva encontrada en 4 años de datos es cobrar por esperar en vez
+de pagar por adivinar. La diferencia de框架 es el coste: toda la investigación
+direccional murió contra 0,23 % por viaje; el carry cobra 0,018 % por día sin
+necesitar acertar nada.
+
+---
+
 ## Auditoria de la red neuronal (2026-10-27)
 
 Recomendacion externa recibida: "arreglar etiquetas y ventana_vivo antes de
