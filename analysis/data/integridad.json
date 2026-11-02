@@ -1,29 +1,26 @@
 {
-  "generado": "2026-11-02T05:30:47.774063+00:00",
+  "generado": "2026-11-02T12:53:32.037561+00:00",
   "precios": {
     "Binance": {
-      "precio": 78340.9,
-      "ts": 1793597444461,
-      "edad_seg": 2.0
+      "precio": null,
+      "ts": null,
+      "edad_seg": null,
+      "err": "HTTPError: HTTP Error 451: "
     },
     "OKX": {
-      "precio": 78348.0,
-      "ts": 1793597448065,
-      "edad_seg": -1.6
+      "precio": 77801.1,
+      "ts": 1793624011665,
+      "edad_seg": 0.2
     },
     "Bybit": {
-      "precio": 78312.2,
-      "ts": 1793597447774,
-      "edad_seg": -1.3
+      "precio": null,
+      "ts": null,
+      "edad_seg": null,
+      "err": "HTTPError: HTTP Error 403: Forbidden"
     }
   },
   "veredicto": {
-    "nivel": "ok",
-    "detalle": "3 exchanges coinciden dentro de 0.5%",
-    "mediana": 78340.9,
-    "anomalias": [],
-    "stale": [],
-    "caidos": [],
-    "dispersion_pct": 0.046
+    "nivel": "no_concluyente",
+    "detalle": "solo 1 exchange(s) respondieron (Binance, Bybit fallo)"
   }
 }

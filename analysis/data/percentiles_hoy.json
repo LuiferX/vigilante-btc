@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-01T17:56:53.532950+00:00",
+  "generado": "2026-11-02T12:53:31.636657+00:00",
   "nota": "percentiles causales: sin look-ahead",
   "series": {
     "funding": {
@@ -19,6 +19,114 @@
       "lectura": "alto",
       "n_total": 5000,
       "cobertura_dias": 1666.3
+    },
+    "global_cuentas": {
+      "serie": "global_cuentas",
+      "ventana_dias": 30,
+      "corte": {
+        "t": "2026-11-01T04:20:00+00:00",
+        "valor": 2.5398,
+        "percentil": 0.9404,
+        "n_ventana": 8641,
+        "min": 0.8512,
+        "max": 2.8417,
+        "mediana": 1.6745,
+        "desde": "2026-10-02T04:20:00+00:00",
+        "hasta": "2026-11-01T04:20:00+00:00"
+      },
+      "lectura": "normal",
+      "n_total": 8931,
+      "cobertura_dias": 31.0
+    },
+    "oi": {
+      "serie": "oi",
+      "ventana_dias": 30,
+      "corte": {
+        "t": "2026-11-01T04:20:00+00:00",
+        "valor": 96791.057,
+        "percentil": 0.8035,
+        "n_ventana": 8641,
+        "min": 90822.067,
+        "max": 100344.264,
+        "mediana": 94757.524,
+        "desde": "2026-10-02T04:20:00+00:00",
+        "hasta": "2026-11-01T04:20:00+00:00"
+      },
+      "lectura": "normal",
+      "n_total": 8931,
+      "cobertura_dias": 31.0
+    },
+    "oi_valor": {
+      "serie": "oi_valor",
+      "ventana_dias": 30,
+      "corte": {
+        "t": "2026-11-01T04:20:00+00:00",
+        "valor": 7525804734.0267,
+        "percentil": 0.119,
+        "n_ventana": 8641,
+        "min": 7260237395.7696,
+        "max": 8709521674.290333,
+        "mediana": 7747540431.3022,
+        "desde": "2026-10-02T04:20:00+00:00",
+        "hasta": "2026-11-01T04:20:00+00:00"
+      },
+      "lectura": "normal",
+      "n_total": 8931,
+      "cobertura_dias": 31.0
+    },
+    "taker": {
+      "serie": "taker",
+      "ventana_dias": 30,
+      "corte": {
+        "t": "2026-11-01T04:15:00+00:00",
+        "valor": 8.9457,
+        "percentil": 1.0,
+        "n_ventana": 8625,
+        "min": 0.058,
+        "max": 8.9457,
+        "mediana": 0.9799,
+        "desde": "2026-10-02T04:15:00+00:00",
+        "hasta": "2026-11-01T04:15:00+00:00"
+      },
+      "lectura": "alto",
+      "n_total": 8915,
+      "cobertura_dias": 31.0
+    },
+    "top_cuentas": {
+      "serie": "top_cuentas",
+      "ventana_dias": 30,
+      "corte": {
+        "t": "2026-11-01T04:20:00+00:00",
+        "valor": 2.6887,
+        "percentil": 0.9399,
+        "n_ventana": 8641,
+        "min": 0.908,
+        "max": 3.029,
+        "mediana": 1.7617,
+        "desde": "2026-10-02T04:20:00+00:00",
+        "hasta": "2026-11-01T04:20:00+00:00"
+      },
+      "lectura": "normal",
+      "n_total": 8931,
+      "cobertura_dias": 31.0
+    },
+    "top_posiciones": {
+      "serie": "top_posiciones",
+      "ventana_dias": 30,
+      "corte": {
+        "t": "2026-11-01T04:20:00+00:00",
+        "valor": 1.6986,
+        "percentil": 0.5026,
+        "n_ventana": 8641,
+        "min": 1.2544,
+        "max": 2.2377,
+        "mediana": 1.6975,
+        "desde": "2026-10-02T04:20:00+00:00",
+        "hasta": "2026-11-01T04:20:00+00:00"
+      },
+      "lectura": "normal",
+      "n_total": 8931,
+      "cobertura_dias": 31.0
     }
   }
 }

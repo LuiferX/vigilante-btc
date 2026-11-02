@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-02T05:38:54.772781+00:00",
+  "generado": "2026-11-02T12:53:32.101913+00:00",
   "bloques": {
     "posicionamiento": [
       {
@@ -7,84 +7,84 @@
         "valor": 0.0001,
         "percentil": 1.0,
         "lectura": "alto",
-        "n_ventana": 1200,
+        "n_ventana": 1201,
         "ventana_dias": 400,
-        "cobertura_dias": 1667.3
+        "cobertura_dias": 1666.3
       },
       {
         "serie": "global_cuentas",
-        "valor": 2.2216,
-        "percentil": 0.8474,
+        "valor": 2.5398,
+        "percentil": 0.9404,
         "lectura": "normal",
         "n_ventana": 8641,
         "ventana_dias": 30,
-        "cobertura_dias": 32.0
+        "cobertura_dias": 31.0
       },
       {
         "serie": "oi",
-        "valor": 95198.179,
-        "percentil": 0.5755,
+        "valor": 96791.057,
+        "percentil": 0.8035,
         "lectura": "normal",
         "n_ventana": 8641,
         "ventana_dias": 30,
-        "cobertura_dias": 32.0
+        "cobertura_dias": 31.0
       },
       {
         "serie": "oi_valor",
-        "valor": 7470639017.7534,
-        "percentil": 0.0572,
+        "valor": 7525804734.0267,
+        "percentil": 0.119,
         "lectura": "normal",
         "n_ventana": 8641,
         "ventana_dias": 30,
-        "cobertura_dias": 32.0
+        "cobertura_dias": 31.0
       },
       {
         "serie": "taker",
-        "valor": 1.3236,
-        "percentil": 0.6848,
-        "lectura": "normal",
-        "n_ventana": 8626,
+        "valor": 8.9457,
+        "percentil": 1.0,
+        "lectura": "alto",
+        "n_ventana": 8625,
         "ventana_dias": 30,
-        "cobertura_dias": 32.0
+        "cobertura_dias": 31.0
       },
       {
         "serie": "top_cuentas",
-        "valor": 2.3467,
-        "percentil": 0.8484,
+        "valor": 2.6887,
+        "percentil": 0.9399,
         "lectura": "normal",
         "n_ventana": 8641,
         "ventana_dias": 30,
-        "cobertura_dias": 32.0
+        "cobertura_dias": 31.0
       },
       {
         "serie": "top_posiciones",
-        "valor": 1.7081,
-        "percentil": 0.5488,
+        "valor": 1.6986,
+        "percentil": 0.5026,
         "lectura": "normal",
         "n_ventana": 8641,
         "ventana_dias": 30,
-        "cobertura_dias": 32.0
+        "cobertura_dias": 31.0
       }
     ],
     "sistema": {
       "archivo": {
         "funding": {
-          "filas": 5003
+          "filas": 5056
         },
         "global_cuentas": {
-          "filas": 9204
+          "filas": 9321
         },
         "oi": {
-          "filas": 9204
+          "filas": 9321
         },
         "taker": {
-          "filas": 9188
+          "filas": 9062
         },
         "top_cuentas": {
-          "filas": 9204
+          "filas": 9321
         },
         "top_posiciones": {
-          "filas": 9204
+          "filas": 8931
         }
       },
       "validation": {
@@ -98,7 +98,7 @@
       }
     },
     "niveles_hist": {
-      "generado": "2026-11-02T05:38:54.211457+00:00",
+      "generado": "2026-11-02T00:06:35.146204+00:00",
       "historia": {
         "velas": 402629,
         "desde": "2023-01-01T00:00:00+00:00",
@@ -123,7 +123,7 @@
           "nivel": 84280.01,
           "toques": 250,
           "primero": "2024-11-11T15:35:00+00:00",
-          "ultimo": "2026-09-30T17:45:00+00:00",
+          "ultimo": "2026-10-21T23:00:00+00:00",
           "rebote_mediano_pct": 0.474,
           "barrido_mediano_pct": 0.6767,
           "aguante_pct": 17.2,
@@ -136,7 +136,7 @@
           "nivel": 84528.31,
           "toques": 202,
           "primero": "2024-11-11T16:00:00+00:00",
-          "ultimo": "2026-09-30T16:15:00+00:00",
+          "ultimo": "2026-10-21T22:15:00+00:00",
           "rebote_mediano_pct": 0.4681,
           "barrido_mediano_pct": 0.7433,
           "aguante_pct": 16.3,
@@ -265,38 +265,35 @@
       }
     },
     "integridad": {
-      "generado": "2026-11-02T05:30:47.774063+00:00",
+      "generado": "2026-11-02T12:53:32.037561+00:00",
       "precios": {
         "Binance": {
-          "precio": 78340.9,
-          "ts": 1793597444461,
-          "edad_seg": 2.0
+          "precio": null,
+          "ts": null,
+          "edad_seg": null,
+          "err": "HTTPError: HTTP Error 451: "
         },
         "OKX": {
-          "precio": 78348.0,
-          "ts": 1793597448065,
-          "edad_seg": -1.6
+          "precio": 77801.1,
+          "ts": 1793624011665,
+          "edad_seg": 0.2
         },
         "Bybit": {
-          "precio": 78312.2,
-          "ts": 1793597447774,
-          "edad_seg": -1.3
+          "precio": null,
+          "ts": null,
+          "edad_seg": null,
+          "err": "HTTPError: HTTP Error 403: Forbidden"
         }
       },
       "veredicto": {
-        "nivel": "ok",
-        "detalle": "3 exchanges coinciden dentro de 0.5%",
-        "mediana": 78340.9,
-        "anomalias": [],
-        "stale": [],
-        "caidos": [],
-        "dispersion_pct": 0.046
+        "nivel": "no_concluyente",
+        "detalle": "solo 1 exchange(s) respondieron (Binance, Bybit fallo)"
       }
     }
   },
   "resumen": {
     "percentil_max": 1.0,
-    "percentil_min": 0.0572,
+    "percentil_min": 0.119,
     "series": 7
   }
 }

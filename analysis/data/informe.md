@@ -1,4 +1,4 @@
-# Informe de inteligencia â€” 2026-11-02 05:38 UTC
+# Informe de inteligencia â€” 2026-11-02 12:53 UTC
 
 > Este informe **no opera**: mide y publica. No contiene objetivos, stops ni planes de entrada.
 
@@ -6,29 +6,27 @@
 
 | Serie | Valor | Percentil | Lectura | Obs | Ventana |
 |---|---:|---:|---|---:|---:|
-| funding | 0.0001 | 100.0 % | alto | 1200 | 400 d |
-| global_cuentas | 2.2216 | 84.7 % | normal | 8641 | 30 d |
-| oi | 95198.2 | 57.6 % | normal | 8641 | 30 d |
-| oi_valor | 7.47064e+09 | 5.7 % | normal | 8641 | 30 d |
-| taker | 1.3236 | 68.5 % | normal | 8626 | 30 d |
-| top_cuentas | 2.3467 | 84.8 % | normal | 8641 | 30 d |
-| top_posiciones | 1.7081 | 54.9 % | normal | 8641 | 30 d |
+| funding | 0.0001 | 100.0 % | alto | 1201 | 400 d |
+| global_cuentas | 2.5398 | 94.0 % | normal | 8641 | 30 d |
+| oi | 96791.1 | 80.3 % | normal | 8641 | 30 d |
+| oi_valor | 7.5258e+09 | 11.9 % | normal | 8641 | 30 d |
+| taker | 8.9457 | 100.0 % | alto | 8625 | 30 d |
+| top_cuentas | 2.6887 | 94.0 % | normal | 8641 | 30 d |
+| top_posiciones | 1.6986 | 50.3 % | normal | 8641 | 30 d |
 
 > **Caveat honesto:** cuando el Ãºltimo pago de funding es exactamente la tasa por defecto (+0,0001, que agrupa ~27 % de los pagos), el percentil marca 100 % **sin que sea un extremo real**. Es un empate masivo, no una seÃ±al. El motor ya descuenta esto en la investigaciÃ³n (H1); aquÃ­ se declara para que no se lea como 'funding en mÃ¡ximos'.
 
-**Lectura cruzada:** el OI en contratos estÃ¡ en el percentil 58, pero el OI **en dÃ³lares** en el 6. Si el primero es alto y el segundo bajo, hay el mismo interÃ©s abierto sobre un precio menor: apalancamiento mÃ¡s frÃ¡gil, no mÃ¡s grande.
+**Lectura cruzada:** el OI en contratos estÃ¡ en el percentil 80, pero el OI **en dÃ³lares** en el 12. Si el primero es alto y el segundo bajo, hay el mismo interÃ©s abierto sobre un precio menor: apalancamiento mÃ¡s frÃ¡gil, no mÃ¡s grande.
 
 ## 2. Integridad de datos (3 exchanges)
 
 | Exchange | Precio | Edad (s) | Estado |
 |---|---:|---:|---|
-| Binance | 78340.9 | 2.0 | OK |
-| OKX | 78348.0 | -1.6 | OK |
-| Bybit | 78312.2 | -1.3 | OK |
+| Binance | None | None | caído (HTTPError: HTTP Error 451: ) |
+| OKX | 77801.1 | 0.2 | OK |
+| Bybit | None | None | caído (HTTPError: HTTP Error 403: F) |
 
-**Veredicto: `ok`** — 3 exchanges coinciden dentro de 0.5%
-
-Dispersión entre exchanges: **0.046 %** (umbral de anomalía: 0,5 %; flash crash: 2 % en 5 min).
+**Veredicto: `no_concluyente`** — solo 1 exchange(s) respondieron (Binance, Bybit fallo)
 
 > Si dos exchanges discrepan más del 0,5 % o hay un flash crash, el resto de las cifras de este informe deben leerse con reserva: los datos que las alimentan no serían fiables.
 
@@ -72,12 +70,12 @@ Historia medida: **402629 velas**, 2023-01-01 â†’ 2026-10-30. Un *toque* es
 
 | Archivo | Filas |
 |---|---:|
-| funding | 5003 |
-| global_cuentas | 9204 |
-| oi | 9204 |
-| taker | 9188 |
-| top_cuentas | 9204 |
-| top_posiciones | 9204 |
+| funding | 5056 |
+| global_cuentas | 9321 |
+| oi | 9321 |
+| taker | 9062 |
+| top_cuentas | 9321 |
+| top_posiciones | 8931 |
 
 - Muestra efectiva: **84**
 - Skill OOS: 0.026 Â· ECE 0.0144 Â· PSI 0.2165
