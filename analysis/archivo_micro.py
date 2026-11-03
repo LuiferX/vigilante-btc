@@ -190,12 +190,22 @@ FALLBACK = {
     "taker": "fetch_taker_okx",
     "top_cuentas": "fetch_long_short_okx",
     "global_cuentas": "fetch_long_short_okx",
-    "top_posiciones": "fetch_long_short_bybit",
+    # Antes era fetch_long_short_bybit: funcionaba en local pero Bybit NO
+    # responde desde los runners de GitHub, y top_posiciones se quedo
+    # congelada 43,8 h (la issue de vigilia lo detecto). OKX si responde alli.
+    "top_posiciones": "fetch_long_short_okx",
 }
 
 
 def descargar_alterno(nombre: str) -> list[dict]:
-    """Registros de la fuente alternativa (OKX/Bybit) para una serie."""
+    """Registros de la fuente alternativa (OKX) para una serie.
+
+    OJO con top_posiciones: la fuente publica de OKX es el ratio de CUENTAS
+    largas/cortas, no el de POSICIONES de top-traders de Binance. Es un proxy,
+    no la misma metrica: se reetiqueta con su propio `source` para que quede
+    trazable y para que los percentiles (que por defecto solo aceptan filas
+    `binance_*`) no la mezclen con la serie primaria.
+    """
     fn_nombre = FALLBACK.get(nombre)
     if fn_nombre is None:
         return []
@@ -205,7 +215,11 @@ def descargar_alterno(nombre: str) -> list[dict]:
         fn = getattr(co, fn_nombre, None)
         if fn is None:
             return []
-        return fn() or []
+        regs = fn() or []
+        if nombre == "top_posiciones":
+            for r in regs:
+                r["source"] = "okx_ls_proxy_posicion"
+        return regs
     except Exception as e:
         print(f"    (fallback {nombre}: {type(e).__name__} {str(e)[:50]})")
         return []

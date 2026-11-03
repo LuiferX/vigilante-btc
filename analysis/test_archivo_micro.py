@@ -233,6 +233,26 @@ class TestDescarga(unittest.TestCase):
         for nombre in am.SERIES:
             self.assertTrue(nombre in am.FALLBACK, f"{nombre} sin fuente alternativa documentada")
 
+    def test_top_posiciones_no_depende_de_bybit(self):
+        """Regresion real: Bybit NO responde desde los runners de GitHub y
+        top_posiciones quedo congelada 43,8 h (lo detecto la vigilia). Su
+        fallback debe ser OKX."""
+        fn = am.FALLBACK["top_posiciones"].lower()
+        self.assertNotIn("bybit", fn)
+        self.assertIn("okx", fn)
+
+    def test_proxy_de_posiciones_se_etiqueta_distinto(self):
+        """El ratio de CUENTAS de OKX no es el ratio de POSICIONES de Binance:
+        debe llevar su propia etiqueta para no falsear la serie."""
+        try:
+            regs = am.descargar_alterno("top_posiciones")
+        except Exception as e:
+            self.skipTest(f"sin red: {e}")
+        if not regs:
+            self.skipTest("OKX no respondio")
+        self.assertTrue(all(r["source"] == "okx_ls_proxy_posicion" for r in regs))
+        self.assertIn("longShortRatio", regs[0])
+
 
 class TestCoberturaReal(unittest.TestCase):
     """El archivo real (si ya existe) debe crecer, quedar ordenado y sin dup."""
