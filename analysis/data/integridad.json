@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-03T12:24:05.211949+00:00",
+  "generado": "2026-11-04T12:35:35.357299+00:00",
   "precios": {
     "Binance": {
       "precio": null,
@@ -8,9 +8,9 @@
       "err": "HTTPError: HTTP Error 451: "
     },
     "OKX": {
-      "precio": 77373.6,
-      "ts": 1793708644665,
-      "edad_seg": 0.2
+      "precio": 78285.4,
+      "ts": 1793795734564,
+      "edad_seg": 0.3
     },
     "Bybit": {
       "precio": null,
