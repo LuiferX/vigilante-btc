@@ -1,4 +1,4 @@
-# Informe de inteligencia â€” 2026-11-04 12:35 UTC
+# Informe de inteligencia â€” 2026-11-05 12:46 UTC
 
 > Este informe **no opera**: mide y publica. No contiene objetivos, stops ni planes de entrada.
 
@@ -23,7 +23,7 @@
 | Exchange | Precio | Edad (s) | Estado |
 |---|---:|---:|---|
 | Binance | None | None | caído (HTTPError: HTTP Error 451: ) |
-| OKX | 78285.4 | 0.3 | OK |
+| OKX | 79768.9 | 0.5 | OK |
 | Bybit | None | None | caído (HTTPError: HTTP Error 403: F) |
 
 **Veredicto: `no_concluyente`** — solo 1 exchange(s) respondieron (Binance, Bybit fallo)
@@ -70,12 +70,12 @@ Historia medida: **402629 velas**, 2023-01-01 â†’ 2026-10-30. Un *toque* es
 
 | Archivo | Filas |
 |---|---:|
-| funding | 5062 |
-| global_cuentas | 9893 |
-| oi | 9893 |
-| taker | 9278 |
-| top_cuentas | 9893 |
-| top_posiciones | 9893 |
+| funding | 5065 |
+| global_cuentas | 10184 |
+| oi | 10183 |
+| taker | 9349 |
+| top_cuentas | 10184 |
+| top_posiciones | 10184 |
 
 - Muestra efectiva: **84**
 - Skill OOS: 0.026 Â· ECE 0.0144 Â· PSI 0.2165
