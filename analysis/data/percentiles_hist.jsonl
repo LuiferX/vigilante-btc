@@ -5,3 +5,10 @@
 {"fecha": "2026-11-02", "serie": "taker", "percentil": 0.6848, "valor": 1.3236, "n_ventana": 8626, "cobertura_dias": 32.0}
 {"fecha": "2026-11-02", "serie": "top_cuentas", "percentil": 0.8484, "valor": 2.3467, "n_ventana": 8641, "cobertura_dias": 32.0}
 {"fecha": "2026-11-02", "serie": "top_posiciones", "percentil": 0.5488, "valor": 1.7081, "n_ventana": 8641, "cobertura_dias": 32.0}
+{"fecha": "2026-11-09", "serie": "funding", "percentil": 1.0, "valor": 0.0001, "n_ventana": 91, "cobertura_dias": 1666.3}
+{"fecha": "2026-11-09", "serie": "global_cuentas", "percentil": 0.9404, "valor": 2.5398, "n_ventana": 8641, "cobertura_dias": 31.0}
+{"fecha": "2026-11-09", "serie": "oi", "percentil": 0.8035, "valor": 96791.057, "n_ventana": 8641, "cobertura_dias": 31.0}
+{"fecha": "2026-11-09", "serie": "oi_valor", "percentil": 0.119, "valor": 7525804734.0267, "n_ventana": 8641, "cobertura_dias": 31.0}
+{"fecha": "2026-11-09", "serie": "taker", "percentil": 1.0, "valor": 8.9457, "n_ventana": 8625, "cobertura_dias": 31.0}
+{"fecha": "2026-11-09", "serie": "top_cuentas", "percentil": 0.9399, "valor": 2.6887, "n_ventana": 8641, "cobertura_dias": 31.0}
+{"fecha": "2026-11-09", "serie": "top_posiciones", "percentil": 0.5026, "valor": 1.6986, "n_ventana": 8641, "cobertura_dias": 31.0}

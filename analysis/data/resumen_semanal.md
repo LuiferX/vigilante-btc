@@ -1,4 +1,4 @@
-# Digest semanal de posicionamiento — 2026-11-02 22:16 UTC
+# Digest semanal de posicionamiento — 2026-11-09 22:57 UTC
 
 > Cambio del percentil causal (ventana 30 d) en 7 días. Esto no opera: informa.
 
@@ -20,6 +20,16 @@
 
 ## B) Evolución (cortes guardados)
 
-Todavía no hay 2 cortes guardados: la tendencia arranca cuando el digest haya corrido al menos dos semanas. Cada corrida guarda una fila por serie en `analysis/data/percentiles_hist.jsonl`.
+| Serie | Cortes | Tendencia | Δ (pp) | Últimos valores |
+|---|---:|---|---:|---|
+| funding | 2 | estable | 0.0 | 100, 100 |
+| global_cuentas | 2 | estable | 9.3 | 85, 94 |
+| oi | 2 | subiendo | 22.8 | 58, 80 |
+| oi_valor | 2 | estable | 6.2 | 6, 12 |
+| taker | 2 | subiendo | 31.5 | 68, 100 |
+| top_cuentas | 2 | estable | 9.1 | 85, 94 |
+| top_posiciones | 2 | estable | -4.6 | 55, 50 |
+
+> Cada percentil se mide dentro de **su** ventana rodante de 30 días: comparan posiciones relativas, no valores absolutos. Con el archivo empezado el 2026-11-01, los primeros cortes tienen menos historia detrás y son más ruidosos.
 
 ---
