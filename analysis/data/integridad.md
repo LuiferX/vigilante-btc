@@ -1,11 +1,11 @@
 # Integridad de datos — corte multi-exchange
 
-Generado: 2026-11-11 12:13:04 UTC
+Generado: 2026-11-12 13:18:32 UTC
 
 | Exchange | Precio | Edad (s) | Estado |
 |---|---:|---:|---|
 | Binance | None | None | caído (HTTPError: HTTP Error 451: ) |
-| OKX | 73954.4 | 0.1 | OK |
+| OKX | 72532.4 | 0.8 | OK |
 | Bybit | None | None | caído (HTTPError: HTTP Error 403: Forbi) |
 
 **Veredicto: `no_concluyente`** — solo 1 exchange(s) respondieron (Binance, Bybit fallo)
