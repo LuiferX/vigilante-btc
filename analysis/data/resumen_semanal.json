@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-09T22:57:25.488930+00:00",
+  "generado": "2026-11-16T22:50:39.556825+00:00",
   "dias": 7,
   "series": [
     {
@@ -61,7 +61,7 @@
   ],
   "evolucion": {
     "funding": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -70,13 +70,17 @@
         {
           "fecha": "2026-11-09",
           "percentil": 1.0
+        },
+        {
+          "fecha": "2026-11-16",
+          "percentil": 1.0
         }
       ],
       "delta_pp": 0.0,
       "tendencia": "estable"
     },
     "global_cuentas": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -85,13 +89,17 @@
         {
           "fecha": "2026-11-09",
           "percentil": 0.9404
+        },
+        {
+          "fecha": "2026-11-16",
+          "percentil": 0.9404
         }
       ],
       "delta_pp": 9.3,
       "tendencia": "estable"
     },
     "oi": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -100,13 +108,17 @@
         {
           "fecha": "2026-11-09",
           "percentil": 0.8035
+        },
+        {
+          "fecha": "2026-11-16",
+          "percentil": 0.8035
         }
       ],
       "delta_pp": 22.8,
       "tendencia": "subiendo"
     },
     "oi_valor": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -115,13 +127,17 @@
         {
           "fecha": "2026-11-09",
           "percentil": 0.119
+        },
+        {
+          "fecha": "2026-11-16",
+          "percentil": 0.119
         }
       ],
       "delta_pp": 6.2,
       "tendencia": "estable"
     },
     "taker": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -130,13 +146,17 @@
         {
           "fecha": "2026-11-09",
           "percentil": 1.0
+        },
+        {
+          "fecha": "2026-11-16",
+          "percentil": 1.0
         }
       ],
       "delta_pp": 31.5,
       "tendencia": "subiendo"
     },
     "top_cuentas": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -145,13 +165,17 @@
         {
           "fecha": "2026-11-09",
           "percentil": 0.9399
+        },
+        {
+          "fecha": "2026-11-16",
+          "percentil": 0.9399
         }
       ],
       "delta_pp": 9.1,
       "tendencia": "estable"
     },
     "top_posiciones": {
-      "n": 2,
+      "n": 3,
       "puntos": [
         {
           "fecha": "2026-11-02",
@@ -159,6 +183,10 @@
         },
         {
           "fecha": "2026-11-09",
+          "percentil": 0.5026
+        },
+        {
+          "fecha": "2026-11-16",
           "percentil": 0.5026
         }
       ],
