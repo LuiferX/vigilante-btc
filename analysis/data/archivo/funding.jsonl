@@ -5111,3 +5111,6 @@
 {"source": "okx_funding", "symbol": "BTCUSDT", "fundingRate": "0.000038402336078", "fundingTime": 1795190400000, "markPrice": null, "collected_at": "2026-11-21T12:51:00.869531+00:00"}
 {"source": "okx_funding", "symbol": "BTCUSDT", "fundingRate": "-0.0000594744782406", "fundingTime": 1795219200000, "markPrice": null, "collected_at": "2026-11-21T12:51:00.869528+00:00"}
 {"source": "okx_funding", "symbol": "BTCUSDT", "fundingRate": "-0.0000463876770293", "fundingTime": 1795248000000, "markPrice": null, "collected_at": "2026-11-21T12:51:00.869509+00:00"}
+{"source": "okx_funding", "symbol": "BTCUSDT", "fundingRate": "0.0000009641044106", "fundingTime": 1795276800000, "markPrice": null, "collected_at": "2026-11-22T12:43:05.554479+00:00"}
+{"source": "okx_funding", "symbol": "BTCUSDT", "fundingRate": "-0.0000376857530396", "fundingTime": 1795305600000, "markPrice": null, "collected_at": "2026-11-22T12:43:05.554475+00:00"}
+{"source": "okx_funding", "symbol": "BTCUSDT", "fundingRate": "0.0000340541459576", "fundingTime": 1795334400000, "markPrice": null, "collected_at": "2026-11-22T12:43:05.554457+00:00"}
