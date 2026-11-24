@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-23T15:25:00.655571+00:00",
+  "generado": "2026-11-24T15:19:32.408717+00:00",
   "bloques": {
     "posicionamiento": [
       {
@@ -69,22 +69,22 @@
     "sistema": {
       "archivo": {
         "funding": {
-          "filas": 5119
+          "filas": 5122
         },
         "global_cuentas": {
-          "filas": 15399
+          "filas": 15686
         },
         "oi": {
-          "filas": 15399
+          "filas": 15686
         },
         "taker": {
-          "filas": 10646
+          "filas": 10719
         },
         "top_cuentas": {
-          "filas": 15399
+          "filas": 15686
         },
         "top_posiciones": {
-          "filas": 15399
+          "filas": 15686
         }
       },
       "validation": {
@@ -265,7 +265,7 @@
       }
     },
     "integridad": {
-      "generado": "2026-11-23T15:25:00.591709+00:00",
+      "generado": "2026-11-24T15:19:32.346324+00:00",
       "precios": {
         "Binance": {
           "precio": null,
@@ -274,9 +274,9 @@
           "err": "HTTPError: HTTP Error 451: "
         },
         "OKX": {
-          "precio": 63512.6,
-          "ts": 1795447499471,
-          "edad_seg": 0.9
+          "precio": 59691.3,
+          "ts": 1795533571143,
+          "edad_seg": 0.7
         },
         "Bybit": {
           "precio": null,
