@@ -1,4 +1,4 @@
-# Digest semanal de posicionamiento — 2026-11-16 22:50 UTC
+# Digest semanal de posicionamiento — 2026-11-24 00:44 UTC
 
 > Cambio del percentil causal (ventana 30 d) en 7 días. Esto no opera: informa.
 
@@ -22,13 +22,13 @@
 
 | Serie | Cortes | Tendencia | Δ (pp) | Últimos valores |
 |---|---:|---|---:|---|
-| funding | 3 | estable | 0.0 | 100, 100, 100 |
-| global_cuentas | 3 | estable | 9.3 | 85, 94, 94 |
-| oi | 3 | subiendo | 22.8 | 58, 80, 80 |
-| oi_valor | 3 | estable | 6.2 | 6, 12, 12 |
-| taker | 3 | subiendo | 31.5 | 68, 100, 100 |
-| top_cuentas | 3 | estable | 9.1 | 85, 94, 94 |
-| top_posiciones | 3 | estable | -4.6 | 55, 50, 50 |
+| funding | 4 | estable | 0.0 | 100, 100, 100, 100 |
+| global_cuentas | 4 | estable | 9.3 | 85, 94, 94, 94 |
+| oi | 4 | estable | 22.8 | 58, 80, 80, 80 |
+| oi_valor | 4 | estable | 6.2 | 6, 12, 12, 12 |
+| taker | 4 | estable | 31.5 | 68, 100, 100, 100 |
+| top_cuentas | 4 | estable | 9.1 | 85, 94, 94, 94 |
+| top_posiciones | 4 | estable | -4.6 | 55, 50, 50, 50 |
 
 > Cada percentil se mide dentro de **su** ventana rodante de 30 días: comparan posiciones relativas, no valores absolutos. Con el archivo empezado el 2026-11-01, los primeros cortes tienen menos historia detrás y son más ruidosos.
 
